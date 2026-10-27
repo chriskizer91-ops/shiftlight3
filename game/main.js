@@ -92,14 +92,14 @@ function raceEvents(){
 function showResults(){
   state='pause';audio.suspend(true);
   const fmtR=t=>t?fmt(t):'—';
-  const rows=[{type:'head',label:'Neon Loop · '+race.laps+' laps · '+DIFFICULTY[settings.rivals].name}];
+  const rows=[{type:'head',label:'Neon Loop · '+race.laps+(race.laps===1?' lap':' laps')+' · '+DIFFICULTY[settings.rivals].name}];
   for(const r of race.results())rows.push({type:'head',label:`${r.pos}.  ${r.name.padEnd(8,' ')}  ${r.dnf?'DNF':r.pos===1?fmtR(r.time):'+'+(r.gap!==null?r.gap.toFixed(3):'—')}   best ${fmtR(r.best)}`,you:r.you});
   rows.push({type:'action',label:'Race again',act:()=>{menu.hide();state='drive';audio.suspend(false);startEvent();}});
   rows.push({type:'action',label:'Practice',act:()=>{settings.event='practice';save();menu.hide();state='drive';audio.suspend(false);startEvent();}});
   rows.push({type:'action',label:'Settings',act:()=>{menu.show(menuRows(),'PAUSED');}});
   menu.show(rows,'RESULTS');
 }
-function makeTraffic(){traffic=level.kind==='city'&&!Q.has('notraffic')?new Traffic(level,{count:+(Q.get('traffic')||TRAFFIC_N[settings.quality]||56)}):null;trafficInit=true;}
+function makeTraffic(){traffic=level.kind==='city'&&!Q.has('notraffic')?new Traffic(level,{count:+(Q.get('traffic')||TRAFFIC_N[settings.quality]||56)}):null;level.traffic=traffic;trafficInit=true;}
 const playerBody=()=>({p:car.p,v:car.v,hcg:car.c.hcg,veh:car,box:SL3_BOX});
 makeCar(settings.engine);car.pt.start();makeTraffic();
 

@@ -132,9 +132,10 @@ export class Race{
     for(const e of this.entrants){const loc=e.car.loc;if(!loc)continue;const s=loc.s;
       if(this.phase==='racing'&&!e.finished){
         if(e.s>T.len-40&&s<40){e.cross++;
-          if(e.cross>1){const lt=time-e.lapT0;e.lastLap=lt;if(!e.best||lt<e.best)e.best=lt;}
-          e.lapT0=time;
-          if(e.cross>this.laps){e.finished=true;e.time=time-this.goT;this.events.push({type:'finish',e});if(e.you&&this.finishT<0)this.finishT=time;}}
+          const tc=time-s/Math.max(e.car.vf,1);   /* when it actually crossed, between frames */
+          if(e.cross>1){const lt=tc-e.lapT0;e.lastLap=lt;if(!e.best||lt<e.best)e.best=lt;}
+          e.lapT0=tc;
+          if(e.cross>this.laps){e.finished=true;e.time=tc-this.goT;this.events.push({type:'finish',e});if(e.you&&this.finishT<0)this.finishT=time;}}
         else if(e.s<40&&s>T.len-40&&e.cross>0)e.cross--;}
       /* sector times: the pace nudge */
       if(!e.you&&this.phase==='racing'&&!e.finished){const k=Math.min(this.NS-1,Math.floor(s/T.len*this.NS));

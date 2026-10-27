@@ -269,7 +269,7 @@ export class Traffic{
       if(player&&player.veh)bodies.push({veh:player.veh,box:player.box,you:true});
       for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){const A=bodies[i],B=bodies[j],hit=carContact(A,B);
         if(hit>0){for(const X of [A,B])if(X.c){X.c.hitT=Math.max(X.c.hitT,hit>1.5?1.5:.4);if(hit>5.5&&(A.you||B.you))X.c.mode='wreck';}
-          if(A.you||B.you){const o=A.you?B:A;this.events.push({type:'crash',speed:hit});if(o.c&&hit>1.2)this.honk(o.c,{},.5);
+          if(A.you||B.you){const o=A.you?B:A;this.events.push({type:'crash',speed:hit,c:o.c});if(o.c&&hit>1.2)this.honk(o.c,{},.5);
             player.veh.ev.wall=Math.max(player.veh.ev.wall,hit);}
           else if(hit>2)this.events.push({type:'crash',speed:hit,far:true});}}
       for(const c of dyn)this.track(c,h);

@@ -84,9 +84,14 @@ function cityLevel(){
     const ahead=[car.p[0]+dir[0]*45-dir[1]*9,car.p[1]+3.5,car.p[2]+dir[1]*45+dir[0]*9];return {id,pos:L.camCollide(ahead,[car.p[0],car.p[1]+1,car.p[2]])};};
   /* on the title screen the car laps the expressway */
   L.bot=car=>{const H=M.hwy;let hint=-1;return c=>{const Lh=H.locate(c.p[0],c.p[2],hint);if(!Lh)return {thr:.3};hint=Lh.i;
-    const Mq=qmat(c.q),Rt=mcol(Mq,2),la=Math.max(8,c.vf*.8),tg=H.pos(H.wrapS(Lh.s+la),-4.2),dx=tg[0]-c.p[0],dz=tg[2]-c.p[2];
-    const steer=clamp((dx*Rt[0]+dz*Rt[2])/Math.hypot(dx,dz)*2.2,-1,1),e=27-c.vf;return {steer,thr:e>0?clamp(.3+e*.3,0,1):0,brk:e<-2?.3:0};};};
-  L.botStart=car=>{const p=M.hwy.pos(300,-4.2);placeAt(car,p[0],-p[2],0,DECK_H);};
+    const Mq=qmat(c.q),F=mcol(Mq,0),Rt=mcol(Mq,2),v=Math.max(c.vf,1),la=clamp(v*.7,8,30),tg=H.pos(H.wrapS(Lh.s+la),-2.4),d=sub(tg,c.p);
+    /* pure pursuit on the fast lane: the curvature to the target, as a share of the grip */
+    const xb=dot(d,F),zb=dot(d,Rt),kappa=2*zb/Math.max(xb*xb+zb*zb,1),steer=clamp(kappa*v*v/(c.tyre.mu*9.81)*1.05+zb*.03,-1,1);
+    /* patient behind anyone slower in the lane */
+    let vT=27;if(L.traffic)for(const t of L.traffic.cars){if(t.dist>45)continue;const p=t.veh?t.veh.p:L.traffic.worldPos(t),rx=p[0]-c.p[0],rz=p[2]-c.p[2],ah=rx*F[0]+rz*F[2],sd=rx*Rt[0]+rz*Rt[2];
+      if(ah>2&&ah<45&&Math.abs(sd)<2.3&&Math.abs(p[1]-c.p[1])<2)vT=Math.min(vT,t.v+(ah-12)*.5);}
+    const e=vT-c.vf;return {steer,thr:e>0?clamp(.3+e*.3,0,1):0,brk:e<-1?clamp(-e*.15,0,.9):0};};};
+  L.botStart=car=>{const p=M.hwy.pos(300,-2.4);placeAt(car,p[0],-p[2],0,DECK_H);};
   L.guide=()=>null;
   return L;
 }

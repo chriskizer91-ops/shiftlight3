@@ -4655,7 +4655,7 @@ void main(){
             for (let X of [A, B]) X.c && (X.c.hitT = Math.max(X.c.hitT, hit > 1.5 ? 1.5 : 0.4), hit > 5.5 && (A.you || B.you) && (X.c.mode = "wreck"));
             if (A.you || B.you) {
               let o = A.you ? B : A;
-              this.events.push({ type: "crash", speed: hit }), o.c && hit > 1.2 && this.honk(o.c, {}, 0.5), player.veh.ev.wall = Math.max(player.veh.ev.wall, hit);
+              this.events.push({ type: "crash", speed: hit, c: o.c }), o.c && hit > 1.2 && this.honk(o.c, {}, 0.5), player.veh.ev.wall = Math.max(player.veh.ev.wall, hit);
             } else hit > 2 && this.events.push({ type: "crash", speed: hit, far: !0 });
           }
         }
@@ -5109,11 +5109,13 @@ void main(){
         let s = loc.s;
         if (this.phase === "racing" && !e.finished)
           if (e.s > T.len - 40 && s < 40) {
-            if (e.cross++, e.cross > 1) {
-              let lt = time2 - e.lapT0;
+            e.cross++;
+            let tc = time2 - s / Math.max(e.car.vf, 1);
+            if (e.cross > 1) {
+              let lt = tc - e.lapT0;
               e.lastLap = lt, (!e.best || lt < e.best) && (e.best = lt);
             }
-            e.lapT0 = time2, e.cross > this.laps && (e.finished = !0, e.time = time2 - this.goT, this.events.push({ type: "finish", e }), e.you && this.finishT < 0 && (this.finishT = time2));
+            e.lapT0 = tc, e.cross > this.laps && (e.finished = !0, e.time = tc - this.goT, this.events.push({ type: "finish", e }), e.you && this.finishT < 0 && (this.finishT = time2));
           } else e.s < 40 && s > T.len - 40 && e.cross > 0 && e.cross--;
         if (!e.you && this.phase === "racing" && !e.finished) {
           let k = Math.min(this.NS - 1, Math.floor(s / T.len * this.NS));
@@ -6782,11 +6784,17 @@ void main(){
         let Lh = H.locate(c.p[0], c.p[2], hint);
         if (!Lh) return { thr: 0.3 };
         hint = Lh.i;
-        let Mq = qmat(c.q), Rt = mcol(Mq, 2), la = Math.max(8, c.vf * 0.8), tg = H.pos(H.wrapS(Lh.s + la), -4.2), dx = tg[0] - c.p[0], dz = tg[2] - c.p[2], steer = clamp((dx * Rt[0] + dz * Rt[2]) / Math.hypot(dx, dz) * 2.2, -1, 1), e = 27 - c.vf;
-        return { steer, thr: e > 0 ? clamp(0.3 + e * 0.3, 0, 1) : 0, brk: e < -2 ? 0.3 : 0 };
+        let Mq = qmat(c.q), F = mcol(Mq, 0), Rt = mcol(Mq, 2), v = Math.max(c.vf, 1), la = clamp(v * 0.7, 8, 30), tg = H.pos(H.wrapS(Lh.s + la), -2.4), d = sub2(tg, c.p), xb = dot2(d, F), zb = dot2(d, Rt), kappa = 2 * zb / Math.max(xb * xb + zb * zb, 1), steer = clamp(kappa * v * v / (c.tyre.mu * 9.81) * 1.05 + zb * 0.03, -1, 1), vT = 27;
+        if (L.traffic) for (let t of L.traffic.cars) {
+          if (t.dist > 45) continue;
+          let p = t.veh ? t.veh.p : L.traffic.worldPos(t), rx = p[0] - c.p[0], rz = p[2] - c.p[2], ah = rx * F[0] + rz * F[2], sd = rx * Rt[0] + rz * Rt[2];
+          ah > 2 && ah < 45 && Math.abs(sd) < 2.3 && Math.abs(p[1] - c.p[1]) < 2 && (vT = Math.min(vT, t.v + (ah - 12) * 0.5));
+        }
+        let e = vT - c.vf;
+        return { steer, thr: e > 0 ? clamp(0.3 + e * 0.3, 0, 1) : 0, brk: e < -1 ? clamp(-e * 0.15, 0, 0.9) : 0 };
       };
     }, L.botStart = (car2) => {
-      let p = M.hwy.pos(300, -4.2);
+      let p = M.hwy.pos(300, -2.4);
       placeAt(car2, p[0], -p[2], 0, DECK_H);
     }, L.guide = () => null, L;
   }
@@ -7779,7 +7787,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   }
   function showResults() {
     state = "pause", audio.suspend(!0);
-    let fmtR = (t) => t ? fmt(t) : "—", rows = [{ type: "head", label: "Neon Loop · " + race.laps + " laps · " + DIFFICULTY[settings.rivals].name }];
+    let fmtR = (t) => t ? fmt(t) : "—", rows = [{ type: "head", label: "Neon Loop · " + race.laps + (race.laps === 1 ? " lap" : " laps") + " · " + DIFFICULTY[settings.rivals].name }];
     for (let r of race.results()) rows.push({ type: "head", label: `${r.pos}.  ${r.name.padEnd(8, " ")}  ${r.dnf ? "DNF" : r.pos === 1 ? fmtR(r.time) : "+" + (r.gap !== null ? r.gap.toFixed(3) : "—")}   best ${fmtR(r.best)}`, you: r.you });
     rows.push({ type: "action", label: "Race again", act: () => {
       menu.hide(), state = "drive", audio.suspend(!1), startEvent();
@@ -7790,7 +7798,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     } }), menu.show(rows, "RESULTS");
   }
   function makeTraffic() {
-    traffic = level.kind === "city" && !Q.has("notraffic") ? new Traffic(level, { count: +(Q.get("traffic") || TRAFFIC_N[settings.quality] || 56) }) : null, trafficInit = !0;
+    traffic = level.kind === "city" && !Q.has("notraffic") ? new Traffic(level, { count: +(Q.get("traffic") || TRAFFIC_N[settings.quality] || 56) }) : null, level.traffic = traffic, trafficInit = !0;
   }
   var playerBody = () => ({ p: car.p, v: car.v, hcg: car.c.hcg, veh: car, box: SL3_BOX });
   makeCar(settings.engine);
