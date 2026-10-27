@@ -123,6 +123,14 @@ export function buildCar(ch,design=DESIGNS.sl3,{lod=0}={}){
     for(let k=0;k<n;k++){const [x0,y0]=pts[k],[x1,y1]=pts[k+1];const a=B.v([x0,y0,z0],[0,0,s]),b=B.v([x1,y1,z0],[0,0,s]),c=B.v([cx,cy,z0],[0,0,s]);if(s>0)B.tri(a,b,c);else B.tri(a,c,b);}}
   /* ---- underbody tray ---- */
   {const yb=Math.min(...st.map(s=>s[1]))+.02;B.mat(11);B.quadP([xR+.2,Y(yb),hw-.1],[xR+.2,Y(yb),-(hw-.1)],[xF-.25,Y(yb+.02),-(hw-.12)],[xF-.25,Y(yb+.02),hw-.12],undefined,[0,-1,0]);}
+  /* ---- aero: a ducktail lip, or a splitter and a GT wing ---- */
+  if(D.lip||D.wing){const xe=xR+.12,yt=tableAt(st,xe,4);
+    if(D.lip){B.mat(0);B.box([xe,Y(yt+.025),0],norm([1,.35,0]),norm([-.35,1,0]),[0,0,1],[.09,.02,hw*.72]);}
+    if(D.wing){const yw=yt+.27,c=[xR+.24,Y(yw),0],ax=norm([1,-.12,0]),ay=norm([.12,1,0]);
+      B.mat(2,50);B.box(c,ax,ay,[0,0,1],[.17,.012,hw*.86]);                                   /* the blade */
+      for(const zz of [-1,1]){B.box([c[0],c[1]+.03,zz*hw*.86],[1,0,0],[0,1,0],[0,0,1],[.2,.09,.006]);  /* end plates */
+        B.box([c[0]+.04,Y((yt+yw)/2),zz*.5],norm([1,.15,0]),norm([-.15,1,0]),[0,0,1],[.035,(yw-yt)/2,.012]);}   /* uprights */
+      const xf=xF-.06;B.mat(2,50);B.box([xf,Y(.165),0],[1,0,0],[0,1,0],[0,0,1],[.12,.008,hw*.8]);}}  /* the splitter */
   /* ---- taxi roof sign ---- */
   if(D.roofSign){const x=-.55,yr=tableAt(D.gh,x,1);B.mat(2,40);B.box([x,Y(yr+.015),0],[1,0,0],[0,1,0],[0,0,1],[.12,.015,.34]);
     B.mat(15);B.box([x,Y(yr+.085),0],[1,0,0],[0,1,0],[0,0,1],[.09,.055,.30]);}

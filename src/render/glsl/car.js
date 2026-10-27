@@ -190,7 +190,8 @@ void main(){
 #ifdef GLASS
   if(ghost>.5)discard;
 #else
-  if(ghost>.5&&ign(gl_FragCoord.xy,uFrame)>.45)discard;
+  /* fainter up close, so it never hides your own car */
+  if(ghost>.5&&ign(gl_FragCoord.xy,uFrame)>clamp((length(uCam-vP)-3.)/14.,.1,.45))discard;
 #endif
   vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;vec3 NL=normalize(vNL);
   vec3 V=normalize(uCam-vP);uint id=vMat.x;float yg=vL.y+uHcg;

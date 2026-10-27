@@ -1916,6 +1916,8 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
       }
     }
   };
+  DESIGNS.sl3_lip = Object.assign({}, DESIGNS.sl3, { id: "sl3_lip", lip: !0 });
+  DESIGNS.sl3_wing = Object.assign({}, DESIGNS.sl3, { id: "sl3_wing", wing: !0 });
   DESIGNS.taxi = Object.assign({}, DESIGNS.meridian, { id: "taxi", name: "Meridian Cab", roofSign: !0, sh: Object.assign({}, DESIGNS.meridian.sh, { taxi: 1 }) });
   function signBase(D) {
     if (!D.roofSign) return 0;
@@ -2113,6 +2115,17 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
     {
       let yb = Math.min(...st.map((s) => s[1])) + 0.02;
       B.mat(11), B.quadP([xR + 0.2, Y(yb), hw - 0.1], [xR + 0.2, Y(yb), -(hw - 0.1)], [xF - 0.25, Y(yb + 0.02), -(hw - 0.12)], [xF - 0.25, Y(yb + 0.02), hw - 0.12], void 0, [0, -1, 0]);
+    }
+    if (D.lip || D.wing) {
+      let xe = xR + 0.12, yt = tableAt(st, xe, 4);
+      if (D.lip && (B.mat(0), B.box([xe, Y(yt + 0.025), 0], norm([1, 0.35, 0]), norm([-0.35, 1, 0]), [0, 0, 1], [0.09, 0.02, hw * 0.72])), D.wing) {
+        let yw = yt + 0.27, c = [xR + 0.24, Y(yw), 0], ax = norm([1, -0.12, 0]), ay = norm([0.12, 1, 0]);
+        B.mat(2, 50), B.box(c, ax, ay, [0, 0, 1], [0.17, 0.012, hw * 0.86]);
+        for (let zz of [-1, 1])
+          B.box([c[0], c[1] + 0.03, zz * hw * 0.86], [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.2, 0.09, 6e-3]), B.box([c[0] + 0.04, Y((yt + yw) / 2), zz * 0.5], norm([1, 0.15, 0]), norm([-0.15, 1, 0]), [0, 0, 1], [0.035, (yw - yt) / 2, 0.012]);
+        let xf = xF - 0.06;
+        B.mat(2, 50), B.box([xf, Y(0.165), 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.12, 8e-3, hw * 0.8]);
+      }
     }
     if (D.roofSign) {
       let yr = tableAt(D.gh, -0.55, 1);
@@ -2414,7 +2427,8 @@ void main(){
 #ifdef GLASS
   if(ghost>.5)discard;
 #else
-  if(ghost>.5&&ign(gl_FragCoord.xy,uFrame)>.45)discard;
+  /* fainter up close, so it never hides your own car */
+  if(ghost>.5&&ign(gl_FragCoord.xy,uFrame)>clamp((length(uCam-vP)-3.)/14.,.1,.45))discard;
 #endif
   vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;vec3 NL=normalize(vNL);
   vec3 V=normalize(uCam-vP);uint id=vMat.x;float yg=vL.y+uHcg;
@@ -5295,7 +5309,7 @@ void main(){
         let c = e.car;
         return {
           id: e.id,
-          design: "sl3",
+          design: this.aeroDesign || "sl3",
           p: c.p,
           q: c.q,
           paint: e.paint,
@@ -5677,7 +5691,7 @@ void main(){
     }
     views(night) {
       let c = this.opp, I = this.oppInfo;
-      return [{ id: 300, design: "sl3", p: c.p, q: c.q, paint: I.paint, caliper: I.caliper, wheels: c.wheels.map((w) => ({ hp: w.hp, len: w.len, steer: w.front ? c.steer : 0, ang: w.ang, disc: w.disc })), lamps: [night ? 1 : 0, night ? 1 : 0, c.brkIn > 0.05 ? 1 : 0, 0] }];
+      return [{ id: 300, design: this.aeroDesign || "sl3", p: c.p, q: c.q, paint: I.paint, caliper: I.caliper, wheels: c.wheels.map((w) => ({ hp: w.hp, len: w.len, steer: w.front ? c.steer : 0, ang: w.ang, disc: w.disc })), lamps: [night ? 1 : 0, night ? 1 : 0, c.brkIn > 0.05 ? 1 : 0, 0] }];
     }
     takeEvents() {
       let e = this.events;
@@ -8768,12 +8782,18 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         this.sel = EVENTS.findIndex((e) => e.cls === tiers[ti]);
       } else if (k === "enter") {
         let ev = EVENTS[this.sel], ck = C2.check(ev);
-        ck.ok ? this.G.start(ev) : this.flash = ck.why;
-      } else if (k === "g") this.G.garage();
-      else if (k === "back") this.G.back();
-      else if (k === "x")
-        this.confirm ? (this.G.wipe(), this.confirm = !1) : (this.confirm = !0, this.flash = "Press X again to start a new career (this one is erased).");
-      else return !1;
+        if (ck.ok)
+          return this.G.start(ev), !0;
+        this.flash = ck.why;
+      } else {
+        if (k === "g")
+          return this.G.garage(), !0;
+        if (k === "back")
+          return this.G.back(), !0;
+        if (k === "x")
+          this.confirm ? (this.G.wipe(), this.confirm = !1) : (this.confirm = !0, this.flash = "Press X again to start a new career (this one is erased).");
+        else return !1;
+      }
       return k !== "x" && (this.confirm = !1), this.open && this.render(), !0;
     }
     render() {
@@ -8860,10 +8880,13 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
           this.ci = (this.ci + 1) % GCATS.length, this.oi = this.cur();
         else if (k === "right" || k === "enter")
           this.col = 1, this.oi = this.cur();
-        else if (k === "back") this.G.back();
-        else if (k === "d")
-          this.pull(!1);
-        else return !1;
+        else {
+          if (k === "back")
+            return this.G.back(), !0;
+          if (k === "d")
+            this.pull(!1);
+          else return !1;
+        }
       else {
         let o = O[this.oi], c = this.cat();
         if (k === "up") this.oi = (this.oi - 1 + O.length) % O.length;
@@ -8893,7 +8916,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         else if (k === "d") this.pull(!1);
         else return !1;
       }
-      return this.render(), !0;
+      return this.open && this.render(), !0;
     }
     /* the dyno: a pull of the car as it stands */
     pull(nos) {
@@ -9017,7 +9040,9 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     Q.has("manual") || saveSettings(settings);
   }, canvas = $("view"), hudC = $("hud"), R = new Renderer(canvas, { quality: settings.quality }), level = makeLevel(settings.level);
   R.loadWorld(level.geo, level.T);
-  var CR = new CarRenderer(R, CHASSIS), extraCars = [], PS = new Particles(R, level.mask, { rainN: { low: 4e3, medium: 6500, high: 9e3, ultra: 12e3 }[settings.quality] || 9e3 }), drs = new DRS({ min: 0.5, max: R.Q.maxScale, start: settings.scale === "auto" ? 0.85 : +settings.scale });
+  var CR = new CarRenderer(R, CHASSIS);
+  for (let d of ["sl3_lip", "sl3_wing"]) CR.addDesign(Object.assign({}, CHASSIS.sl3, { design: d }));
+  var AERO_DESIGN = ["sl3", "sl3_lip", "sl3_wing"], extraCars = [], PS = new Particles(R, level.mask, { rainN: { low: 4e3, medium: 6500, high: 9e3, ultra: 12e3 }[settings.quality] || 9e3 }), drs = new DRS({ min: 0.5, max: R.Q.maxScale, start: settings.scale === "auto" ? 0.85 : +settings.scale });
   drs.enabled = settings.scale === "auto";
   var hud = new HUD(hudC);
   hud.setMap(level.map);
@@ -9074,7 +9099,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       mode = new DragEvent(level, car, { opp: build(REF[cls]), rt: DRAG_RT[cls] });
     } else
       level.spawn(car), freeDrift = new DriftScore();
-    mode && mode.kind === "drag" ? (traffic = null, level.traffic = null) : level.kind === "city" && !traffic && makeTraffic(), mode && mode.kind === "race" && hud.message("GET READY", "#ffb040", 1.6);
+    mode && session.kind === "career" && ev ? mode.aeroDesign = AERO_DESIGN[REF[ev.cls].aero | 0] : mode && mode.kind === "drag" && (mode.aeroDesign = AERO_DESIGN[REF[carB.cls].aero | 0]), mode && mode.kind === "drag" ? (traffic = null, level.traffic = null) : level.kind === "city" && !traffic && makeTraffic(), mode && mode.kind === "race" && hud.message("GET READY", "#ffb040", 1.6);
   }
   function modeEvents() {
     for (let e of mode.takeEvents())
@@ -9192,7 +9217,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   function showResults() {
     let r = mode.result(), ev = session.ev;
     state = "results";
-    let data = { title: r.title, name: ev ? ev.name : { race: "Neon Loop", trial: "Practice", drift: "Drift run", drag: "Main Avenue" }[mode.kind], rank: r.rank, medal: r.medal || MEDALS[r.rank], summary: r.summary, rows: r.rows, reward: null, buttons: [] };
+    let data = { title: r.title, name: ev ? ev.name : { race: "Neon Loop", trial: "Practice", drift: "Drift run", drag: "Main Avenue" }[mode.kind], rank: r.rank, medal: r.medal || MEDALS[r.rank] || (ev ? "No medal" : mode.kind === "drift" ? Math.round(mode.score.total).toLocaleString("en-US") : "Done"), summary: r.summary, rows: r.rows, reward: null, buttons: [] };
     if (ev) {
       let a = career.award(ev, r.rank, r.stat);
       r.ghost && r.stat.best && (!career.d.results[ev.id].best || r.stat.best <= career.d.results[ev.id].best + 1e-6) && (career.d.ghosts[ev.id] = encodeGhost(r.ghost), career.save()), data.reward = [`+$${a.pay.toLocaleString("en-US")}${a.first || !r.rank ? "" : " (repeat)"}`], a.repGain && data.reward.push(`+${a.repGain} reputation`), a.newTier && data.reward.push(`Class ${a.newTier} events open`), data.buttons = [{ label: "Retry", act: () => startCareerEvent(ev) }, { label: "Replay", act: () => startReplay("results") }, { label: "Career", act: () => enterHub() }];
@@ -9314,7 +9339,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     let S = owner().setup;
     return {
       id: 1,
-      design: "sl3",
+      design: AERO_DESIGN[S.aero | 0] || "sl3",
       self: !0,
       driver: CAM_MODES[cam.mode] !== "cockpit" || !!cam.orbit,
       p: c.p,

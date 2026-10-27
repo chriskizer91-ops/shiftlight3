@@ -84,7 +84,7 @@ export class DragEvent{
       staged:this.phase!=='stage',stagePrompt:this.phase==='stage',et:el(y),rt:y.rt,you:y.dist/STRIP.len,opp:o.dist/STRIP.len,oppName:o.name,
       finished:y.fin>0,win:y.fin>0?this.rank()===1:null};}
   views(night){const c=this.opp,I=this.oppInfo;
-    return [{id:300,design:'sl3',p:c.p,q:c.q,paint:I.paint,caliper:I.caliper,wheels:c.wheels.map(w=>({hp:w.hp,len:w.len,steer:w.front?c.steer:0,ang:w.ang,disc:w.disc})),lamps:[night?1:0,night?1:0,c.brkIn>.05?1:0,0]}];}
+    return [{id:300,design:this.aeroDesign||'sl3',p:c.p,q:c.q,paint:I.paint,caliper:I.caliper,wheels:c.wheels.map(w=>({hp:w.hp,len:w.len,steer:w.front?c.steer:0,ang:w.ang,disc:w.disc})),lamps:[night?1:0,night?1:0,c.brkIn>.05?1:0,0]}];}
   takeEvents(){const e=this.events;this.events=[];return e;}
   slip(){return this.runners.map(x=>({name:x.name,you:x.you,rt:x.rt,splits:x.splits,trap:x.trap,total:this.total(x)}));}
   result(){const r=this.rank(),[y,o]=this.runners,mph=v=>v?(v*2.23694).toFixed(1)+' mph':'—',kmh=v=>v?(v*3.6).toFixed(0)+' km/h':'';

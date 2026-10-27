@@ -10,7 +10,8 @@ self-contained HTML file you can open straight from disk or send to someone.
 ## Play
 
 Open `dist/shiftlight.html` in a desktop browser (Chrome, Edge, Firefox or Safari with WebGL2).
-On the title, left and right choose the place; any other key starts.
+The title menu has the career, and free play: roam Shift City, race or practice on Neon Loop, a
+drift run, a drag run, and the free-play garage.
 
 | | Keyboard | Gamepad |
 |---|---|---|
@@ -26,14 +27,40 @@ On the title, left and right choose the place; any other key starts.
 | High beam | H | — |
 | Menu | Esc | Start |
 
+### Career
+
+Start with $8,000 and a stock SL-3 with a 2.0 L four. Twenty events in five tiers, D up to S: in
+each tier a **race** (five rivals built to that class), a **time trial** (medal times, and a ghost
+of your best lap to chase), a **drift** event (points for angle and speed, chains and multipliers,
+lost if you hit a wall) and a **drag** race (a quarter mile down Main Avenue against a class car).
+Your best result in each earns reputation, which opens the next tier, and money, which buys parts.
+Your car must be in the event's class or below, so you build for the class.
+
+### Garage
+
+Eighteen engines and fifteen kinds of parts: exhaust, intake, cams, ECU maps (launch control,
+anti-lag), turbo and supercharger kits, nitrous, flywheels, close-ratio and sequential gearboxes,
+limited-slip differentials, all-wheel-drive conversion, tyres (street to slick, and drift tyres),
+brakes, springs and coilovers, weight reduction, aero. Coilovers, race diffs, wings, turbos and the
+race ECU unlock tuning: springs, dampers, anti-roll bars, ride height, diff locking, wing angle,
+boost, final drive, brake bias, launch revs. Every change shows its effect on the performance
+index (an estimated lap plus power to weight, 100 to 999), class, power, torque, weight and grip.
+The **dyno** is an inertia rolling road driven by the car's real powertrain: run a pull and watch
+power and torque at the wheels plotted against revs while the engine screams through the synth.
+
+### Replays
+
+Every car on screen for the last two minutes. From the results or the pause menu: TV cameras
+beside the road, chase, far, bumper and orbit; play, pause, scrub, slow motion.
+
 ### Places
 
 - **Neon Loop**: a street circuit. **Race** five rivals from a standing start (start lights on the
-  gantry, 3, 5 or 8 laps, Relaxed / Racing / Hard), or **Practice** against the clock with a
-  best-lap delta.
+  gantry, 3, 5 or 8 laps, Relaxed / Racing / Hard), **Practice** against the clock and the ghost
+  of your best lap, or a two-minute **Drift** run.
 - **Shift City**: free roam. A 9 x 9 grid of streets inside a ring boulevard, an elevated ring
   expressway with sixteen ramps, districts from downtown towers to the neon quarter, a park, and
-  traffic that drives it.
+  traffic that drives it. Drift anywhere for points. Main Avenue doubles as a drag strip.
 
 ### Driving help
 
@@ -71,6 +98,12 @@ so a bump pushes it and a hard hit leaves a wreck.
 aggression, consistency and reaction time; matched to the power of the engine you chose and held
 to their pace sector by sector. They pass, follow, give room and now and then make a mistake.
 
+**Career** (`src/game/setup.js`, `career.js`, `dyno.js`, `drift.js`, `drag.js`, `modes.js`,
+`ghost.js`, `replay.js`): the parts model that builds the chassis and engine spec, the events and
+save, the rolling road, drift scoring, the drag strip and timing, time trials, ghost recording and
+the replay recorder and player. Medal times come from the AI field driving each class's reference
+car; drag opponents and rivals are built to the same reference.
+
 **Sound** (`src/audio`): the Engine Lab's waveguide engine synth for your car and the two nearest
 rivals, an effects synth (tyres, road, wind, kerbs, impacts, scraping, traffic engines, horns), and
 street and tunnel reverbs that cross-fade with where you are.
@@ -89,9 +122,10 @@ game/                 the game page (template + main loop)
 src/render/           renderer, shaders, car models and designs, particles, lights
 src/physics/          vehicle, tyres, powertrain, car-to-car contact
 src/world/            Neon Loop track and town, Shift City map, geometry kit, lanes, road world
-src/game/             levels, cameras, input, traffic, race, guide, bots
+src/game/             levels, cameras, input, traffic, race, career, setup, dyno, drift, drag,
+                      time trials, ghosts, replays, guide, bots
 src/audio/            engine synth, effects synth, game audio graph
-src/ui/               HUD (LED dot font), menu
+src/ui/               HUD (LED dot font), menu, title / career / garage / results screens
 lab/                  Engine Lab page
 tools/build.mjs       bundles a page into dist/*.html
 test/                 headless tests and screenshot harness
@@ -102,9 +136,11 @@ dist/                 built single-file pages
 
 ```
 npm run build          # dist/shiftlight.html and dist/engine-lab.html
-npm test               # vehicle physics, city physics, traffic and a full race, all headless
+npm test               # physics, city, traffic, a full race, parts, career, events: all headless
 npm run test:traffic   # traffic flow, signals, deadlocks, physics near you, stopping and honking
 npm run test:race      # a three-lap race: the grid holds, everyone finishes, places change
+npm run test:career    # buying, class limits, rewards, tiers, saves; every build still drives
+npm run test:events    # drag runs and red lights, a time trial and its ghost, a drift run
 SHOTS='[{"name":"x","js":"__game.begin()"}]' node test/shot.mjs test/out   # screenshots (headless GPU)
 ```
 
@@ -113,5 +149,5 @@ SHOTS='[{"name":"x","js":"__game.begin()"}]' node test/shot.mjs test/out   # scr
 1. **Vertical slice**: Neon Loop at night in the rain, the renderer, 3D physics, the LED toggle. Done.
 2. **City and traffic**: Shift City, the expressway and ramps, traffic with personality, rivals and
    races on Neon Loop. Done.
-3. **Career**: parts, tuning, dyno, drift, drag, ghosts, replays.
+3. **Career**: parts, tuning, dyno, drift, drag, ghosts, replays. Done.
 4. **Polish and performance tiers.**

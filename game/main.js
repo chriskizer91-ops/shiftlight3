@@ -48,7 +48,8 @@ const save=()=>{if(!Q.has('manual'))saveSettings(settings);};
 const canvas=$('view'),hudC=$('hud');
 const R=new Renderer(canvas,{quality:settings.quality});
 let level=makeLevel(settings.level);R.loadWorld(level.geo,level.T);
-const CR=new CarRenderer(R,CHASSIS);
+const CR=new CarRenderer(R,CHASSIS);for(const d of ['sl3_lip','sl3_wing'])CR.addDesign(Object.assign({},CHASSIS.sl3,{design:d}));
+const AERO_DESIGN=['sl3','sl3_lip','sl3_wing'];
 const extraCars=[];   /* other cars to draw (tests can add some) */
 const PS=new Particles(R,level.mask,{rainN:{low:4000,medium:6500,high:9000,ultra:12000}[settings.quality]||9000});
 const drs=new DRS({min:.5,max:R.Q.maxScale,start:settings.scale==='auto'?.85:+settings.scale});drs.enabled=settings.scale==='auto';
@@ -113,6 +114,9 @@ function startMode(){
   else if(session.play==='loop-drift')mode=new DriftEvent(level,car,{time:120});
   else if(session.play==='drag'){const cls=carB.cls;mode=new DragEvent(level,car,{opp:build(REF[cls]),rt:DRAG_RT[cls]});}
   else{level.spawn(car);freeDrift=new DriftScore();}
+  /* rivals and opponents wear the reference car's aero */
+  if(mode&&session.kind==='career'&&ev)mode.aeroDesign=AERO_DESIGN[REF[ev.cls].aero|0];
+  else if(mode&&mode.kind==='drag')mode.aeroDesign=AERO_DESIGN[REF[carB.cls].aero|0];
   if(mode&&mode.kind==='drag'){traffic=null;level.traffic=null;}else if(level.kind==='city'&&!traffic)makeTraffic();
   if(mode&&mode.kind==='race')hud.message('GET READY','#ffb040',1.6);
 }
@@ -213,7 +217,7 @@ function startCareerEvent(ev){
 }
 function showResults(){
   const r=mode.result(),ev=session.ev;state='results';
-  const data={title:r.title,name:ev?ev.name:{race:'Neon Loop',trial:'Practice',drift:'Drift run',drag:'Main Avenue'}[mode.kind],rank:r.rank,medal:r.medal||MEDALS[r.rank],summary:r.summary,rows:r.rows,reward:null,buttons:[]};
+  const data={title:r.title,name:ev?ev.name:{race:'Neon Loop',trial:'Practice',drift:'Drift run',drag:'Main Avenue'}[mode.kind],rank:r.rank,medal:r.medal||MEDALS[r.rank]||(ev?'No medal':mode.kind==='drift'?Math.round(mode.score.total).toLocaleString('en-US'):'Done'),summary:r.summary,rows:r.rows,reward:null,buttons:[]};
   if(ev){const a=career.award(ev,r.rank,r.stat);
     if(r.ghost&&r.stat.best&&(!career.d.results[ev.id].best||r.stat.best<=career.d.results[ev.id].best+1e-6)){career.d.ghosts[ev.id]=encodeGhost(r.ghost);career.save();}
     data.reward=[`+$${a.pay.toLocaleString('en-US')}${a.first||!r.rank?'':' (repeat)'}`];if(a.repGain)data.reward.push(`+${a.repGain} reputation`);if(a.newTier)data.reward.push(`Class ${a.newTier} events open`);
@@ -297,7 +301,7 @@ function fit(){const dpr=Math.min(2,devicePixelRatio||1),w=Math.round(innerWidth
   R.resize(w,h,R.iw?R.scale:(settings.scale==='auto'?drs.scale:+settings.scale));}
 function carView(c=car){
   const S=owner().setup;
-  return {id:1,design:'sl3',self:true,driver:CAM_MODES[cam.mode]!=='cockpit'||!!cam.orbit,p:c.p,q:c.q,paint:PAINTS[S.paint]||PAINTS.magenta,caliper:[.75,.03,.02],
+  return {id:1,design:AERO_DESIGN[S.aero|0]||'sl3',self:true,driver:CAM_MODES[cam.mode]!=='cockpit'||!!cam.orbit,p:c.p,q:c.q,paint:PAINTS[S.paint]||PAINTS.magenta,caliper:[.75,.03,.02],
     wheels:c.wheels.map(w=>({hp:w.hp,len:w.len,steer:w.front?c.steer:0,ang:w.ang,disc:w.disc||0})),
     lamps:[env.night>.3?1:0,env.night>.3?1:0,c.brkIn>.05?1:0,c.rev?1:0]};
 }

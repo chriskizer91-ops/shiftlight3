@@ -175,7 +175,7 @@ export class Race{
   results(){const lead=this.order[0];return this.order.map((e,i)=>({pos:i+1,name:e.name,you:e.you,time:e.finished&&!e.dnf?e.time:null,gap:i&&e.finished&&!e.dnf&&lead.finished?e.time-lead.time:null,best:e.best,dnf:!!e.dnf,engine:e.P?e.car.spec.name:null}));}
   /* the rivals as the renderer wants them */
   views(night){return this.entrants.filter(e=>!e.you).map(e=>{const c=e.car;
-    return {id:e.id,design:'sl3',p:c.p,q:c.q,paint:e.paint,caliper:e.caliper,wheels:c.wheels.map(w=>({hp:w.hp,len:w.len,steer:w.front?c.steer:0,ang:w.ang,disc:w.disc})),
+    return {id:e.id,design:this.aeroDesign||'sl3',p:c.p,q:c.q,paint:e.paint,caliper:e.caliper,wheels:c.wheels.map(w=>({hp:w.hp,len:w.len,steer:w.front?c.steer:0,ang:w.ang,disc:w.disc})),
       lamps:[night?1:0,night?1:0,c.brkIn>.05?1:0,0]};});}
   takeEvents(){const e=this.events;this.events=[];return e;}
 }

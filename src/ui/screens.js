@@ -44,8 +44,8 @@ export class CareerHub extends Screen{
   key(k){const C=this.G.career;
     if(k==='up')this.sel=(this.sel-1+EVENTS.length)%EVENTS.length;else if(k==='down')this.sel=(this.sel+1)%EVENTS.length;
     else if(k==='left'||k==='right'){const tiers=Object.keys(TIER_REP),cur=EVENTS[this.sel].cls,ti=(tiers.indexOf(cur)+(k==='left'?-1:1)+tiers.length)%tiers.length;this.sel=EVENTS.findIndex(e=>e.cls===tiers[ti]);}
-    else if(k==='enter'){const ev=EVENTS[this.sel],ck=C.check(ev);if(ck.ok)this.G.start(ev);else{this.flash=ck.why;}}
-    else if(k==='g')this.G.garage();else if(k==='back')this.G.back();
+    else if(k==='enter'){const ev=EVENTS[this.sel],ck=C.check(ev);if(ck.ok){this.G.start(ev);return true;}this.flash=ck.why;}
+    else if(k==='g'){this.G.garage();return true;}else if(k==='back'){this.G.back();return true;}
     else if(k==='x'){if(this.confirm){this.G.wipe();this.confirm=false;}else{this.confirm=true;this.flash='Press X again to start a new career (this one is erased).';}}
     else return false;
     if(k!=='x')this.confirm=false;if(this.open)this.render();return true;}
@@ -103,7 +103,7 @@ export class Garage extends Screen{
   key(k){const O=this.opts();
     if(this.col===0){
       if(k==='up'){this.ci=(this.ci-1+GCATS.length)%GCATS.length;this.oi=this.cur();}else if(k==='down'){this.ci=(this.ci+1)%GCATS.length;this.oi=this.cur();}
-      else if(k==='right'||k==='enter'){this.col=1;this.oi=this.cur();}else if(k==='back')this.G.back();else if(k==='d'){this.pull(false);}else return false;}
+      else if(k==='right'||k==='enter'){this.col=1;this.oi=this.cur();}else if(k==='back'){this.G.back();return true;}else if(k==='d'){this.pull(false);}else return false;}
     else{
       const o=O[this.oi],c=this.cat();
       if(k==='up')this.oi=(this.oi-1+O.length)%O.length;else if(k==='down')this.oi=(this.oi+1)%O.length;
@@ -117,7 +117,7 @@ export class Garage extends Screen{
           else{const was=this.C.owns(c,id),r=this.C.fit(c,id);this.msg=r.ok?(was?'Fitted: ':'Bought and fitted: ')+o.name:r.msg;if(r.ok)this.G.changed();}}}
       else if(k==='d')this.pull(false);
       else return false;}
-    this.render();return true;}
+    if(this.open)this.render();return true;}
   /* the dyno: a pull of the car as it stands */
   pull(nos){const b=build(this.C.setup);this.dyno=new Dyno(b.chassis,b.spec,{nos});this.dyno.start();this.dynoNos=nos;this.G.sound(this.dyno);this.msg='';this.ci=GCATS.findIndex(c=>c.k==='dyno');this.col=1;}
   step(dt){if(!this.dyno)return;const was=this.dyno.state;this.dyno.step(dt);

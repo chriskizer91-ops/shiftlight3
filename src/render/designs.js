@@ -80,6 +80,9 @@ export const DESIGNS={
       head:[.55,.86,.80,.06],headStyle:1,tail0:[.90,.07,.90,.18],tail1:[0,.90,.68,.56],tail2:[.06,.04,.26,.065],
       grille:[.50,.56,.72,.62],grille2:[.40,.50],taxi:0,van:1,bumper:.53}}
 };
+/* the SL-3 with its aero parts on */
+DESIGNS.sl3_lip=Object.assign({},DESIGNS.sl3,{id:'sl3_lip',lip:true});
+DESIGNS.sl3_wing=Object.assign({},DESIGNS.sl3,{id:'sl3_wing',wing:true});
 /* the taxi: a Meridian with a roof sign and a checker band */
 DESIGNS.taxi=Object.assign({},DESIGNS.meridian,{id:'taxi',name:'Meridian Cab',roofSign:true,sh:Object.assign({},DESIGNS.meridian.sh,{taxi:1})});
 
