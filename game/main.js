@@ -5,7 +5,10 @@
    States: title (the car drives itself behind the logo) -> drive <-> pause.
    ===================================================================================== */
 import {Renderer} from '../src/render/renderer.js';
-import {CarRenderer,PAINTS} from '../src/render/car.js';
+import {CarRenderer,PAINTS,TRAFFIC_PAINTS,TAXI_PAINT} from '../src/render/car.js';
+import {poseView} from '../src/game/carview.js';
+import {Traffic} from '../src/game/traffic.js';
+import {carBox} from '../src/physics/carcontact.js';
 import {ENVS,ENV_IDS} from '../src/render/env.js';
 import {Particles} from '../src/render/particles.js';
 import {DRS} from '../src/render/drs.js';
@@ -31,7 +34,8 @@ const save=()=>{if(!Q.has('manual'))saveSettings(settings);};
 const canvas=$('view'),hudC=$('hud');
 const R=new Renderer(canvas,{quality:settings.quality});
 let level=makeLevel(settings.level);R.loadWorld(level.geo,level.T);
-const CR=new CarRenderer(R,CHASSIS.sl3);
+const CR=new CarRenderer(R,CHASSIS);
+const extraCars=[];   /* other cars to draw (the traffic fills this; tests can too) */
 const PS=new Particles(R,level.mask,{rainN:{low:4000,medium:6500,high:9000,ultra:12000}[settings.quality]||9000});
 const drs=new DRS({min:.5,max:R.Q.maxScale,start:settings.scale==='auto'?.85:+settings.scale});drs.enabled=settings.scale==='auto';
 const hud=new HUD(hudC);hud.setMap(level.map);
@@ -58,12 +62,17 @@ function loadLevel(kind){
   settings.level=kind;save();
   level=makeLevel(kind);R.loadWorld(level.geo,level.T);PS.setMask(level.mask);hud.setMap(level.map);ledHudView.setMap(level.map);cam.setLevel(level);
   car.world=level.world;level.spawn(car);car.pt.start();guide=level.guide(car);botFn=level.bot(car);
-  lap.n=0;lap.t0=-1;lap.lastS=null;lap.best=0;lap.bestTrace=null;loadBest();
+  lap.n=0;lap.t0=-1;lap.lastS=null;lap.best=0;lap.bestTrace=null;loadBest();makeTraffic();
   if(state==='title'){if(level.botStart)level.botStart(car);$('titleSub').textContent=titleSub();}
 }
 const titleSub=()=>`◀  ${level.name} · ${LEVELS[level.kind].mode}  ▶`;
 let botFn=null,guide=null;
-makeCar(settings.engine);car.pt.start();
+/* ---------- the traffic ---------- */
+const TRAFFIC_N={low:28,medium:42,high:56,ultra:76},SL3_BOX=carBox({xF:2.25,xR:-2.30,hw:.966,H:1.28},CHASSIS.sl3.hcg);
+let traffic=null,trafficInit=false,camLast={pos:[0,0,0],fwd:[1,0,0]};
+function makeTraffic(){traffic=level.kind==='city'&&!Q.has('notraffic')?new Traffic(level,{count:+(Q.get('traffic')||TRAFFIC_N[settings.quality]||56)}):null;trafficInit=true;}
+const playerBody=()=>({p:car.p,v:car.v,hcg:car.c.hcg,veh:car,box:SL3_BOX});
+makeCar(settings.engine);car.pt.start();makeTraffic();
 
 /* ---------- laps ---------- */
 const BEST_KEY='shiftlight.best.neon';
@@ -149,7 +158,7 @@ function fit(){const dpr=Math.min(2,devicePixelRatio||1),w=Math.round(innerWidth
   if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;hudC.width=w;hudC.height=h;}
   R.resize(w,h,R.iw?R.scale:(settings.scale==='auto'?drs.scale:+settings.scale));}
 function carView(){
-  return {id:1,self:true,p:car.p,q:car.q,paint:PAINTS[settings.paint]||PAINTS.magenta,caliper:[.75,.03,.02],
+  return {id:1,design:'sl3',self:true,driver:CAM_MODES[cam.mode]!=='cockpit',p:car.p,q:car.q,paint:PAINTS[settings.paint]||PAINTS.magenta,caliper:[.75,.03,.02],
     wheels:car.wheels.map(w=>({hp:w.hp,len:w.len,steer:w.front?car.steer:0,ang:w.ang,disc:w.disc})),
     lamps:[env.night>.3?1:0,env.night>.3?1:0,car.brkIn>.05?1:0,car.rev?1:0]};
 }
@@ -186,7 +195,19 @@ function soundUpdate(c,ev){
   const tA=Math.tan(car.tyre.aPk),kP=car.tyre.kPk;
   const fx={lat:car.wheels.map(w=>w.contact?Math.abs(w.tanA)/tA:0),lon:car.wheels.map(w=>w.contact?Math.abs(w.kap)/kP:0),load:car.wheels.map(w=>w.Fz),wet:env.wet,speed:len(car.v),cabin:listener===1?1:0,
     curb:car.wheels.some(w=>w.contact&&w.surf==='curb')?1:0,scrape:ev.scrape||0,vol:1,tunnel};
-  const fev=[];if(ev.wall>1.2)fev.push({type:'hit',a:ev.wall/9});if(ev.land>2.2)fev.push({type:'hit',a:ev.land/10});if(ev.ground>2)fev.push({type:'hit',a:ev.ground/8});
+  const fev=[];if(ev.wall>1.2)fev.push({type:'hit',a:ev.wall/9});
+  /* the traffic: the nearest engines, their horns, crashes down the street */
+  if(traffic){const cv=camLast.pos,rt=right,near=[];
+    for(const t of traffic.cars){if(!t.view||!t.view.p||t.dist>100)continue;const p=t.view.p,d=Math.hypot(p[0]-cv[0],p[1]-cv[1],p[2]-cv[2]);if(d<90)near.push({t,d,p});}
+    near.sort((a,b)=>a.d-b.d);const voices=[];
+    for(const {t,d,p} of near.slice(0,4)){const u=[(p[0]-cv[0])/d,(p[1]-cv[1])/d,(p[2]-cv[2])/d],Mt=qmat(t.view.q),Ft=mcol(Mt,0),vel=t.veh?t.veh.v:[Ft[0]*t.v,Ft[1]*t.v,Ft[2]*t.v];
+      const vr=dot(sub(vel,car.v),u)*(listener===1?1:.6),dop=343/(343+clamp(vr,-60,60)),rpm=t.veh?t.veh.pt.rpm:820+t.v*(t.kind==='courier'?70:95),cyl=t.kind==='pip'?3:4;
+      const load=t.veh?.35+.65*t.veh.pt.load:t.aCmd>.2?.8:.4;
+      voices.push({g:.55/Math.pow(1+d/4,1.25)*load*(listener===1?.5:1),f:rpm/60*cyl/2*dop,pan:clamp(dot(u,rt),-1,1)*.8,rd:clamp(t.v/22,0,1)});}
+    fx.traffic=voices;
+    for(const e of traffic.takeEvents()){const p=e.p||car.p,d=Math.hypot(p[0]-cv[0],p[2]-cv[2]),a=1/Math.pow(1+d/8,1.1);
+      if(e.type==='horn')fev.push({type:'horn',a:a*(listener===1?.6:1),len:e.len,f:e.kind==='courier'?330:e.kind==='pip'?480:405,pan:clamp(dot([(p[0]-cv[0])/(d||1),0,(p[2]-cv[2])/(d||1)],rt),-1,1)*.8});
+      else if(e.type==='crash'&&e.far)fev.push({type:'hit',a:Math.min(1,e.speed/10)*a});}}if(ev.land>2.2)fev.push({type:'hit',a:ev.land/10});if(ev.ground>2)fev.push({type:'hit',a:ev.ground/8});
   audio.update(ep,car.pt.takeEvents(),fx,fev,{tunnel,cabin:listener===1});
 }
 function hudState(){
@@ -199,7 +220,7 @@ function hudState(){
     lap:lap.n,lapT:lap.t0>=0?time-lap.t0:0,best:lap.best,last:lap.last,
     delta:lap.bestTrace&&lap.t0>=0&&car.loc?(time-lap.t0)-(lap.bestTrace[Math.floor(car.loc.s)]||0):null,
     assistName:ASSISTS[settings.assist].name.toUpperCase()+' · '+(pt.auto?'AUTO':'MANUAL'),
-    tc:pt.tcOn,abs:car.absOn,esc:car.escOn,drift:car.drift.on,guide:car.aid.guide?(guide&&(guide.state.brake>.05||Math.abs(guide.state.steer)>.05)?1:.5):0,mapCar:[car.p[0],-car.p[2]],
+    tc:pt.tcOn,abs:car.absOn,esc:car.escOn,drift:car.drift.on,guide:car.aid.guide?(guide&&(guide.state.brake>.05||Math.abs(guide.state.steer)>.05)?1:.5):0,mapCar:[car.p[0],-car.p[2]],mapDots:traffic?traffic.cars.filter(t=>t.dist<520).map(t=>{const p=t.view&&t.view.p||traffic.worldPos(t);return [p[0],-p[2]];}):null,
     hint:state==='drive'&&time<6&&lap.n===0?'ESC FOR THE MENU · C CAMERA · L LED MATRIX':null};
 }
 
@@ -224,14 +245,17 @@ function step(dt){
   car.wet=env.wet;
   let drive=state==='title'||Q.has('auto')?Object.assign({},inp,botFn(car)):inp;
   if(state==='drive'&&car.aid.guide&&guide)drive=guide(drive);
-  acc+=dt;let n=0;while(acc>=DT&&n<24){car.step(DT,drive);acc-=DT;n++;time+=DT;}
+  const pb=playerBody();
+  acc+=dt;let n=0;while(acc>=DT&&n<24){car.step(DT,drive);if(traffic)traffic.stepPhysics(DT,pb);acc-=DT;n++;time+=DT;}
   if(acc>DT)acc=0;
+  if(traffic){traffic.wet=env.wet;traffic.update(dt,{time,player:pb,cam:camLast,night:env.night,init:trafficInit});trafficInit=false;}
   lapUpdate();effects(dt);
   return {ev:car.takeEvents()};
 }
 function render(dt,ev){
   const c=cam.update(dt,car,{look:!!lastInp.look,impact:Math.max(ev.wall||0,ev.land||0)*.25});
-  const L=carLights(),M=qmat(car.q),F=mcol(M,0),fw=norm([F[0],0,F[2]]);
+  const L=carLights(),M=qmat(car.q),F=mcol(M,0),fw=norm([F[0],0,F[2]]);camLast={pos:c.pos,fwd:c.fwd};
+  const tv=traffic?traffic.views({night:env.night}):[];if(traffic)L.dyn.push(...traffic.lights({night:env.night,cam:c},Math.min(16-L.dyn.length,{low:0,medium:2,high:4,ultra:6}[settings.quality]??4)));
   const camVel=camPrev&&!c.cut?sub(c.pos,camPrev).map(x=>x/Math.max(dt,1e-3)):[0,0,0];camPrev=c.pos.slice();
   PS.rain.on=env.rain;PS.rain.camVel=camVel;PS.update(dt,c.pos);
   const led=settings.display==='led';
@@ -239,7 +263,7 @@ function render(dt,ev){
   if(led){const res=settings.ledRes==='fine'?[480,270]:[320,180];if(ledHud.width!==res[0]){ledHud.width=res[0];ledHud.height=res[1];}
     ledHudView.pixel=true;ledHudView.draw(state==='drive'?hudState():null,dt);ledS={res,hud:R.hudTexture(ledHud),quant:15};}
   R.render({time,dt,cam:c,cut:c.cut,env,flicker:flicker(time),probePos:add(car.p,[0,.4,0]),dyn:L.dyn,headlights:L.headlights,
-    occ:[[car.p[0],car.p[1],car.p[2],car.c.hcg,fw[0],fw[2],car.c.body.L/2,car.c.body.W/2]],cars:[carView()],
+    occ:[[car.p[0],car.p[1],car.p[2],car.c.hcg,fw[0],fw[2],car.c.body.L/2,car.c.body.W/2]],cars:[carView(),...tv,...extraCars],
     shutter:.5,lensRain:c.lensRain*env.rain*(1-level.shelter(car)),led:ledS,debug:Q.get('debug'),debugGain:+(Q.get('gain')||1)});
   hud.draw(state==='drive'&&!led?hudState():null,dt);
   if(state!=='pause')soundUpdate(c,ev);
@@ -249,7 +273,10 @@ function frame(dt){fit();const r=step(dt);render(dt,r.ev||{});frameN++;
   if(settings.scale==='auto'){const sc=drs.update(dt*1000,R.gpuMs);if(Math.abs(sc-R.scale)>.001)R.resize(canvas.width,canvas.height,sc);}}
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;fps+=(1/Math.max(dt,1e-3)-fps)*.05;frame(dt);requestAnimationFrame(loop);}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='drive')pause(true);});
-window.__game={R,get level(){return level;},get car(){return car;},cam,input,frame,audio,menu,settings,begin,pause,swapEngine,loadLevel,
+window.__game={R,CR,extraCars,get traffic(){return traffic;},
+  /* park a car for tests and screenshots: design id, map x, world z, yaw, paint index */
+  park:(design,x,z,yaw,paint=0,lamps=[1,1,0,0],opts={})=>{const ch=CHASSIS[design],g=level.world.ground(x,z,-1,50);
+    extraCars.push(poseView(ch,Object.assign({id:100+extraCars.length,p:[x,g.y+ch.hcg,z],yaw,paint:design==='taxi'?TAXI_PAINT:TRAFFIC_PAINTS[paint%TRAFFIC_PAINTS.length],lamps},opts)));},get level(){return level;},get car(){return car;},cam,input,frame,audio,menu,settings,begin,pause,swapEngine,loadLevel,
   sim:sec=>{for(let t=0;t<sec;t+=1/60)step(1/60);},setEnv:id=>{settings.env=id;env=ENVS[id];},setPaint:id=>{settings.paint=id;},
   stats:()=>({iw:R.iw,ih:R.ih,gpu:R.gpuMs,drawn:R.drawn,speed:car.vf,gear:car.pt.gear,rpm:car.pt.rpm,s:car.loc&&car.loc.s,d:car.loc&&car.loc.d,lap:lap.n,state})};
 /* compile every shader behind the boot screen, then show the title */

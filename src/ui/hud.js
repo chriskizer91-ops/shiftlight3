@@ -92,9 +92,9 @@ export class HUD{
       if(M.hwy)stroke(M.hwy,true,this.pixel?1:2.4*s,C.cyan,.85);
       ctx.globalAlpha=1;
       if(M.start){const [sx,sy]=P(M.start[0],M.start[1]);ctx.fillStyle=C.white;ctx.fillRect(sx-1.5*s,sy-7*s,3*s,14*s);}
+      if(S.mapDots){ctx.fillStyle='#ffb347';ctx.globalAlpha=.75;const r=this.pixel?.6:2.1*s;for(const d of S.mapDots){const [x,y]=P(d[0],d[1]);ctx.fillRect(x-r,y-r,2*r,2*r);}ctx.globalAlpha=1;}
       if(S.mapCar){const [x,y]=P(S.mapCar[0],S.mapCar[1]);ctx.fillStyle=C.white;ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(x,y,12*s,0,6.283);ctx.fill();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,6*s,0,6.283);ctx.fill();
         if(S.mapHead!==undefined){ctx.strokeStyle=C.white;ctx.lineWidth=2*s;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(S.mapHead)*16*s,y-Math.sin(S.mapHead)*16*s);ctx.stroke();}}}
-    if(S.others&&this.map){/* other cars on the minimap */}
     /* ---- assists ---- */
     const ax=pad,ay=H-pad-30*s;
     this.small(ctx,S.assistName||'',ax,ay-40*s,3*s,C.faint);

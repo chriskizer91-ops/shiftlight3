@@ -8,7 +8,10 @@
     "test:audio": "node test/render.mjs test/out",
     "test:orders": "node test/orders.mjs",
     "test:browser": "node tools/build.mjs --only lab && node test/browser.mjs test/out",
-    "test:physics": "node test/physics.mjs"
+    "test:physics": "node test/physics.mjs",
+    "test:city": "node test/cityphys.mjs",
+    "test:traffic": "node test/traffic.mjs",
+    "test": "node test/physics.mjs && node test/cityphys.mjs && node test/traffic.mjs"
   },
   "type": "module",
   "devDependencies": {

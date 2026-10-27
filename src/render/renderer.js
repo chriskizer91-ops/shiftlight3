@@ -156,7 +156,7 @@ export class Renderer{
     const sun=U.uCSMOn>0;
     if(sun){for(let k=0;k<3;k++){if(k>0&&(this.frameN+k)%2)continue;
       G.bind(this.csmFB[k]);gl.clear(gl.DEPTH_BUFFER_BIT);G.uni(P,'uVP',this.csmM[k]);
-      this.drawWorld(P,M4.planes(this.csmM[k]));for(const h of this.extra)h.shadow&&h.shadow(this,P,this.csmM[k],'sun');}}
+      this.drawWorld(P,M4.planes(this.csmM[k]));for(const h of this.extra)h.shadow&&h.shadow(this,P,this.csmM[k],'sun',k);}}
     if(U.uHLShOn>0){G.bind(this.hlFB);gl.clear(gl.DEPTH_BUFFER_BIT);G.uni(P,'uVP',this.hlM);
       this.drawWorld(P,M4.planes(this.hlM),{from:this.hlPos,maxDist:80});for(const h of this.extra)h.shadow&&h.shadow(this,P,this.hlM,'hl');}
     gl.disable(gl.POLYGON_OFFSET_FILL);

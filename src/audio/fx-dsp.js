@@ -7,6 +7,8 @@
    - curb rumble: low, soft thumps as the stripes pass
    - wind
    - impacts (a thud and a crunch) and grinding along a barrier (grains of grit, not static)
+   - the traffic: up to four nearby cars, each an engine hum (its firing note and a couple of
+     harmonics, Doppler-shifted by the caller) over its own tyre noise; and their horns
    Self-contained so it can be stringified into an AudioWorklet, like the engine synth.
    ===================================================================================== */
 export function makeFX(){
@@ -23,9 +25,11 @@ export function makeFX(){
       this.road=new BP();this.road.set(260,.7,sr);this.road2=new BP();this.road2.set(700,.9,sr);
       this.hissF=new BP();this.hissF.set(2200,.9,sr);this.windF=new BP();this.windF.set(520,.6,sr);
       this.grit=new BP();this.grit.set(900,2.2,sr);this.gritLo=new BP();this.gritLo.set(180,1.2,sr);
-      this.seed=22222;this.b=[0,0,0];this.curbPh=0;this.thumpE=0;this.thumpLp=0;this.hits=[];this.grainE=0;this.grainA=0;this.hitLp=0;this.k=0;}
+      this.seed=22222;this.b=[0,0,0];this.curbPh=0;this.thumpE=0;this.thumpLp=0;this.hits=[];this.grainE=0;this.grainA=0;this.hitLp=0;this.k=0;
+      this.tv=[0,1,2,3].map(()=>({g:0,f:30,pan:0,ph:0,lp:0,rd:0,bp:new BP()}));this.horns=[];}
     set(p){this.p=p;}
-    event(e){if(e.type==='hit')this.hits.push({t:0,a:Math.min(1.4,e.a),f:58+Math.random()*24});}
+    event(e){if(e.type==='hit')this.hits.push({t:0,a:Math.min(1.4,e.a),f:58+Math.random()*24});
+      else if(e.type==='horn'&&this.horns.length<4)this.horns.push({t:0,a:Math.min(1,e.a),len:e.len||.4,f:e.f||420,pan:e.pan||0,ph1:0,ph2:0});}
     rnd(){let s=this.seed;s^=s<<13;s^=s>>>17;s^=s<<5;this.seed=s;return (s>>>0)/4294967296*2-1;}
     process(L,R,n){
       const p=this.p,g=this.g,sr=this.sr,k=1-Math.exp(-1/(sr*.05)),sp=p.speed||0,cab=p.cabin?1:0,wet=p.wet||0;
@@ -61,6 +65,17 @@ export function makeFX(){
         /* impacts */
         for(let h=this.hits.length-1;h>=0;h--){const H=this.hits[h];H.t+=1/sr;const e=Math.exp(-H.t*14)*H.a;
           this.hitLp+=(wn-this.hitLp)*.15;const s=(Math.sin(TAU*H.f*H.t*(1-H.t*1.5))*.9+this.hitLp*1.5*Math.exp(-H.t*30)+wn*.25*Math.exp(-H.t*80))*e;l+=s;r+=s;if(H.t>.6)this.hits.splice(h,1);}
+        /* the traffic around you */
+        const TV=p.traffic;if(TV)for(let j=0;j<4;j++){const T=TV[j],V=this.tv[j];const tg=T?T.g:0;V.g+=(tg-V.g)*k*.5;if(V.g<1e-4)continue;
+          if(T){V.f+=(T.f-V.f)*k;V.pan+=(T.pan-V.pan)*k;V.rd+=((T.rd||0)-V.rd)*k;}
+          V.ph+=V.f/sr;if(V.ph>1)V.ph-=1;const ph=TAU*V.ph;
+          let e=Math.sin(ph)*.6+Math.sin(2*ph+.4)*.32+Math.sin(3*ph+1.1)*.14+Math.sin(.5*ph)*.18;V.lp+=(e-V.lp)*.25;
+          if(i===0)V.bp.set(380+V.rd*900,.8,sr);const tyre=V.bp.run(pink)*V.rd*1.4;
+          const x=(V.lp*.7+tyre)*V.g,pl=Math.min(1,1-V.pan),pr=Math.min(1,1+V.pan);l+=x*pl;r+=x*pr;}
+        /* horns: two notes a third apart, a buzzy reed */
+        for(let h=this.horns.length-1;h>=0;h--){const H=this.horns[h];H.t+=1/sr;const env=Math.min(1,H.t/.012)*(H.t>H.len?Math.exp(-(H.t-H.len)*40):1);
+          H.ph1+=H.f/sr;H.ph2+=H.f*1.26/sr;const sq=x=>{x-=Math.floor(x);return (x<.5?1:-1)*.7+Math.sin(TAU*x)*.3;};
+          const hs=(sq(H.ph1)+sq(H.ph2))*.5*env*H.a*.32,pl=Math.min(1,1-H.pan),pr=Math.min(1,1+H.pan);l+=hs*pl;r+=hs*pr;if(H.t>H.len+.2)this.horns.splice(h,1);}
         const v=(p.vol??1)*.55;L[i]=l*v;R[i]=r*v;
       }
     }

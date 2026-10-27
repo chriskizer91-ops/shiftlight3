@@ -48,6 +48,11 @@ export class Powertrain{
   autoShift(brk,air,holdGear=false){
     const e=this.e;if(this.shiftT>0||this.rev||air||this.sinceShift<.3||this.engage<.95||!this.running)return;
     const g=this.gear,rpm=this.rpm;
+    /* everyday driving: short-shift early, change down only when it lugs */
+    if(this.eco){const up=e.redline*(.36+.3*this.thr);
+      if(this.locked&&g<e.nG&&rpm>up){this.shift(1);return;}
+      if(g>1&&rpm<e.idle*1.3&&this.sinceShift>.6)this.shift(-1);
+      return;}
     if(this.locked&&g<e.nG&&((!holdGear&&rpm>this.upRpm[g-1])||rpm>e.limiterRpm-80)&&this.thr>.3){this.shift(1);return;}
     if(g>1&&(!holdGear||rpm<e.idle*1.6)){const after=rpm*e.gears[g-2]/e.gears[g-1];
       if(after<this.upRpm[g-2]*.88&&(rpm<e.redline*.5||(brk>.3&&after<e.redline*.86))&&this.sinceShift>.45)this.shift(-1);}

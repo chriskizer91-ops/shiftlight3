@@ -25,7 +25,9 @@ export const ASSISTS={
   easy:{id:'easy',name:'Arcade Easy',steer:1,esc:1,tc:1,abs:1,drift:1,auto:1,catchSpin:1,plus:{grip:1.15,upright:true},guide:true},
   arcade:{id:'arcade',name:'Arcade',steer:1,esc:1,tc:1,abs:1,drift:1,auto:1,catchSpin:1},
   sport:{id:'sport',name:'Sport',steer:.75,esc:.65,tc:1,abs:1,drift:0,auto:1,catchSpin:0},
-  sim:{id:'sim',name:'Simulation',steer:0,esc:0,tc:0,abs:1,drift:0,auto:1,catchSpin:0}
+  sim:{id:'sim',name:'Simulation',steer:0,esc:0,tc:0,abs:1,drift:0,auto:1,catchSpin:0},
+  /* the traffic's drivers steer the wheels directly and keep stability control on */
+  ai:{id:'ai',name:'AI',steer:0,esc:.8,tc:1,abs:1,drift:0,auto:1,catchSpin:0,hidden:true}
 };
 const SURF_MU={road:1,curb:.95,shoulder:.9,ground:.7};
 

@@ -61,6 +61,8 @@ export function buildCityMap(seed=777){
     const a=nodeAt.get(key(sx*S,sy*RING)),b=nodeAt.get(key(sx*RING,sy*S));
     const c={id:segs.length,a:a.id,b:b.id,axis:'arc',cls:'ring',...ROADS.ring,cx:sx*S,cy:sy*S,r:CORNER,
       a0:Math.atan2(a.y-sy*S,a.x-sx*S),a1:Math.atan2(b.y-sy*S,b.x-sx*S),len:Math.PI/2*CORNER};
+    /* the short way round (atan2 jumps at +-pi) */
+    if(c.a1-c.a0>Math.PI)c.a1-=2*Math.PI;else if(c.a1-c.a0<-Math.PI)c.a1+=2*Math.PI;
     c.x0=a.x;c.y0=a.y;c.x1=b.x;c.y1=b.y;segs.push(c);a.links.push(c.id);b.links.push(c.id);M.corners.push(c);}
   M.segs=segs;
   /* ---------- the highway and its ramps ---------- */
