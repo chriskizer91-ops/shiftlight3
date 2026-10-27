@@ -242,7 +242,7 @@ export function buildCity(T){
     const cx=(F.bl[0]+F.br[0])/2-F.nx*1.5,cy=(F.bl[1]+F.br[1])/2-F.ny*1.5,y0=H+1.2;
     C.mat(8,140,220).col(60,60,62);for(const o of [-w/3,w/3])C.at(cx,-cy).tube(W(cx+rt[0]*o,cy+rt[1]*o,H),W(cx+rt[0]*o,cy+rt[1]*o,y0+.2),.1,5,false);
     const col=NEON[Math.floor(R()*NEON.length)].map(v=>v*.55+.25);
-    C.mat(10,90).col(col[0]*255,col[1]*255,col[2]*255);
+    C.mat(10,28).col(col[0]*255,col[1]*255,col[2]*255);
     const fa=W(cx+rt[0]*-w/2+F.nx*.2,cy+rt[1]*-w/2+F.ny*.2,y0),fb=W(cx+rt[0]*w/2+F.nx*.2,cy+rt[1]*w/2+F.ny*.2,y0);
     C.at(cx,-cy).quadP(fa,fb,[fb[0],y0+h,fb[2]],[fa[0],y0+h,fa[2]],[[0,0],[1,0],[1,1],[0,1]],[F.nx,0,-F.ny]);
     C.mat(13,150).col(30,30,30);C.at(cx,-cy).box(W(cx,cy,y0+h/2),[rt[0],0,-rt[1]],[0,1,0],[F.nx,0,-F.ny],[w/2+.15,h/2+.15,.15]);

@@ -92,7 +92,8 @@ void main(){
     vec3 Li=uFogAmb;
     if(dot(uSunCol,uSunCol)>1e-6)Li+=uSunCol*sunPh*csmVis(X);
     if(uHL[0].w>0.0){vec3 Lv=hlP-X;float d2=dot(Lv,Lv);if(d2<uHL[4].w*uHL[4].w){vec3 L=Lv*inversesqrt(d2);float b=beam(-L,hlF,hlR,hlU,uHL[1].w);
-      if(b>0.0)Li+=uHL[4].rgb*b*falloff(d2,uHL[4].w)*hlVis(X)*hg(dot(rd,L),.45)*2.0*uHL[0].w;}}
+      /* the lamps are 10 cm across, not points: no infinite glow right at the lens */
+      if(b>0.0)Li+=uHL[4].rgb*b*falloff(max(d2,2.5),uHL[4].w)*hlVis(X)*hg(dot(rd,L),.45)*.5*uHL[0].w;}}
     Li+=scatterLights(X,rd)*.45;
     float ext=dens*dt;S+=Li*ext*Tr;Tr*=exp(-ext);
   }
@@ -228,22 +229,22 @@ vec3 srgb(vec3 c){return mix(c*12.92,1.055*pow(c,vec3(1./2.4))-.055,step(.003130
 /* raindrops on the lens: a few sizes of drops, some sliding */
 vec3 drops(vec2 uv,float t){
   vec2 asp=vec2(uOutRes.x/uOutRes.y,1.);vec3 acc=vec3(0);
-  for(int k=0;k<3;k++){float sc=k==0?7.:k==1?13.:24.;vec2 p=uv*asp*sc;p.y+=k==0?t*.0:0.0;vec2 id=floor(p);vec2 f=fract(p)-.5;
-    vec2 r=h22(id+float(k)*31.);if(r.x>.55-uLensRain*.25)continue;
-    float life=fract(t*.07*(1.+r.y)+r.x*9.);float slide=k==0?smoothstep(.6,1.,life)*1.5:0.;
-    vec2 c=(r-.5)*.6+vec2(0,-slide*.5);vec2 d=f-c;float rad=.18+.15*r.y;rad*=k==0?1.:.8;
-    float m=1.0-smoothstep(rad*.75,rad,length(d*vec2(1.,1.2)));float fade=smoothstep(0.,.08,life)*(1.0-smoothstep(.9,1.,life));
-    if(m>0.0)acc=vec3(d/rad,m*fade);}
+  for(int k=0;k<3;k++){float sc=k==0?5.:k==1?9.:16.;vec2 p=uv*asp*sc;vec2 id=floor(p);vec2 f=fract(p)-.5;
+    vec2 r=h22(id+float(k)*31.);if(r.x>.18*uLensRain+(k==2?.08:0.))continue;
+    float life=fract(t*.12*(1.+r.y)+r.x*9.);float slide=k==0?smoothstep(.55,1.,life):0.;
+    vec2 c=(h22(id+7.)-.5)*.5+vec2(0,-slide*.9);vec2 d=f-c;float rad=(.07+.06*r.y)*(k==0?1.:.7);
+    float m=1.0-smoothstep(rad*.7,rad,length(d*vec2(1.,1.15)));float fade=smoothstep(0.,.06,life)*(1.0-smoothstep(.85,1.,life));
+    if(m*fade>acc.z)acc=vec3(d/rad,m*fade);}
   return acc;}
 void main(){
   vec2 uv=vT;vec3 lr=vec3(0);
-  if(uLensRain>0.0){lr=drops(uv,uTime);uv-=lr.xy*lr.z*.035;}
+  if(uLensRain>0.0){lr=drops(uv,uTime);uv-=lr.xy*lr.z*.02;}
   float ex=texture(uExpo,vec2(.5)).r*uExpoBias;
   vec2 cq=uv-.5;vec3 c;
   if(uCA>0.0){vec2 sh=cq*dot(cq,cq)*uCA*.012;c=vec3(texture(uSrc,uv-sh).r,texture(uSrc,uv).g,texture(uSrc,uv+sh).b);}else c=texture(uSrc,uv).rgb;
   vec3 b=texture(uBloom,uv).rgb;
   c=c+b*uBloomK;
-  if(lr.z>0.0)c=mix(c,textureLod(uBloom,uv-lr.xy*.08,0.).rgb*1.6+c*.3,lr.z*.55);
+  if(lr.z>0.0)c=mix(c,textureLod(uBloom,uv-lr.xy*.05,0.).rgb*1.3+c*.25,lr.z*.4);
   c*=ex;
   c=aces(c*1.0);
   float l=dot(c,vec3(.2126,.7152,.0722));c=mix(vec3(l),c,uGrade.x);c=clamp((c-.5)*uGrade.y+.5,0.,1.);
