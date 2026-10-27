@@ -5,17 +5,55 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Shiftlight</title>
 <style>
-html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#e8e4f2;font:14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+:root{--pink:#ff4fa0;--cyan:#4fe3ff;--ink:#ece8f6;--dim:#9a94b2;--panel:rgba(10,8,18,.82);--edge:rgba(255,255,255,.09)}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;color:var(--ink);font:14px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:none}
 #hud{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
-#boot{position:fixed;inset:0;display:grid;place-items:center;background:#05040a;color:#a9a3c0;font:600 13px/1.5 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.12em;text-transform:uppercase}
-#boot b{color:#ff4fa0}
+#boot,#title{position:fixed;inset:0;display:grid;place-items:center;text-align:center}
+#boot{background:#05040a;color:var(--dim);font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+#boot b{color:var(--pink)}
+#title{background:radial-gradient(ellipse 60% 45% at 50% 50%,rgba(4,3,9,.62),rgba(4,3,9,.25) 70%,rgba(4,3,9,.45));pointer-events:none}
+#title .logo{font:800 clamp(44px,9vw,128px)/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;color:#fff;
+  text-shadow:0 0 6px var(--pink),0 0 22px var(--pink),0 0 60px rgba(255,79,160,.6)}
+#title .sub{margin-top:14px;letter-spacing:.38em;text-transform:uppercase;color:var(--cyan);font-weight:700;font-size:clamp(11px,1.4vw,16px);text-shadow:0 0 12px rgba(79,227,255,.6)}
+#title .go{margin-top:44px;letter-spacing:.24em;text-transform:uppercase;font-size:13px;color:#fff;animation:pulse 1.6s ease-in-out infinite}
+#title .keys{margin-top:26px;color:var(--dim);font-size:12px;line-height:1.9;letter-spacing:.06em}
+#title .keys b{color:var(--ink);font-weight:700}
+@keyframes pulse{50%{opacity:.35}}
+#menu{position:fixed;inset:0;display:grid;place-items:center;background:rgba(3,2,8,.45);backdrop-filter:blur(3px)}
+#menu .panel{width:min(760px,94vw);max-height:90vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--edge);border-radius:6px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+#menu .ttl{padding:20px 26px 10px;font-weight:800;letter-spacing:.3em;color:#fff;text-shadow:0 0 14px var(--pink)}
+#menu .rows{overflow:auto;padding:4px 14px 10px}
+#menu .head{margin:16px 12px 6px;font-size:11px;letter-spacing:.32em;color:var(--pink);text-transform:uppercase}
+#menu .row{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:6px 14px;padding:9px 12px;border-radius:4px;border:1px solid transparent;cursor:pointer;width:100%;box-sizing:border-box;
+  background:none;color:var(--ink);font:inherit;text-align:left}
+#menu .row.sel{border-color:rgba(255,79,160,.5);background:rgba(255,79,160,.08)}
+#menu .row.act{display:block;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+#menu .lab{color:var(--dim);text-transform:uppercase;letter-spacing:.1em;font-size:12px}
+#menu .desc{grid-column:2;color:var(--dim);font-size:12px}
+#menu .chips{display:flex;flex-wrap:wrap;gap:6px}
+#menu .chip{padding:5px 10px;border-radius:3px;border:1px solid var(--edge);background:rgba(255,255,255,.03);color:var(--ink);font:inherit;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+#menu .chip.on{border-color:var(--cyan);color:#fff;box-shadow:0 0 0 1px rgba(79,227,255,.35) inset;background:rgba(79,227,255,.1)}
+#menu .chip i{width:12px;height:12px;border-radius:50%;background:var(--sw);display:inline-block;box-shadow:0 0 6px var(--sw)}
+#menu .cyc{display:flex;align-items:center;gap:10px}
+#menu .cyc b{min-width:220px;text-align:center;color:#fff}
+#menu .arr{background:none;border:1px solid var(--edge);color:var(--ink);border-radius:3px;width:28px;height:26px;cursor:pointer;font-size:11px}
+#menu input[type=range]{width:100%;accent-color:var(--pink)}
+#menu .val{grid-column:2;color:var(--dim);font-size:12px}
+#menu .foot{padding:10px 26px 16px;color:var(--dim);font-size:11px;letter-spacing:.08em;border-top:1px solid var(--edge)}
+#menu button:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+@media (max-width:620px){#menu .row{grid-template-columns:1fr}#menu .desc,#menu .val{grid-column:1}#menu .cyc b{min-width:0;flex:1}}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
-<canvas id="view"></canvas>
+<canvas id="view" aria-label="Shiftlight: a street race through a neon city"></canvas>
 <canvas id="hud"></canvas>
+<div id="title" hidden><div><div class="logo">SHIFTLIGHT</div><div class="sub" id="titleSub">Neon Loop · Midnight Rain</div>
+  <div class="go">Press any key to drive</div>
+  <div class="keys"><b>W/↑</b> throttle · <b>S/↓</b> brake &amp; reverse · <b>A D/← →</b> steer · <b>Space</b> handbrake · <b>Shift</b> nitrous<br>
+  <b>Q/E</b> shift (manual) · <b>C</b> camera · <b>B</b> look back · <b>L</b> LED matrix · <b>T</b> time of day · <b>R</b> reset · <b>Esc</b> menu<br>Gamepads work too: triggers, left stick, A handbrake.</div></div></div>
+<div id="menu" hidden></div>
 <div id="boot"><div><b>SHIFTLIGHT</b> &nbsp;building the city…</div></div>
 <script>(() => {
   // src/render/gl.js
@@ -147,15 +185,15 @@ precision highp float;precision highp int;precision highp sampler2DArray;precisi
       depth32f: [gl.DEPTH_COMPONENT32F, gl.DEPTH_COMPONENT, gl.FLOAT],
       depth24: [gl.DEPTH_COMPONENT24, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT]
     };
-    G2.FMT = FMT, G2.texture = (w, h, fmt = "rgba8", o = {}) => {
-      let [ifmt, f2, ty] = FMT[fmt], t = gl.createTexture(), target = o.cube ? gl.TEXTURE_CUBE_MAP : o.layers ? gl.TEXTURE_2D_ARRAY : gl.TEXTURE_2D;
+    G2.FMT = FMT, G2.texture = (w, h, fmt2 = "rgba8", o = {}) => {
+      let [ifmt, f2, ty] = FMT[fmt2], t = gl.createTexture(), target = o.cube ? gl.TEXTURE_CUBE_MAP : o.layers ? gl.TEXTURE_2D_ARRAY : gl.TEXTURE_2D;
       gl.bindTexture(target, t);
       let lv = o.mips ? Math.floor(Math.log2(Math.max(w, h))) + 1 : 1;
       o.layers ? gl.texStorage3D(target, lv, ifmt, w, h, o.layers) : gl.texStorage2D(target, lv, ifmt, w, h);
       let lin = o.filter !== "nearest";
       gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, o.mips ? lin ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST_MIPMAP_NEAREST : lin ? gl.LINEAR : gl.NEAREST), gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, lin ? gl.LINEAR : gl.NEAREST);
       let wr = o.wrap === "repeat" ? gl.REPEAT : o.wrap === "mirror" ? gl.MIRRORED_REPEAT : gl.CLAMP_TO_EDGE;
-      return gl.texParameteri(target, gl.TEXTURE_WRAP_S, wr), gl.texParameteri(target, gl.TEXTURE_WRAP_T, wr), (o.cube || o.layers) && gl.texParameteri(target, gl.TEXTURE_WRAP_R, wr), o.compare && (gl.texParameteri(target, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE), gl.texParameteri(target, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL)), o.aniso && ext.aniso && gl.texParameterf(target, ext.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(o.aniso, G2.maxAniso)), o.data && !o.layers && !o.cube && gl.texSubImage2D(target, 0, 0, 0, w, h, f2, ty, o.data), o.data && o.mips && gl.generateMipmap(target), { t, target, w, h, fmt, ifmt, f: f2, ty, levels: lv };
+      return gl.texParameteri(target, gl.TEXTURE_WRAP_S, wr), gl.texParameteri(target, gl.TEXTURE_WRAP_T, wr), (o.cube || o.layers) && gl.texParameteri(target, gl.TEXTURE_WRAP_R, wr), o.compare && (gl.texParameteri(target, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE), gl.texParameteri(target, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL)), o.aniso && ext.aniso && gl.texParameterf(target, ext.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(o.aniso, G2.maxAniso)), o.data && !o.layers && !o.cube && gl.texSubImage2D(target, 0, 0, 0, w, h, f2, ty, o.data), o.data && o.mips && gl.generateMipmap(target), { t, target, w, h, fmt: fmt2, ifmt, f: f2, ty, levels: lv };
     }, G2.upload = (T2, data, x = 0, y = 0, w = T2.w, h = T2.h) => {
       gl.bindTexture(T2.target, T2.t), gl.texSubImage2D(T2.target, 0, x, y, w, h, T2.f, T2.ty, data);
     }, G2.del = (T2) => {
@@ -1076,7 +1114,7 @@ void main(){
     if(dot(uSunCol,uSunCol)>1e-6)Li+=uSunCol*sunPh*csmVis(X);
     if(uHL[0].w>0.0){vec3 Lv=hlP-X;float d2=dot(Lv,Lv);if(d2<uHL[4].w*uHL[4].w){vec3 L=Lv*inversesqrt(d2);float b=beam(-L,hlF,hlR,hlU,uHL[1].w);
       /* the lamps are 10 cm across, not points: no infinite glow right at the lens */
-      if(b>0.0)Li+=uHL[4].rgb*b*falloff(max(d2,2.5),uHL[4].w)*hlVis(X)*hg(dot(rd,L),.45)*uHL[0].w;}}
+      if(b>0.0)Li+=uHL[4].rgb*b*falloff(max(d2,2.5),uHL[4].w)*hlVis(X)*hg(dot(rd,L),.45)*.5*uHL[0].w;}}
     Li+=scatterLights(X,rd)*.45;
     float ext=dens*dt;S+=Li*ext*Tr;Tr*=exp(-ext);
   }
@@ -1285,6 +1323,11 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
         uCSMOn: 0,
         uHLShOn: 0
       }, this.timer = G2.timer(), this.gpuMs = -1, this.W = 0, this.H = 0, this.iw = 0, this.ih = 0;
+    }
+    /* the HUD canvas as a texture, for the LED matrix to draw as lamps */
+    hudTexture(cv) {
+      let gl = this.gl;
+      return this.hudT || (this.hudT = { t: gl.createTexture(), target: gl.TEXTURE_2D }, gl.bindTexture(gl.TEXTURE_2D, this.hudT.t), gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST), gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST), gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE), gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)), gl.bindTexture(gl.TEXTURE_2D, this.hudT.t), gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !1), gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv), this.hudT;
     }
     /* the world: geometry tiles and the static lights */
     loadWorld(city2, T2) {
@@ -1694,14 +1737,14 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
     for (let k = 0; k < n; k++) for (let j = 0; j < prof.length - 1; j++) B.quad(ix[k][j], ix[k + 1][j], ix[k + 1][j + 1], ix[k][j + 1]);
   }
   function buildCaliper() {
-    let C = new MeshBuilder(256);
-    C.mat(7);
+    let C2 = new MeshBuilder(256);
+    C2.mat(7);
     let a0 = 0.35, a1 = 1.25, r = 0.165, n = 8;
     for (let k = 0; k < n; k++) {
       let t0 = a0 + (a1 - a0) * k / n, t1 = a0 + (a1 - a0) * (k + 1) / n;
-      C.box([-Math.cos((t0 + t1) / 2) * r, Math.sin((t0 + t1) / 2) * r, -0.02], norm([-Math.sin((t0 + t1) / 2), -Math.cos((t0 + t1) / 2), 0]), [0, 0, 1], norm([-Math.cos((t0 + t1) / 2), Math.sin((t0 + t1) / 2), 0]), [(t1 - t0) * r * 0.55, 0.032, 0.03]);
+      C2.box([-Math.cos((t0 + t1) / 2) * r, Math.sin((t0 + t1) / 2) * r, -0.02], norm([-Math.sin((t0 + t1) / 2), -Math.cos((t0 + t1) / 2), 0]), [0, 0, 1], norm([-Math.cos((t0 + t1) / 2), Math.sin((t0 + t1) / 2), 0]), [(t1 - t0) * r * 0.55, 0.032, 0.03]);
     }
-    return C;
+    return C2;
   }
   function mirrorZ(B) {
     let M = new MeshBuilder(B.nv + 16);
@@ -2127,6 +2170,198 @@ void main(){
     }
   }, ENV_IDS = Object.keys(ENVS);
 
+  // src/render/glsl/particles.js
+  var POINT_LIGHT = `
+uniform vec3 uFogAmb;
+/* returns scattered radiance for a thin, mostly forward-scattering medium */
+vec3 lightAt(vec3 X,vec3 V){
+  vec3 c=mix(uAmbDn,uAmbUp,.6)*1.2+uFogAmb*4.;
+  if(dot(uSunCol,uSunCol)>1e-6)c+=uSunCol*(.25+.75*pow(saturate(dot(-V,uSunDir)),4.));
+  if(uLightsOn>0.0){ivec2 cell=ivec2(floor((X.xz-uGridP.xy)*uGridP.z));int gw=int(uGridP.w);
+    if(cell.x>=0&&cell.y>=0&&cell.x<gw&&cell.y<gw){uvec2 oc=texelFetch(uLGrid,cell,0).xy;int n=min(int(oc.y),12);
+      for(int k=0;k<n;k++){int idx=int(oc.x)+k;int li=int(texelFetch(uLList,ivec2(idx&1023,idx>>10),0).x);
+        vec4 A=LT(li,0),B=LT(li,1),C=LT(li,2),D=LT(li,3);int code=int(B.w+.5),type=code&7,fl=code>>3;
+        vec3 Lp=A.xyz;if(type==2){vec3 ax=C.xyz;Lp+=ax*clamp(dot(X-Lp,ax)/max(dot(ax,ax),1e-4),-1.,1.);}
+        vec3 Lv=Lp-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
+        float att=falloff(d2,A.w);if(type==1)att*=smoothstep(C.w,D.x,dot(-L,C.xyz));
+        /* drops light up most when the light is behind them */
+        c+=B.rgb*(fl>0?uFlick[fl&7]:1.0)*att*(.025+.11*pow(saturate(dot(-V,L)),3.))*uLightsOn;}}}
+  for(int i=0;i<uNDyn;i++){vec4 A=uDyn[i*3],B=uDyn[i*3+1],C=uDyn[i*3+2];vec3 Lv=A.xyz-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
+    float att=falloff(d2,A.w);if(int(B.w+.5)==1)att*=smoothstep(C.w,C.w+.12,dot(-L,C.xyz));c+=B.rgb*att*(.025+.11*pow(saturate(dot(-V,L)),3.));}
+  if(uHL[0].w>0.0){vec3 F=uHL[2].xyz,Rt=uHL[3].xyz,Up=cross(Rt,F);vec3 hp=(uHL[0].xyz+uHL[1].xyz)*.5;vec3 Lv=hp-X;float d2=dot(Lv,Lv);
+    if(d2<uHL[4].w*uHL[4].w){vec3 L=Lv*inversesqrt(d2);float b=beam(-L,F,Rt,Up,uHL[1].w);c+=uHL[4].rgb*b*falloff(d2,uHL[4].w)*(.02+.13*pow(saturate(dot(-V,L)),3.))*uHL[0].w;}}
+  return c;
+}`, SOFT = `
+uniform highp sampler2D uDepth;uniform vec2 uOutRes;
+float linz(float d){float z=d*2.-1.;return 2.*uNear*uFar/(uFar+uNear-z*(uFar-uNear));}
+float soft(float vz,float range){float sz=linz(texture(uDepth,gl_FragCoord.xy/uOutRes).r);return saturate((sz-vz)/range);}
+`, MASK = "uniform sampler2D uMask;uniform vec4 uMaskP;vec2 maskAt(vec2 xz){return texture(uMask,(xz-uMaskP.xy)*uMaskP.z).rg;}", RAIN_VS = FRAME + NOISE + LIGHTING + POINT_LIGHT + MASK + `
+uniform vec3 uBox;uniform vec3 uFall;uniform vec3 uCamVel;uniform float uStreak;uniform float uDensity;
+out vec2 vQ;out vec3 vC;out float vA;out float vZ;
+void main(){
+  int id=gl_InstanceID,v=gl_VertexID;
+  float fi=float(id);vec3 h=vec3(h11(fi*.1031+.13),h11(fi*.7311+.37),h11(fi*.3771+.71));
+  if(h11(fi*.917+.5)>uDensity){gl_Position=vec4(2,2,2,1);return;}
+  vec3 fall=uFall*(.85+.3*h11(fi*.21));
+  vec3 p=uCam+(fract((h*uBox-uCam+fall*uTime)/uBox)-.5)*uBox;
+  vec2 m=maskAt(p.xz);if(m.y<.5&&p.y<m.x+12.){gl_Position=vec4(2,2,2,1);return;}
+  if(p.y<m.x){gl_Position=vec4(2,2,2,1);return;}
+  vec3 rel=fall-uCamVel;vec3 tail=p-rel*uStreak;
+  vec4 a=uVP*vec4(p,1.),b=uVP*vec4(tail,1.);
+  if(a.w<.2||b.w<.2){gl_Position=vec4(2,2,2,1);return;}
+  vec2 sa=a.xy/a.w,sb=b.xy/b.w;vec2 d=(sb-sa)*uRes;float L=length(d);vec2 dir=L>1e-3?d/L:vec2(0,1);vec2 nr=vec2(-dir.y,dir.x);
+  /* a drop is about 2 mm wide: draw at least one pixel and fade instead */
+  float wpx=.0025*uProj[1][1]*uRes.y*.5/a.w;float w=max(wpx,.75);vA=min(1.,wpx/.75);
+  int c=v<3?v:(v==3?2:(v==4?1:3));
+  vec2 corner=vec2(float(c&1),float(c>>1));
+  vec4 P=mix(a,b,corner.y);vec2 off=nr*(corner.x*2.-1.)*w/uRes*2.*P.w;
+  gl_Position=vec4(P.xy+off,P.zw);
+  vQ=vec2(corner.x*2.-1.,corner.y);
+  vec3 V=normalize(uCam-p);
+  vC=lightAt(p,V);vZ=a.w;
+  vA*=smoothstep(.8,3.,a.w)*(1.0-smoothstep(uBox.x*.35,uBox.x*.5,length(p.xz-uCam.xz)))*min(1.,30./max(L,1.)+.3);
+}`, RAIN_FS = FRAME + SOFT + `
+in vec2 vQ;in vec3 vC;in float vA;in float vZ;out vec4 o;
+void main(){float e=1.0-vQ.x*vQ.x;float a=e*vA*(.35+.65*sin(vQ.y*3.14))*.55*soft(vZ,.4);
+  if(a<.002)discard;o=vec4(vC*a*5.,a*.2);}`, SPLASH_VS = FRAME + NOISE + LIGHTING + POINT_LIGHT + MASK + `
+uniform float uRadius;uniform float uDensity;
+out vec2 vQ;out vec3 vC;out float vA;out float vZ;out float vAge;
+void main(){
+  int id=gl_InstanceID,v=gl_VertexID;float fi=float(id);
+  float per=.35+.4*h11(fi*.37);float ph=h11(fi*.71);float cyc=floor(uTime/per+ph);float age=fract(uTime/per+ph);
+  if(age>.22||h11(fi*.53+cyc*.17)>uDensity){gl_Position=vec4(2,2,2,1);return;}
+  vec2 r=vec2(h11(fi*.113+cyc*.731),h11(fi*.419+cyc*.297));float ang=r.x*6.2831,rad=sqrt(r.y)*uRadius;
+  vec2 xz=uCam.xz+vec2(cos(ang),sin(ang))*rad;vec2 m=maskAt(xz);if(m.y<.5){gl_Position=vec4(2,2,2,1);return;}
+  vec3 p=vec3(xz.x,m.x+.01,xz.y);
+  vec3 V=normalize(uCam-p);vec3 rt=normalize(cross(vec3(0,1,0),V));
+  float sz=(.05+.11*age/.22)*(.7+.6*h11(fi*.9));
+  int c=v<3?v:(v==3?2:(v==4?1:3));vec2 corner=vec2(float(c&1),float(c>>1));
+  vec3 P=p+rt*(corner.x*2.-1.)*sz+vec3(0,1,0)*corner.y*sz*1.2;
+  vec4 cp=uVP*vec4(P,1.);gl_Position=cp;vZ=cp.w;
+  vQ=vec2(corner.x*2.-1.,corner.y);vAge=age/.22;
+  vC=lightAt(p+vec3(0,.05,0),V);vA=(1.0-smoothstep(uRadius*.6,uRadius,rad))*smoothstep(1.,3.,cp.w);
+}`, SPLASH_FS = FRAME + NOISE + SOFT + `
+in vec2 vQ;in vec3 vC;in float vA;in float vZ;in float vAge;out vec4 o;
+void main(){
+  vec2 q=vQ*vec2(1.,1.);float r=length(vec2(q.x,q.y*1.4));
+  /* a crown: a thin rim that rises and spreads, flung droplets above it */
+  float rim=smoothstep(.15,0.,abs(q.y-(.15+.25*vAge)*(1.0-q.x*q.x*.8)))*step(q.y,.6)*(1.0-abs(q.x));
+  vec2 dq=fract(q*vec2(3.,2.5)+vec2(0,-vAge))-.5;float drops=smoothstep(.18,.0,length(dq))*step(.3,q.y)*(1.0-vAge);
+  float a=max(rim,drops)*(1.0-vAge)*vA*.7*soft(vZ,.15);
+  if(a<.003)discard;o=vec4(vC*a*4.,a*.25);}`, PUFF_VS = FRAME + NOISE + LIGHTING + POINT_LIGHT + `
+layout(location=0) in vec4 iP;   /* position, size */
+layout(location=1) in vec4 iD;   /* alpha, kind, seed, age */
+out vec2 vQ;out vec3 vC;out float vA;out float vZ;out vec2 vS;
+void main(){
+  int v=gl_VertexID;int c=v<3?v:(v==3?2:(v==4?1:3));vec2 corner=vec2(float(c&1),float(c>>1))*2.-1.;
+  vec3 p=iP.xyz;float sz=iP.w;vec3 V=normalize(uCam-p);vec3 rt=normalize(cross(vec3(0,1,0),V)),up=cross(V,rt);
+  float rot=iD.z*6.2831+iD.w*.6;vec2 cr=vec2(cos(rot)*corner.x-sin(rot)*corner.y,sin(rot)*corner.x+cos(rot)*corner.y);
+  vec3 P=p+(rt*cr.x+up*cr.y)*sz;vec4 cp=uVP*vec4(P,1.);gl_Position=cp;vZ=cp.w;
+  vQ=corner;vS=vec2(iD.y,iD.z);
+  vC=lightAt(p,V);vA=iD.x;
+}`, PUFF_FS = FRAME + NOISE + SOFT + `
+in vec2 vQ;in vec3 vC;in float vA;in float vZ;in vec2 vS;out vec4 o;
+void main(){
+  float r=length(vQ);if(r>1.)discard;
+  float n=fbm(vQ*1.7+vS.y*37.)*.7+.3;
+  float a=smoothstep(1.,.2,r)*n*vA*soft(vZ,.6);
+  int kind=int(vS.x+.5);
+  vec3 tint=kind==1?vec3(.82,.84,.88):kind==2?vec3(.9):vec3(.75,.8,.86);
+  if(a<.002)discard;o=vec4(vC*tint*a*.5,a);}`;
+
+  // src/render/particles.js
+  var MAXP = 3e3, Particles = class {
+    constructor(R2, mask, { rainN = 9e3, splashN = 1400 } = {}) {
+      this.R = R2;
+      let G2 = R2.G, gl = R2.gl;
+      this.G = G2, this.P = { rain: G2.program("rain", RAIN_VS, RAIN_FS), splash: G2.program("splash", SPLASH_VS, SPLASH_FS), puff: G2.program("puff", PUFF_VS, PUFF_FS) };
+      let md = new Float32Array(mask.n * mask.n * 2);
+      md.set(mask.data), this.maskT = G2.texture(mask.n, mask.n, "rg32f", { data: md, filter: G2.ext.flt ? "linear" : "nearest" }), this.maskP = mask.params, this.rainN = rainN, this.splashN = splashN, this.n = 0, this.p = new Float32Array(MAXP * 3), this.v = new Float32Array(MAXP * 3), this.life = new Float32Array(MAXP), this.age = new Float32Array(MAXP), this.size0 = new Float32Array(MAXP), this.size1 = new Float32Array(MAXP), this.a0 = new Float32Array(MAXP), this.kind = new Uint8Array(MAXP), this.seed = new Float32Array(MAXP), this.inst = new Float32Array(MAXP * 8), this.order = new Uint16Array(MAXP), this.vao = gl.createVertexArray(), gl.bindVertexArray(this.vao), this.buf = gl.createBuffer(), gl.bindBuffer(gl.ARRAY_BUFFER, this.buf), gl.bufferData(gl.ARRAY_BUFFER, this.inst.byteLength, gl.DYNAMIC_DRAW), gl.enableVertexAttribArray(0), gl.vertexAttribPointer(0, 4, gl.FLOAT, !1, 32, 0), gl.vertexAttribDivisor(0, 1), gl.enableVertexAttribArray(1), gl.vertexAttribPointer(1, 4, gl.FLOAT, !1, 32, 16), gl.vertexAttribDivisor(1, 1), gl.bindVertexArray(null), this.rain = { on: 0, fall: [1.2, -9.5, 0.6], camVel: [0, 0, 0] }, this.emitAcc = /* @__PURE__ */ new Map(), R2.extra.push(this);
+    }
+    /* spawn one puff. kind: 0 spray, 1 tyre smoke, 2 steam */
+    spawn(kind, p, v, life, s0, s1, a0) {
+      let i;
+      this.n < MAXP ? i = this.n++ : i = Math.floor(Math.random() * MAXP), this.p.set(p, i * 3), this.v.set(v, i * 3), this.life[i] = life, this.age[i] = 0, this.size0[i] = s0, this.size1[i] = s1, this.a0[i] = a0, this.kind[i] = kind, this.seed[i] = Math.random();
+    }
+    /* emit at a rate (per second) from a named source, carrying the fraction between frames */
+    emit(key, rate, dt, fn) {
+      let a = (this.emitAcc.get(key) || 0) + rate * dt;
+      for (; a >= 1; )
+        fn(), a -= 1;
+      this.emitAcc.set(key, a);
+    }
+    update(dt, camPos) {
+      let w = 0;
+      for (let i = 0; i < this.n; i++) {
+        if (this.age[i] += dt, this.age[i] >= this.life[i]) continue;
+        let k = this.kind[i], o = i * 3, drag = k === 0 ? 2.2 : k === 1 ? 1.1 : 0.5, rise = k === 0 ? -1.6 : k === 1 ? 0.45 : 0.9, e = Math.exp(-drag * dt);
+        if (this.v[o] *= e, this.v[o + 1] = this.v[o + 1] * e + rise * dt, this.v[o + 2] *= e, this.p[o] += this.v[o] * dt, this.p[o + 1] += this.v[o + 1] * dt, this.p[o + 2] += this.v[o + 2] * dt, w !== i) {
+          this.p.copyWithin(w * 3, o, o + 3), this.v.copyWithin(w * 3, o, o + 3);
+          for (let A of [this.life, this.age, this.size0, this.size1, this.a0, this.kind, this.seed]) A[w] = A[i];
+        }
+        w++;
+      }
+      this.n = w;
+      let d = new Float32Array(this.n);
+      for (let i = 0; i < this.n; i++) {
+        let o = i * 3;
+        d[i] = (this.p[o] - camPos[0]) ** 2 + (this.p[o + 1] - camPos[1]) ** 2 + (this.p[o + 2] - camPos[2]) ** 2, this.order[i] = i;
+      }
+      let ord = Array.from(this.order.subarray(0, this.n)).sort((a, b) => d[b] - d[a]);
+      for (let j = 0; j < ord.length; j++) {
+        let i = ord[j], o = i * 3, t = this.age[i] / this.life[i], q = j * 8, sz = this.size0[i] + (this.size1[i] - this.size0[i]) * Math.sqrt(t), a = this.a0[i] * Math.min(1, t * 6) * (1 - t) * (1 - t);
+        this.inst[q] = this.p[o], this.inst[q + 1] = this.p[o + 1], this.inst[q + 2] = this.p[o + 2], this.inst[q + 3] = sz, this.inst[q + 4] = a, this.inst[q + 5] = this.kind[i], this.inst[q + 6] = this.seed[i], this.inst[q + 7] = this.age[i];
+      }
+    }
+    particles(R2, U, texs) {
+      let G2 = this.G, gl = R2.gl;
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA), gl.disable(gl.DEPTH_TEST), gl.disable(gl.CULL_FACE);
+      let common = Object.assign({ uMask: this.maskT, uDepth: R2.dT }, texs), vals = { uMaskP: this.maskP, uOutRes: [R2.W, R2.H], uFogAmb: U.uFogAmb }, U2 = Object.assign({}, U, { uVP: U.uVPnj });
+      if (this.rain.on > 0.01) {
+        let P = G2.use(this.P.rain);
+        G2.set(P, U2), G2.set(P, vals), G2.tex(P, common), G2.set(P, { uBox: [38, 22, 38], uFall: this.rain.fall, uCamVel: this.rain.camVel, uStreak: 1 / 45, uDensity: this.rain.on }), G2.procedural(6, this.rainN), P = G2.use(this.P.splash), G2.set(P, U2), G2.set(P, vals), G2.tex(P, common), G2.set(P, { uRadius: 22, uDensity: this.rain.on }), G2.procedural(6, this.splashN);
+      }
+      if (this.n) {
+        let P = G2.use(this.P.puff);
+        G2.set(P, U2), G2.set(P, vals), G2.tex(P, common), gl.bindBuffer(gl.ARRAY_BUFFER, this.buf), gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.inst, 0, this.n * 8), gl.bindVertexArray(this.vao), gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, this.n), gl.bindVertexArray(null);
+      }
+    }
+  };
+
+  // src/render/drs.js
+  var DRS = class {
+    constructor({ min = 0.5, max = 1, start = 0.8 } = {}) {
+      this.min = min, this.max = max, this.scale = start, this.period = 1e3 / 60, this.hist = [], this.cool = 0, this.okT = 0, this.enabled = !0, this.gpuSm = -1;
+    }
+    /* learn the display's refresh period from the steadiest frame deltas */
+    noteFrame(ms) {
+      if (this.hist.push(ms), this.hist.length > 90 && this.hist.shift(), this.hist.length >= 30) {
+        let s = [...this.hist].sort((a, b) => a - b), p = s[Math.floor(s.length * 0.2)], hz = [60, 75, 90, 100, 120, 144, 165, 240].reduce((b, h) => Math.abs(1e3 / h - p) < Math.abs(1e3 / b - p) ? h : b, 60);
+        this.period = 1e3 / Math.min(hz, 120);
+      }
+    }
+    update(frameMs, gpuMs) {
+      if (!this.enabled) return this.scale;
+      if (this.noteFrame(frameMs), this.cool > 0)
+        return this.cool--, this.scale;
+      let budget = this.period * 0.88, s = this.scale;
+      if (gpuMs > 0) {
+        this.gpuSm = this.gpuSm < 0 ? gpuMs : this.gpuSm * 0.85 + gpuMs * 0.15;
+        let want = s * Math.sqrt(budget / Math.max(this.gpuSm, 0.5));
+        (want < s * 0.97 || want > s * 1.05) && (s = s + (want - s) * 0.35);
+      } else {
+        if (frameMs > this.period * 1.3)
+          this.bad = this.scale, this.badT = 900, s -= frameMs > this.period * 2 ? 0.1 : 0.05, this.okT = 0;
+        else if (this.okT++, this.okT > 120) {
+          let cap = this.badT > 0 ? this.bad - 0.05 : this.max;
+          s + 0.05 <= cap + 1e-6 && (s += 0.05), this.okT = 0;
+        }
+        this.badT > 0 && this.badT--;
+      }
+      return s = Math.round(Math.max(this.min, Math.min(this.max, s)) * 20) / 20, s !== this.scale && (this.scale = s, this.cool = 20), this.scale;
+    }
+  };
+
   // src/physics/math3.js
   var clamp = (v, a, b) => v < a ? a : v > b ? b : v, lerp = (a, b, t) => a + (b - a) * t, sstep = (a, b, x) => {
     let t = clamp((x - a) / (b - a), 0, 1);
@@ -2474,7 +2709,7 @@ void main(){
     return p = f(p * f(0.1031)), p = f(p - Math.floor(p)), p = f(p * f(p + f(33.33))), p = f(p * f(p + p)), p - Math.floor(p);
   }
   function buildCity(T2) {
-    let R2 = rng(20241), C = new Chunked(64), SKY3 = new Chunked(420), lights = [], steam = [], occupied = [], info = { xw: [], tunnel: null, el: null, lamps: 0 }, hw = T2.hw, wl = T2.wl, wr = T2.wr, SW = 3.5, BAR = 0.5, N2 = T2.N, ds = T2.ds, addLight = (L) => {
+    let R2 = rng(20241), C2 = new Chunked(64), SKY3 = new Chunked(420), lights = [], steam = [], occupied = [], info = { xw: [], tunnel: null, el: null, lamps: 0 }, hw = T2.hw, wl = T2.wl, wr = T2.wr, SW = 3.5, BAR = 0.5, N2 = T2.N, ds = T2.ds, addLight = (L) => {
       lights.push(Object.assign({ type: 0, r: 12, col: [1, 1, 1], dir: [0, -1, 0], cosO: -1, cosI: -1, axis: [0, 0, 0], flick: 0, src: 0.05 }, L));
     }, trackDist = (x, y) => {
       let i = T2.nearest(x, y, 1);
@@ -2501,10 +2736,10 @@ void main(){
     let flatP = (s, d, h) => {
       let th = T2.headAt(s), x = T2.at(T2.mx, s), y = T2.at(T2.my, s);
       return [x - Math.sin(th) * d, T2.yAt(s) + h, -(y + Math.cos(th) * d)];
-    }, q = (B, a, b, c, d, n, uv) => B.quadP(a, b, c, d, uv, n), at = (p) => C.at(p[0], p[2]), curbHere = (i, left) => left ? T2.curb[i] & 1 : T2.curb[i] & 2, fenceAt = (s) => s > 12 && s < 175 || s > 285 && s < 395 || s > 735 && s < 860;
+    }, q = (B, a, b, c, d, n, uv) => B.quadP(a, b, c, d, uv, n), at = (p) => C2.at(p[0], p[2]), curbHere = (i, left) => left ? T2.curb[i] & 1 : T2.curb[i] & 2, fenceAt = (s) => s > 12 && s < 175 || s > 285 && s < 395 || s > 735 && s < 860;
     for (let i = 0; i < N2; i++) {
       let s0 = i * ds, s1 = s0 + ds, sm = s0 + ds * 0.5, tun = inTun(sm), shel = tun ? 0 : 255, fr0 = T2.frame(s0), fr1 = T2.frame(s1), up = fr0.u, cen = T2.pos(sm, 0);
-      C.mat(0).col(shel, 0, 0, 255);
+      C2.mat(0).col(shel, 0, 0, 255);
       let B = at(cen);
       for (let k2 = 0; k2 < 4; k2++) {
         let d0 = -hw + k2 * hw / 2, d1 = d0 + hw / 2;
@@ -2512,34 +2747,34 @@ void main(){
       }
       for (let left of [!0, !1]) {
         let sg = left ? 1 : -1, edge = left ? wl : wr, d = hw, strip = (da, db, mat) => {
-          C.mat(mat).col(shel, 0, 0, 255);
+          C2.mat(mat).col(shel, 0, 0, 255);
           let a0 = sg * da, a1 = sg * db, lo = Math.min(a0, a1), hi = Math.max(a0, a1);
           q(at(cen), T2.pos(s0, lo), T2.pos(s1, lo), T2.pos(s1, hi), T2.pos(s0, hi), up, [[s0, lo], [s1, lo], [s1, hi], [s0, hi]]);
         };
         curbHere(i, left) && (strip(hw, hw + 0.9, 1), d = hw + 0.9), strip(d, edge, 2);
       }
       if (tun) {
-        C.mat(4, 2).col(0, 0, 0, 255);
+        C2.mat(4, 2).col(0, 0, 0, 255);
         let H = 6;
-        q(at(cen), T2.pos(s0, wl), T2.pos(s1, wl), T2.pos(s1, wl, H), T2.pos(s0, wl, H), [-fr0.l[0], 0, -fr0.l[2]], [[s0, 0], [s1, 0], [s1, H], [s0, H]]), q(at(cen), T2.pos(s1, -wr), T2.pos(s0, -wr), T2.pos(s0, -wr, H), T2.pos(s1, -wr, H), [fr0.l[0], 0, fr0.l[2]], [[s1, 0], [s0, 0], [s0, H], [s1, H]]), C.mat(13, 200).col(40, 40, 42, 255), q(at(cen), T2.pos(s0, -wr, H), T2.pos(s0, wl, H), T2.pos(s1, wl, H), T2.pos(s1, -wr, H), [0, -1, 0], [[s0, 1], [s0, 0], [s1, 0], [s1, 1]]);
+        q(at(cen), T2.pos(s0, wl), T2.pos(s1, wl), T2.pos(s1, wl, H), T2.pos(s0, wl, H), [-fr0.l[0], 0, -fr0.l[2]], [[s0, 0], [s1, 0], [s1, H], [s0, H]]), q(at(cen), T2.pos(s1, -wr), T2.pos(s0, -wr), T2.pos(s0, -wr, H), T2.pos(s1, -wr, H), [fr0.l[0], 0, fr0.l[2]], [[s1, 0], [s0, 0], [s0, H], [s1, H]]), C2.mat(13, 200).col(40, 40, 42, 255), q(at(cen), T2.pos(s0, -wr, H), T2.pos(s0, wl, H), T2.pos(s1, wl, H), T2.pos(s1, -wr, H), [0, -1, 0], [[s0, 1], [s0, 0], [s1, 0], [s1, 1]]);
         continue;
       }
       for (let left of [!0, !1]) {
         let sg = left ? 1 : -1, e = left ? wl : wr, P = (s, dd, h) => T2.pos(s, sg * (e + dd), h), nIn = left ? [-fr0.l[0], 0, -fr0.l[2]] : [fr0.l[0], 0, fr0.l[2]];
-        C.mat(4, 1).col(255, 0, 0, 255);
+        C2.mat(4, 1).col(255, 0, 0, 255);
         let B2 = at(P(sm, 0, 0)), prof = [[0, 0], [0, 0.92], [0.07, 1], [BAR - 0.07, 1], [BAR, 0.92], [BAR, -0.2]];
         for (let k2 = 0; k2 < prof.length - 1; k2++) {
           let [da, ha] = prof[k2], [db, hb] = prof[k2 + 1], a0 = P(s0, da, ha), a1 = P(s1, da, ha), b0 = P(s0, db, hb), b1 = P(s1, db, hb);
           left ? q(B2, a0, a1, b1, b0, null, [[s0, ha], [s1, ha], [s1, hb], [s0, hb]]) : q(B2, a1, a0, b0, b1, null, [[s1, ha], [s0, ha], [s0, hb], [s1, hb]]);
         }
         let dIn = e + BAR, dOut = e + BAR + SW, sh = 0.12;
-        C.mat(3).col(255, 0, 0, 255);
+        C2.mat(3).col(255, 0, 0, 255);
         let S = (s, dd, h) => flatP(s, sg * dd, h), p00 = S(s0, dIn, sh), p01 = S(s0, dOut, sh), p10 = S(s1, dIn, sh), p11 = S(s1, dOut, sh), uvw = (p) => [p[0], p[2]];
-        left ? q(at(p00), p00, p10, p11, p01, [0, 1, 0], [uvw(p00), uvw(p10), uvw(p11), uvw(p01)]) : q(at(p00), p01, p11, p10, p00, [0, 1, 0], [uvw(p01), uvw(p11), uvw(p10), uvw(p00)]), C.mat(4, 0).col(255, 0, 0, 255);
+        left ? q(at(p00), p00, p10, p11, p01, [0, 1, 0], [uvw(p00), uvw(p10), uvw(p11), uvw(p01)]) : q(at(p00), p01, p11, p10, p00, [0, 1, 0], [uvw(p01), uvw(p11), uvw(p10), uvw(p00)]), C2.mat(4, 0).col(255, 0, 0, 255);
         let g0 = S(s0, dOut, -0.6), g1 = S(s1, dOut, -0.6);
         if (left ? q(at(p01), p01, p11, g1, g0, null, [[s0, 0.12], [s1, 0.12], [s1, -0.6], [s0, -0.6]]) : q(at(p01), p11, p01, g0, g1, null, [[s1, 0.12], [s0, 0.12], [s0, -0.6], [s1, -0.6]]), fenceAt(sm)) {
           let fd = e + BAR * 0.5, f0 = T2.pos(s0, sg * fd, 1), f1 = T2.pos(s1, sg * fd, 1), f2 = T2.pos(s1, sg * fd, 4.2), f3 = T2.pos(s0, sg * fd, 4.2);
-          C.mat(12).col(255, 255, 255, 255), q(at(f0), f0, f1, f2, f3, null, [[s0, 1], [s1, 1], [s1, 4.2], [s0, 4.2]]), q(at(f0), f1, f0, f3, f2, null, [[s1, 1], [s0, 1], [s0, 4.2], [s1, 4.2]]), i % 4 === 0 && (C.mat(8, 120, 200).col(70, 72, 76), at(f0).tube(T2.pos(s0, sg * fd, 0.95), T2.pos(s0, sg * fd, 4.35), 0.045, 5, !0)), i % 2 === 0 && (C.mat(8, 120, 200).col(70, 72, 76), at(f2).tube(T2.pos(s0, sg * fd, 4.2), T2.pos(s1 + 1, sg * fd, 4.2), 0.025, 4, !1));
+          C2.mat(12).col(255, 255, 255, 255), q(at(f0), f0, f1, f2, f3, null, [[s0, 1], [s1, 1], [s1, 4.2], [s0, 4.2]]), q(at(f0), f1, f0, f3, f2, null, [[s1, 1], [s0, 1], [s0, 4.2], [s1, 4.2]]), i % 4 === 0 && (C2.mat(8, 120, 200).col(70, 72, 76), at(f0).tube(T2.pos(s0, sg * fd, 0.95), T2.pos(s0, sg * fd, 4.35), 0.045, 5, !0)), i % 2 === 0 && (C2.mat(8, 120, 200).col(70, 72, 76), at(f2).tube(T2.pos(s0, sg * fd, 4.2), T2.pos(s1 + 1, sg * fd, 4.2), 0.025, 4, !1));
         }
       }
     }
@@ -2568,9 +2803,9 @@ void main(){
       for (let y = y0; y < y1; y += 10) {
         let yb = Math.min(y1, y + 10);
         if (trackDist(X, (y + yb) / 2) < 9.5) continue;
-        C.mat(11, 0).col(255, 0, 0, 255);
+        C2.mat(11, 0).col(255, 0, 0, 255);
         let a = W(X - STREET, y, -0.05), b = W(X + STREET, y, -0.05), c = W(X + STREET, yb, -0.05), d = W(X - STREET, yb, -0.05);
-        C.at(X, -y).quadP(a, b, c, d, [[y, STREET], [y, -STREET], [yb, -STREET], [yb, STREET]], [0, 1, 0]);
+        C2.at(X, -y).quadP(a, b, c, d, [[y, STREET], [y, -STREET], [yb, -STREET], [yb, STREET]], [0, 1, 0]);
       }
     }
     for (let Y of YS) for (let j = 0; j < XS.length - 1; j++) {
@@ -2578,23 +2813,23 @@ void main(){
       for (let x = x0; x < x1; x += 10) {
         let xb = Math.min(x1, x + 10);
         if (trackDist((x + xb) / 2, Y) < 9.5) continue;
-        C.mat(11, 0).col(255, 0, 0, 255);
+        C2.mat(11, 0).col(255, 0, 0, 255);
         let a = W(x, Y - STREET, -0.05), b = W(xb, Y - STREET, -0.05), c = W(xb, Y + STREET, -0.05), d = W(x, Y + STREET, -0.05);
-        C.at(x, -Y).quadP(a, b, c, d, [[x, -STREET], [xb, -STREET], [xb, STREET], [x, STREET]], [0, 1, 0]);
+        C2.at(x, -Y).quadP(a, b, c, d, [[x, -STREET], [xb, -STREET], [xb, STREET], [x, STREET]], [0, 1, 0]);
       }
     }
     for (let X of XS) for (let Y of YS) {
       if (trackDist(X, Y) < 9.5) continue;
-      C.mat(11, 1).col(255, 0, 0, 255);
+      C2.mat(11, 1).col(255, 0, 0, 255);
       let a = W(X - STREET, Y - STREET, -0.05), b = W(X + STREET, Y - STREET, -0.05), c = W(X + STREET, Y + STREET, -0.05), d = W(X - STREET, Y + STREET, -0.05);
-      C.at(X, -Y).quadP(a, b, c, d, [[a[0], a[2]], [b[0], b[2]], [c[0], c[2]], [d[0], d[2]]], [0, 1, 0]);
+      C2.at(X, -Y).quadP(a, b, c, d, [[a[0], a[2]], [b[0], b[2]], [c[0], c[2]], [d[0], d[2]]], [0, 1, 0]);
     }
     let slabTop = 0.15, slabBox = (x0, y0, x1, y1, edges) => {
-      C.mat(3).col(255, 0, 0, 255);
-      let B = C.at((x0 + x1) / 2, -(y0 + y1) / 2), a = W(x0, y0, slabTop), b = W(x1, y0, slabTop), c = W(x1, y1, slabTop), d = W(x0, y1, slabTop);
+      C2.mat(3).col(255, 0, 0, 255);
+      let B = C2.at((x0 + x1) / 2, -(y0 + y1) / 2), a = W(x0, y0, slabTop), b = W(x1, y0, slabTop), c = W(x1, y1, slabTop), d = W(x0, y1, slabTop);
       if (B.quadP(a, b, c, d, [[a[0], a[2]], [b[0], b[2]], [c[0], c[2]], [d[0], d[2]]], [0, 1, 0]), edges) {
-        C.mat(4, 0).col(255, 0, 0, 255);
-        let B2 = C.at((x0 + x1) / 2, -(y0 + y1) / 2), lo = -0.06;
+        C2.mat(4, 0).col(255, 0, 0, 255);
+        let B2 = C2.at((x0 + x1) / 2, -(y0 + y1) / 2), lo = -0.06;
         B2.quadP(W(x0, y0, lo), W(x1, y0, lo), W(x1, y0, slabTop), W(x0, y0, slabTop), [[x0, lo], [x1, lo], [x1, slabTop], [x0, slabTop]], [0, 0, 1]), B2.quadP(W(x1, y1, lo), W(x0, y1, lo), W(x0, y1, slabTop), W(x1, y1, slabTop), [[x1, lo], [x0, lo], [x0, slabTop], [x1, slabTop]], [0, 0, -1]), B2.quadP(W(x1, y0, lo), W(x1, y1, lo), W(x1, y1, slabTop), W(x1, y0, slabTop), [[y0, lo], [y1, lo], [y1, slabTop], [y0, slabTop]], [1, 0, 0]), B2.quadP(W(x0, y1, lo), W(x0, y0, lo), W(x0, y0, slabTop), W(x0, y1, slabTop), [[y1, lo], [y0, lo], [y0, slabTop], [y1, slabTop]], [-1, 0, 0]);
       }
     }, CLEAR = wl + BAR + SW + 0.3;
@@ -2633,9 +2868,9 @@ void main(){
       }[style], tint = tints[Math.floor(R2() * tints.length)], seed = Math.floor(R2() * 255), fhc = Math.max(0, Math.min(15, Math.round((fh - 3) / 0.1))), store = H > 7 && style !== 4, faceSet = (fx0, fy0, fx1, fy1, h0, h1, storeOK, fidx0) => {
         [[[fx0, fy0], [fx1, fy0], [0, 0, 1], "s"], [[fx1, fy1], [fx0, fy1], [0, 0, -1], "n"], [[fx1, fy0], [fx1, fy1], [1, 0, 0], "e"], [[fx0, fy1], [fx0, fy0], [-1, 0, 0], "w"]].forEach(([bl, br, n, side], k2) => {
           let Wd = Math.hypot(br[0] - bl[0], br[1] - bl[1]), nb = Math.max(1, Math.round(Wd / bw0)), bw = Wd / nb, al = Math.max(0, Math.min(255, Math.round((bw - 1) / 3 * 255))), st = storeOK && street[side] ? 1 : 0;
-          C.mat(5, style, seed, st | fhc << 4).col(tint[0], tint[1], tint[2], al);
+          C2.mat(5, style, seed, st | fhc << 4).col(tint[0], tint[1], tint[2], al);
           let u0 = (fidx0 + k2) * 64 * bw, a = W(bl[0], bl[1], h0), b = W(br[0], br[1], h0), c = W(br[0], br[1], h1), d = W(bl[0], bl[1], h1);
-          C.at((bl[0] + br[0]) / 2, -(bl[1] + br[1]) / 2).quadP(a, b, c, d, [[u0, h0], [u0 + Wd, h0], [u0 + Wd, h1], [u0, h1]], n), st && h0 < 1 && facadeExtras(bl, br, n, Wd, side);
+          C2.at((bl[0] + br[0]) / 2, -(bl[1] + br[1]) / 2).quadP(a, b, c, d, [[u0, h0], [u0 + Wd, h0], [u0 + Wd, h1], [u0, h1]], n), st && h0 < 1 && facadeExtras(bl, br, n, Wd, side);
         });
       }, hTop = H, rx0 = x0, ry0 = y0, rx1 = x1, ry1 = y1;
       if (tower && x1 - x0 > 18 && y1 - y0 > 18) {
@@ -2644,7 +2879,7 @@ void main(){
       } else faceSet(x0, y0, x1, y1, 0, H, store, 0);
       if (roof(rx0, ry0, rx1, ry1, hTop, !0), tower && R2() < 0.7) {
         let ax = (rx0 + rx1) / 2, ay = (ry0 + ry1) / 2, ah = 6 + R2() * 14;
-        C.mat(8, 100, 230).col(80, 80, 85), C.at(ax, -ay).tube(W(ax, ay, hTop), W(ax, ay, hTop + ah), 0.12, 5, !0, 0.05), C.mat(7, 60, 7).col(255, 30, 20), C.at(ax, -ay).sphere(W(ax, ay, hTop + ah + 0.15), 0.18, 6, 3), addLight({ type: 0, pos: W(ax, ay, hTop + ah + 0.4), r: 8, col: [4, 0.4, 0.2], flick: 7 });
+        C2.mat(8, 100, 230).col(80, 80, 85), C2.at(ax, -ay).tube(W(ax, ay, hTop), W(ax, ay, hTop + ah), 0.12, 5, !0, 0.05), C2.mat(7, 60, 7).col(255, 30, 20), C2.at(ax, -ay).sphere(W(ax, ay, hTop + ah + 0.15), 0.18, 6, 3), addLight({ type: 0, pos: W(ax, ay, hTop + ah + 0.4), r: 8, col: [4, 0.4, 0.2], flick: 7 });
       }
       if (!tower && H < 26 && R2() < 0.35) {
         let best = bestFace(x0, y0, x1, y1);
@@ -2653,22 +2888,22 @@ void main(){
       return H;
     }
     function roof(x0, y0, x1, y1, H, props) {
-      C.mat(6).col(255, 0, 0, 255);
-      let B = C.at((x0 + x1) / 2, -(y0 + y1) / 2), a = W(x0, y0, H - 0.05), b = W(x1, y0, H - 0.05), c = W(x1, y1, H - 0.05), d = W(x0, y1, H - 0.05);
-      B.quadP(a, b, c, d, [[x0, -y0], [x1, -y0], [x1, -y1], [x0, -y1]], [0, 1, 0]), C.mat(4, 0).col(255, 0, 0, 255);
+      C2.mat(6).col(255, 0, 0, 255);
+      let B = C2.at((x0 + x1) / 2, -(y0 + y1) / 2), a = W(x0, y0, H - 0.05), b = W(x1, y0, H - 0.05), c = W(x1, y1, H - 0.05), d = W(x0, y1, H - 0.05);
+      B.quadP(a, b, c, d, [[x0, -y0], [x1, -y0], [x1, -y1], [x0, -y1]], [0, 1, 0]), C2.mat(4, 0).col(255, 0, 0, 255);
       let pt = 0.3, ph = 1;
       for (let [ax, ay, bx, by] of [[x0, y0, x1, y0 + pt], [x0, y1 - pt, x1, y1], [x0, y0, x0 + pt, y1], [x1 - pt, y0, x1, y1]])
-        C.at((ax + bx) / 2, -(ay + by) / 2).box(W((ax + bx) / 2, (ay + by) / 2, H - 0.05 + ph / 2), [1, 0, 0], [0, 1, 0], [0, 0, 1], [(bx - ax) / 2, ph / 2, (by - ay) / 2], 8);
+        C2.at((ax + bx) / 2, -(ay + by) / 2).box(W((ax + bx) / 2, (ay + by) / 2, H - 0.05 + ph / 2), [1, 0, 0], [0, 1, 0], [0, 0, 1], [(bx - ax) / 2, ph / 2, (by - ay) / 2], 8);
       if (!props) return;
       let n = 1 + Math.floor(R2() * 3);
       for (let k2 = 0; k2 < n; k2++) {
         let w = 1.2 + R2() * 2.5, l = 1.2 + R2() * 3, h = 0.8 + R2() * 1.6, px = x0 + 2 + R2() * Math.max(0.1, x1 - x0 - 4 - w), py = y0 + 2 + R2() * Math.max(0.1, y1 - y0 - 4 - l);
-        C.mat(8, 150, 150).col(120, 122, 125), C.at(px, -py).box(W(px + w / 2, py + l / 2, H + h / 2 - 0.05), [1, 0, 0], [0, 1, 0], [0, 0, 1], [w / 2, h / 2, l / 2], 8);
+        C2.mat(8, 150, 150).col(120, 122, 125), C2.at(px, -py).box(W(px + w / 2, py + l / 2, H + h / 2 - 0.05), [1, 0, 0], [0, 1, 0], [0, 0, 1], [w / 2, h / 2, l / 2], 8);
       }
       if (R2() < 0.3 && x1 - x0 > 8 && y1 - y0 > 8) {
         let px = x0 + 3 + R2() * (x1 - x0 - 6), py = y0 + 3 + R2() * (y1 - y0 - 6);
-        C.mat(13, 230).col(120, 80, 55), C.at(px, -py).tube(W(px, py, H + 2.2), W(px, py, H + 5.5), 1.4, 10, !0), C.mat(8, 200, 0).col(60, 60, 60);
-        for (let [ox, oy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) C.at(px, -py).tube(W(px + ox, py + oy, H), W(px + ox, py + oy, H + 2.3), 0.08, 4, !1);
+        C2.mat(13, 230).col(120, 80, 55), C2.at(px, -py).tube(W(px, py, H + 2.2), W(px, py, H + 5.5), 1.4, 10, !0), C2.mat(8, 200, 0).col(60, 60, 60);
+        for (let [ox, oy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) C2.at(px, -py).tube(W(px + ox, py + oy, H), W(px + ox, py + oy, H + 2.3), 0.08, 4, !1);
       }
     }
     function bestFace(x0, y0, x1, y1) {
@@ -2691,15 +2926,15 @@ void main(){
         let word = WORDS[Math.floor(R2() * WORDS.length)], px = 0.13 + R2() * 0.05, len2 = word.length * 6 * px - px;
         if (len2 > Wd - 1.5) return;
         let u0 = 1 + R2() * (Wd - 1.5 - len2), col = NEON[Math.floor(R2() * NEON.length)], h0 = 5.15 + R2() * 0.6, o = [bl[0] + rt[0] * u0 + nm[0] * 0.32, bl[1] + rt[1] * u0 + nm[1] * 0.32];
-        C.mat(13, 140).col(30, 30, 34), C.at(mx, -my).box(W(o[0] + rt[0] * len2 / 2 - nm[0] * 0.12, o[1] + rt[1] * len2 / 2 - nm[1] * 0.12, h0 + 3 * px), [rt[0], 0, -rt[1]], [0, 1, 0], [nm[0], 0, -nm[1]], [len2 / 2 + 0.25, 3.5 * px + 0.2, 0.08]);
+        C2.mat(13, 140).col(30, 30, 34), C2.at(mx, -my).box(W(o[0] + rt[0] * len2 / 2 - nm[0] * 0.12, o[1] + rt[1] * len2 / 2 - nm[1] * 0.12, h0 + 3 * px), [rt[0], 0, -rt[1]], [0, 1, 0], [nm[0], 0, -nm[1]], [len2 / 2 + 0.25, 3.5 * px + 0.2, 0.08]);
         let fl = R2() < 0.18 ? 1 + Math.floor(R2() * 5) : 0;
         neonText(word, W(o[0], o[1], h0), [rt[0], 0, -rt[1]], [0, 1, 0], px, col, fl), addLight({ type: 2, pos: W(o[0] + rt[0] * len2 / 2 + nm[0] * 0.5, o[1] + rt[1] * len2 / 2 + nm[1] * 0.5, h0 + 3 * px), axis: [rt[0] * len2 / 2, 0, -rt[1] * len2 / 2], r: 13, col: col.map((v) => v * 2.6), flick: fl, src: 0.15 });
       } else if (r < 0.9) {
         let word = WORDS[Math.floor(R2() * WORDS.length)].slice(0, 7), px = 0.15, lh = 9 * px, len2 = word.length * lh, u0 = R2() < 0.5 ? 1.2 : Wd - 1.2, col = NEON[Math.floor(R2() * NEON.length)], h0 = 7 + R2() * 3, base = [bl[0] + rt[0] * u0, bl[1] + rt[1] * u0], out = 1.9, thick = 0.18;
-        C.mat(13, 120).col(25, 25, 30);
+        C2.mat(13, 120).col(25, 25, 30);
         let c0 = [base[0] + nm[0] * (out / 2 + 0.3), base[1] + nm[1] * (out / 2 + 0.3)];
-        C.at(mx, -my).box(W(c0[0], c0[1], h0 + len2 / 2), [nm[0], 0, -nm[1]], [0, 1, 0], [rt[0], 0, -rt[1]], [out / 2, len2 / 2 + 0.2, thick / 2]), C.mat(8, 90, 230).col(60, 60, 64);
-        for (let hh of [h0 + 0.3, h0 + len2 - 0.3]) C.at(mx, -my).tube(W(base[0], base[1], hh), W(base[0] + nm[0] * 0.4, base[1] + nm[1] * 0.4, hh), 0.04, 4, !1);
+        C2.at(mx, -my).box(W(c0[0], c0[1], h0 + len2 / 2), [nm[0], 0, -nm[1]], [0, 1, 0], [rt[0], 0, -rt[1]], [out / 2, len2 / 2 + 0.2, thick / 2]), C2.mat(8, 90, 230).col(60, 60, 64);
+        for (let hh of [h0 + 0.3, h0 + len2 - 0.3]) C2.at(mx, -my).tube(W(base[0], base[1], hh), W(base[0] + nm[0] * 0.4, base[1] + nm[1] * 0.4, hh), 0.04, 4, !1);
         let fl = R2() < 0.2 ? 1 + Math.floor(R2() * 5) : 0;
         for (let sgn2 of [1, -1])
           for (let k2 = 0; k2 < word.length; k2++) {
@@ -2709,27 +2944,27 @@ void main(){
         addLight({ type: 2, pos: W(c0[0], c0[1], h0 + len2 / 2), axis: [0, len2 / 2, 0], r: 14, col: col.map((v) => v * 3), flick: fl, src: 0.2 });
       } else {
         let col = NEON[Math.floor(R2() * NEON.length)];
-        C.mat(7, 70, 0).col(col[0] * 255, col[1] * 255, col[2] * 255);
+        C2.mat(7, 70, 0).col(col[0] * 255, col[1] * 255, col[2] * 255);
         let a = [bl[0] + rt[0] * 0.6 + nm[0] * 0.12, bl[1] + rt[1] * 0.6 + nm[1] * 0.12], b = [br[0] - rt[0] * 0.6 + nm[0] * 0.12, br[1] - rt[1] * 0.6 + nm[1] * 0.12];
-        C.at(mx, -my).tube(W(a[0], a[1], 4.55), W(b[0], b[1], 4.55), 0.03, 5, !0), addLight({ type: 2, pos: W((a[0] + b[0]) / 2 + nm[0] * 0.4, (a[1] + b[1]) / 2 + nm[1] * 0.4, 4.5), axis: [(b[0] - a[0]) / 2, 0, -(b[1] - a[1]) / 2], r: 9, col: col.map((v) => v * 1.6), src: 0.1 });
+        C2.at(mx, -my).tube(W(a[0], a[1], 4.55), W(b[0], b[1], 4.55), 0.03, 5, !0), addLight({ type: 2, pos: W((a[0] + b[0]) / 2 + nm[0] * 0.4, (a[1] + b[1]) / 2 + nm[1] * 0.4, 4.5), axis: [(b[0] - a[0]) / 2, 0, -(b[1] - a[1]) / 2], r: 9, col: col.map((v) => v * 1.6), src: 0.1 });
       }
     }
     function billboard(F, H) {
       let Wd = Math.hypot(F.br[0] - F.bl[0], F.br[1] - F.bl[1]);
       if (Wd < 9) return;
       let w = Math.min(Wd - 2, 14), h = w * 0.38, rt = [(F.br[0] - F.bl[0]) / Wd, (F.br[1] - F.bl[1]) / Wd], cx = (F.bl[0] + F.br[0]) / 2 - F.nx * 1.5, cy = (F.bl[1] + F.br[1]) / 2 - F.ny * 1.5, y0 = H + 1.2;
-      C.mat(8, 140, 220).col(60, 60, 62);
-      for (let o of [-w / 3, w / 3]) C.at(cx, -cy).tube(W(cx + rt[0] * o, cy + rt[1] * o, H), W(cx + rt[0] * o, cy + rt[1] * o, y0 + 0.2), 0.1, 5, !1);
+      C2.mat(8, 140, 220).col(60, 60, 62);
+      for (let o of [-w / 3, w / 3]) C2.at(cx, -cy).tube(W(cx + rt[0] * o, cy + rt[1] * o, H), W(cx + rt[0] * o, cy + rt[1] * o, y0 + 0.2), 0.1, 5, !1);
       let col = NEON[Math.floor(R2() * NEON.length)].map((v) => v * 0.55 + 0.25);
-      C.mat(10, 28).col(col[0] * 255, col[1] * 255, col[2] * 255);
+      C2.mat(10, 28).col(col[0] * 255, col[1] * 255, col[2] * 255);
       let fa = W(cx + rt[0] * -w / 2 + F.nx * 0.2, cy + rt[1] * -w / 2 + F.ny * 0.2, y0), fb = W(cx + rt[0] * w / 2 + F.nx * 0.2, cy + rt[1] * w / 2 + F.ny * 0.2, y0);
-      C.at(cx, -cy).quadP(fa, fb, [fb[0], y0 + h, fb[2]], [fa[0], y0 + h, fa[2]], [[0, 0], [1, 0], [1, 1], [0, 1]], [F.nx, 0, -F.ny]), C.mat(13, 150).col(30, 30, 30), C.at(cx, -cy).box(W(cx, cy, y0 + h / 2), [rt[0], 0, -rt[1]], [0, 1, 0], [F.nx, 0, -F.ny], [w / 2 + 0.15, h / 2 + 0.15, 0.15]);
+      C2.at(cx, -cy).quadP(fa, fb, [fb[0], y0 + h, fb[2]], [fa[0], y0 + h, fa[2]], [[0, 0], [1, 0], [1, 1], [0, 1]], [F.nx, 0, -F.ny]), C2.mat(13, 150).col(30, 30, 30), C2.at(cx, -cy).box(W(cx, cy, y0 + h / 2), [rt[0], 0, -rt[1]], [0, 1, 0], [F.nx, 0, -F.ny], [w / 2 + 0.15, h / 2 + 0.15, 0.15]);
       let word = WORDS[Math.floor(R2() * WORDS.length)], px = Math.min(h * 0.7 / 7, (w - 1) / (word.length * 6)), len2 = word.length * 6 * px - px, ncol = NEON[Math.floor(R2() * NEON.length)];
       neonText(word, W(cx - rt[0] * len2 / 2 + F.nx * 0.35, cy - rt[1] * len2 / 2 + F.ny * 0.35, y0 + (h - 7 * px) / 2), [rt[0], 0, -rt[1]], [0, 1, 0], px, ncol, 0), addLight({ type: 2, pos: W(cx + F.nx * 3, cy + F.ny * 3, y0 + h / 2), axis: [rt[0] * w / 2, 0, -rt[1] * w / 2], r: 26, col: col.map((v) => v * 7), src: 0.5 });
     }
     function neonText(text, origin, right, up, px, col, fl) {
-      C.mat(7, Math.round(52 + R2() * 16), fl, 0).col(col[0] * 255, col[1] * 255, col[2] * 255);
-      let B = C.at(origin[0], origin[2]), rad = px * 0.17, P = (x, y) => [origin[0] + right[0] * x * px + up[0] * y * px, origin[1] + right[1] * x * px + up[1] * y * px, origin[2] + right[2] * x * px + up[2] * y * px], cx = 0;
+      C2.mat(7, Math.round(52 + R2() * 16), fl, 0).col(col[0] * 255, col[1] * 255, col[2] * 255);
+      let B = C2.at(origin[0], origin[2]), rad = px * 0.17, P = (x, y) => [origin[0] + right[0] * x * px + up[0] * y * px, origin[1] + right[1] * x * px + up[1] * y * px, origin[2] + right[2] * x * px + up[2] * y * px], cx = 0;
       for (let ch of text) {
         let pix = glyphPixels(ch), on = new Set(pix.map(([c, r]) => c + "," + r)), has = (c, r) => on.has(c + "," + r), used = /* @__PURE__ */ new Set();
         for (let r = 0; r < 7; r++) {
@@ -2762,20 +2997,20 @@ void main(){
     }
     if (info.tunnel) {
       let open = [-106 - wl - BAR, -106 + wr + BAR], oh = 6, fac = (bl, br, n, u0, h0, h1) => {
-        C.mat(5, 1, 77, 96).col(140, 138, 132, Math.round(2 / 3 * 255));
+        C2.mat(5, 1, 77, 96).col(140, 138, 132, Math.round(2 / 3 * 255));
         let Wd = Math.hypot(br[0] - bl[0], br[1] - bl[1]), a = W(bl[0], bl[1], h0), b = W(br[0], br[1], h0), c = W(br[0], br[1], h1), d = W(bl[0], bl[1], h1);
-        C.at((bl[0] + br[0]) / 2, -(bl[1] + br[1]) / 2).quadP(a, b, c, d, [[u0, h0], [u0 + Wd, h0], [u0 + Wd, h1], [u0, h1]], n);
+        C2.at((bl[0] + br[0]) / 2, -(bl[1] + br[1]) / 2).quadP(a, b, c, d, [[u0, h0], [u0 + Wd, h0], [u0 + Wd, h1], [u0, h1]], n);
       };
       for (let [y, n, s] of [[275, [0, 0, -1], -1], [205, [0, 0, 1], 1]]) {
         let xa = s > 0 ? -130 : -82, xb = s > 0 ? -82 : -130, oa = s > 0 ? open[0] : open[1], ob = s > 0 ? open[1] : open[0];
-        fac([xa, y], [oa, y], n, 0, 0, 30), fac([ob, y], [xb, y], n, Math.abs(ob - xa), 0, 30), fac([oa, y], [ob, y], n, Math.abs(oa - xa), oh, 30), C.mat(4, 3).col(255, 0, 0, 255);
+        fac([xa, y], [oa, y], n, 0, 0, 30), fac([ob, y], [xb, y], n, Math.abs(ob - xa), 0, 30), fac([oa, y], [ob, y], n, Math.abs(oa - xa), oh, 30), C2.mat(4, 3).col(255, 0, 0, 255);
         let yy = y + (s > 0 ? -0.4 : 0.4);
-        C.at(-106, -y).box(W(-106, yy, oh + 0.5), [1, 0, 0], [0, 1, 0], [0, 0, 1], [(open[1] - open[0]) / 2 + 0.6, 0.5, 0.6]), C.mat(7, 40, 0).col(255, 180, 90), C.at(-106, -y).box(W(-106, yy + (s > 0 ? -0.62 : 0.62), oh + 0.5), [1, 0, 0], [0, 1, 0], [0, 0, 1], [(open[1] - open[0]) / 2, 0.06, 0.03]), addLight({ type: 2, pos: W(-106, yy + (s > 0 ? -2 : 2), oh + 0.2), axis: [(open[1] - open[0]) / 2, 0, 0], r: 16, col: [10, 7, 4], src: 0.1 });
+        C2.at(-106, -y).box(W(-106, yy, oh + 0.5), [1, 0, 0], [0, 1, 0], [0, 0, 1], [(open[1] - open[0]) / 2 + 0.6, 0.5, 0.6]), C2.mat(7, 40, 0).col(255, 180, 90), C2.at(-106, -y).box(W(-106, yy + (s > 0 ? -0.62 : 0.62), oh + 0.5), [1, 0, 0], [0, 1, 0], [0, 0, 1], [(open[1] - open[0]) / 2, 0.06, 0.03]), addLight({ type: 2, pos: W(-106, yy + (s > 0 ? -2 : 2), oh + 0.2), axis: [(open[1] - open[0]) / 2, 0, 0], r: 16, col: [10, 7, 4], src: 0.1 });
       }
       fac([-82, 205], [-82, 275], [1, 0, 0], 0, 0, 30), fac([-130, 275], [-130, 205], [-1, 0, 0], 0, 0, 30), roof(-130, 205, -82, 275, 30, !0), neonText("NEON LOOP", W(-106 - (54 * 0.42 - 0.42) / 2, 275 + 0.5, oh + 2.4), [1, 0, 0], [0, 1, 0], 0.42, [1, 0.2, 0.6], 0), addLight({ type: 2, pos: W(-106, 278, oh + 3.9), axis: [11, 0, 0], r: 30, col: [45, 9, 26], src: 0.6 });
       for (let s = info.tunnel[0] + 2; s < info.tunnel[1] - 1; s += 4.5) for (let d of [-4.2, 4.2]) {
         let a = T2.pos(s - 0.75, d, 5.92), b = T2.pos(s + 0.75, d, 5.92);
-        C.mat(7, 80, 0).col(235, 240, 255), C.at(a[0], a[2]).box([(a[0] + b[0]) / 2, a[1] - 0.04, (a[2] + b[2]) / 2], norm([b[0] - a[0], 0, b[2] - a[2]]), [0, 1, 0], norm(cross(norm([b[0] - a[0], 0, b[2] - a[2]]), [0, 1, 0])), [0.75, 0.05, 0.09]), addLight({ type: 2, pos: [(a[0] + b[0]) / 2, a[1] - 0.2, (a[2] + b[2]) / 2], axis: [(b[0] - a[0]) / 2, 0, (b[2] - a[2]) / 2], r: 9.5, col: [7, 7.4, 8], src: 0.1 });
+        C2.mat(7, 80, 0).col(235, 240, 255), C2.at(a[0], a[2]).box([(a[0] + b[0]) / 2, a[1] - 0.04, (a[2] + b[2]) / 2], norm([b[0] - a[0], 0, b[2] - a[2]]), [0, 1, 0], norm(cross(norm([b[0] - a[0], 0, b[2] - a[2]]), [0, 1, 0])), [0.75, 0.05, 0.09]), addLight({ type: 2, pos: [(a[0] + b[0]) / 2, a[1] - 0.2, (a[2] + b[2]) / 2], axis: [(b[0] - a[0]) / 2, 0, (b[2] - a[2]) / 2], r: 9.5, col: [7, 7.4, 8], src: 0.1 });
       }
     }
     {
@@ -2783,27 +3018,27 @@ void main(){
       for (let y = y0; y <= y1; y += 18)
         trackDist(x - 5.2, y) < CLEAR + 0.5 || trackDist(x + 5.2, y) < CLEAR + 0.5 || bents.push(y);
       for (let y of bents) {
-        C.mat(8, 170, 200, 1).col(...steel);
-        for (let ox of [-5.2, 5.2]) C.at(x + ox, -y).box(W(x + ox, y, 3.9), [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.32, 3.9, 0.32]);
-        C.at(x, -y).box(W(x, y, 7.95), [1, 0, 0], [0, 1, 0], [0, 0, 1], [5.8, 0.45, 0.38]);
+        C2.mat(8, 170, 200, 1).col(...steel);
+        for (let ox of [-5.2, 5.2]) C2.at(x + ox, -y).box(W(x + ox, y, 3.9), [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.32, 3.9, 0.32]);
+        C2.at(x, -y).box(W(x, y, 7.95), [1, 0, 0], [0, 1, 0], [0, 0, 1], [5.8, 0.45, 0.38]);
       }
       for (let ya = y0; ya < y1; ya += 40) {
         let yb = Math.min(y1, ya + 40), ym = (ya + yb) / 2;
-        C.mat(8, 170, 200, 1).col(...steel);
-        for (let ox of [-3.7, 3.7]) C.at(x + ox, -ym).box(W(x + ox, ym, 8.9), [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.16, 0.65, (yb - ya) / 2]);
-        for (let ox of [-1.3, 1.3]) C.at(x + ox, -ym).box(W(x + ox, ym, 8.6), [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.12, 0.35, (yb - ya) / 2]);
-        C.mat(13, 230).col(70, 52, 40);
-        let B = C.at(x, -ym);
+        C2.mat(8, 170, 200, 1).col(...steel);
+        for (let ox of [-3.7, 3.7]) C2.at(x + ox, -ym).box(W(x + ox, ym, 8.9), [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.16, 0.65, (yb - ya) / 2]);
+        for (let ox of [-1.3, 1.3]) C2.at(x + ox, -ym).box(W(x + ox, ym, 8.6), [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.12, 0.35, (yb - ya) / 2]);
+        C2.mat(13, 230).col(70, 52, 40);
+        let B = C2.at(x, -ym);
         for (let y = ya; y < yb; y += 0.62) B.box(W(x, y + 0.13, 9.33), [1, 0, 0], [0, 1, 0], [0, 0, 1], [3.9, 0.09, 0.13], 3);
-        C.mat(14).col(150, 150, 155);
+        C2.mat(14).col(150, 150, 155);
         for (let ox of [-2.5, -1.08, 1.08, 2.5]) B.box(W(x + ox, ym, 9.5), [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.035, 0.08, (yb - ya) / 2], 48);
-        C.mat(8, 150, 200).col(...steel);
+        C2.mat(8, 150, 200).col(...steel);
         for (let ox of [-3.95, 3.95]) B.box(W(x + ox, ym, 10.1), [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.03, 0.03, (yb - ya) / 2], 0);
       }
       bents.forEach((y, k2) => {
         if (!(k2 % 2))
           for (let ox of [-4.6, 4.6])
-            C.mat(7, 90, 0, 1).col(255, 170, 80), C.at(x + ox, -y).sphere(W(x + ox, y + 0.9, 7.1), 0.22, 6, 3), addLight({ type: 1, pos: W(x + ox, y + 0.9, 6.9), r: 18, col: [110, 62, 26], dir: [0, -1, 0], cosO: Math.cos(1.25), cosI: Math.cos(0.7), src: 0.25 });
+            C2.mat(7, 90, 0, 1).col(255, 170, 80), C2.at(x + ox, -y).sphere(W(x + ox, y + 0.9, 7.1), 0.22, 6, 3), addLight({ type: 1, pos: W(x + ox, y + 0.9, 6.9), r: 18, col: [110, 62, 26], dir: [0, -1, 0], cosO: Math.cos(1.25), cosI: Math.cos(0.7), src: 0.25 });
       });
     }
     let k = 0;
@@ -2811,18 +3046,18 @@ void main(){
       if (inTun(s) || inTun(s + 8) || inTun(s - 8)) continue;
       let left = k % 2 === 0, sg = left ? 1 : -1, e = left ? wl : wr, pp = flatP(s, sg * (e + BAR + 0.55), 0.12), ap = T2.pos(s, sg * (e - 1.6), 8.4), p = [pp[0], pp[1], pp[2]], yb = -p[2];
       if (Math.abs(p[0] - EL_X) < 7 && yb > info.el.y0 && yb < info.el.y1) continue;
-      let led2 = Math.hypot(p[0] - 110, -p[2] - 150) < 170;
-      C.mat(8, 140, 230).col(58, 60, 64);
-      let B = C.at(p[0], p[2]);
+      let led = Math.hypot(p[0] - 110, -p[2] - 150) < 170;
+      C2.mat(8, 140, 230).col(58, 60, 64);
+      let B = C2.at(p[0], p[2]);
       B.tube(p, [p[0], p[1] + 8.6, p[2]], 0.11, 6, !0, 0.075);
       let top = [p[0], p[1] + 8.6, p[2]], head = [ap[0], p[1] + 8.5, ap[2]];
       B.tube(top, head, 0.06, 5, !1);
       let dir = norm([head[0] - p[0], 0, head[2] - p[2]]), side = norm(cross(dir, [0, 1, 0]));
-      C.mat(8, 120, 200).col(70, 72, 76), C.at(head[0], head[2]).box([head[0], head[1] - 0.06, head[2]], dir, [0, 1, 0], side, [0.45, 0.09, 0.2]);
-      let lc = led2 ? [235, 242, 255] : [255, 190, 110];
-      C.mat(7, led2 ? 110 : 90, 0, 1).col(...lc), C.at(head[0], head[2]).box([head[0], head[1] - 0.16, head[2]], dir, [0, 1, 0], side, [0.35, 0.012, 0.14]);
+      C2.mat(8, 120, 200).col(70, 72, 76), C2.at(head[0], head[2]).box([head[0], head[1] - 0.06, head[2]], dir, [0, 1, 0], side, [0.45, 0.09, 0.2]);
+      let lc = led ? [235, 242, 255] : [255, 190, 110];
+      C2.mat(7, led ? 110 : 90, 0, 1).col(...lc), C2.at(head[0], head[2]).box([head[0], head[1] - 0.16, head[2]], dir, [0, 1, 0], side, [0.35, 0.012, 0.14]);
       let tilt = norm([-dir[0] * 0.25, -1, -dir[2] * 0.25]);
-      addLight({ type: 1, pos: [head[0], head[1] - 0.3, head[2]], r: 31, col: led2 ? [230, 250, 290] : [320, 175, 70], dir: tilt, cosO: Math.cos(1.22), cosI: Math.cos(0.62), src: 0.25 }), info.lamps++;
+      addLight({ type: 1, pos: [head[0], head[1] - 0.3, head[2]], r: 31, col: led ? [230, 250, 290] : [320, 175, 70], dir: tilt, cosO: Math.cos(1.22), cosI: Math.cos(0.62), src: 0.25 }), info.lamps++;
     }
     for (let X of XS) for (let j = 0; j < YS.length - 1; j++) for (let y = YS[j] + 18; y < YS[j + 1] - 10; y += 36)
       for (let sd of [-1, 1]) {
@@ -2836,29 +3071,29 @@ void main(){
       }
     function lamp(px, py, dn) {
       let p = W(px, py, slabTop), head = W(px + dn[0] * 2.2, py + dn[1] * 2.2, 7.4);
-      C.mat(8, 140, 230).col(58, 60, 64);
-      let B = C.at(px, -py);
-      B.tube(p, [p[0], 7.5, p[2]], 0.09, 5, !0, 0.06), B.tube([p[0], 7.5, p[2]], head, 0.05, 4, !1), C.mat(7, 90, 0, 1).col(255, 180, 100), B.box([head[0], head[1] - 0.1, head[2]], [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.3, 0.03, 0.18]), addLight({ type: 1, pos: [head[0], head[1] - 0.3, head[2]], r: 24, col: [230, 128, 52], dir: [0, -1, 0], cosO: Math.cos(1.2), cosI: Math.cos(0.6), src: 0.2 });
+      C2.mat(8, 140, 230).col(58, 60, 64);
+      let B = C2.at(px, -py);
+      B.tube(p, [p[0], 7.5, p[2]], 0.09, 5, !0, 0.06), B.tube([p[0], 7.5, p[2]], head, 0.05, 4, !1), C2.mat(7, 90, 0, 1).col(255, 180, 100), B.box([head[0], head[1] - 0.1, head[2]], [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.3, 0.03, 0.18]), addLight({ type: 1, pos: [head[0], head[1] - 0.3, head[2]], r: 24, col: [230, 128, 52], dir: [0, -1, 0], cosO: Math.cos(1.2), cosI: Math.cos(0.6), src: 0.2 });
     }
     for (let X of XS) for (let Y of YS) {
       if (trackDist(X, Y) < 22 || R2() < 0.4) continue;
       let px = X + STREET + 0.6, py = Y + STREET + 0.6;
       if (overlaps(px, py, px, py)) continue;
-      C.mat(8, 150, 230).col(45, 48, 40);
-      let B = C.at(px, -py);
+      C2.mat(8, 150, 230).col(45, 48, 40);
+      let B = C2.at(px, -py);
       B.tube(W(px, py, slabTop), W(px, py, 4.6), 0.08, 5, !0);
       for (let [dx, dy] of [[-1, 0], [0, -1]]) {
         let c = W(px + dx * 0.3, py + dy * 0.3, 4.2);
-        C.mat(8, 160, 100).col(30, 32, 26), B.box(c, [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.16, 0.45, 0.16]);
+        C2.mat(8, 160, 100).col(30, 32, 26), B.box(c, [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.16, 0.45, 0.16]);
         for (let l = 0; l < 3; l++)
-          C.mat(15, l).col(255, 255, 255), B.sphere(W(px + dx * 0.48, py + dy * 0.48, 4.5 - l * 0.3), 0.1, 6, 3);
+          C2.mat(15, l).col(255, 255, 255), B.sphere(W(px + dx * 0.48, py + dy * 0.48, 4.5 - l * 0.3), 0.1, 6, 3);
       }
       addLight({ type: 0, pos: W(px - 0.8, py - 0.8, 4.3), r: 9, col: [9, 5, 0.4], flick: 6, src: 0.1 });
     }
     {
       let P = (d, h) => T2.pos(0, d, h), dl = wl + BAR * 0.5, dr = -(wr + BAR * 0.5);
-      C.mat(8, 90, 240).col(40, 40, 46);
-      let B = C.at(P(0, 0)[0], P(0, 0)[2]);
+      C2.mat(8, 90, 240).col(40, 40, 46);
+      let B = C2.at(P(0, 0)[0], P(0, 0)[2]);
       for (let d of [dl, dr]) {
         let b2 = P(d, 1);
         B.box([b2[0], b2[1] + 3.2, b2[2]], [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.25, 3.2, 0.25]);
@@ -2889,8 +3124,25 @@ void main(){
         SKY3.at(cx, -cy).quadP(a2, b2, c2, d2, [[u0, 0], [u0 + Wd, 0], [u0 + Wd, H], [u0, H]], nn);
       }), SKY3.mat(6).col(255, 0, 0, 255), SKY3.at(cx, -cy).quadP(W(x0, y0, H), W(x1, y0, H), W(x1, y1, H), W(x0, y1, H), [[0, 0], [1, 0], [1, 1], [0, 1]], [0, 1, 0]), H > 120 && (SKY3.mat(7, 60, 7).col(255, 30, 20), SKY3.at(cx, -cy).sphere(W(cx, cy, H + 1.5), 0.6, 5, 3));
     }
-    for (let [k2, B] of SKY3.tiles) C.tiles.set("sky" + k2, B);
-    return { geo: C.pack(), lights, steam, info };
+    for (let [k2, B] of SKY3.tiles) C2.tiles.set("sky" + k2, B);
+    return { geo: C2.pack(), lights, steam, info };
+  }
+
+  // src/world/rainmask.js
+  function buildRainMask(T2, city2, { x0 = -340, z0 = -600, size = 860, cell = 2 } = {}) {
+    let n = Math.ceil(size / cell), data = new Float32Array(n * n * 2), tun = city2.info.tunnel, el = city2.info.el, hint = -1;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      let X = x0 + (i + 0.5) * cell, Z = z0 + (j + 0.5) * cell, mx = X, my = -Z, h = 0.15, open = 1, k = T2.nearest(mx, my, 1);
+      if (k >= 0 && Math.hypot(T2.mx[k] - mx, T2.my[k] - my) < 16) {
+        let L = T2.locate(X, Z, k);
+        if (L) {
+          let ad = Math.abs(L.d);
+          ad < T2.wl + 4.5 && (h = ad <= T2.wl ? T2.surf(L.s, L.d).y : T2.yAt(L.s) + 0.12, tun && L.s > tun[0] - 1 && L.s < tun[1] + 1 && ad < T2.wl + 0.6 && (open = 0));
+        }
+      } else h = 0;
+      el && Math.abs(mx - el.x) < 4.2 && my > el.y0 && my < el.y1 && (open = Math.min(open, 0.35)), tun && mx > -130 && mx < -82 && my > 205 && my < 275 && (open = 0), data[(j * n + i) * 2] = h, data[(j * n + i) * 2 + 1] = open;
+    }
+    return { n, data, params: [x0, z0, 1 / size, n] };
   }
 
   // src/world/collision.js
@@ -2961,8 +3213,8 @@ void main(){
   // src/engine/engine-sim.js
   var SIM = (() => {
     "use strict";
-    let TAU2 = Math.PI * 2, G0 = 9.81, clamp3 = (v, a, b) => v < a ? a : v > b ? b : v, lerp3 = (a, b, t) => a + (b - a) * t, sstep2 = (a, b, x) => {
-      let t = clamp3((x - a) / (b - a), 0, 1);
+    let TAU2 = Math.PI * 2, G0 = 9.81, clamp2 = (v, a, b) => v < a ? a : v > b ? b : v, lerp3 = (a, b, t) => a + (b - a) * t, sstep2 = (a, b, x) => {
+      let t = clamp2((x - a) / (b - a), 0, 1);
       return t * t * (3 - 2 * t);
     }, steps = (n, d) => Array.from({ length: n }, (_, i) => i * d), alt = (n) => Array.from({ length: n }, (_, i) => i & 1), LAYOUTS = {
       I3: {
@@ -3153,13 +3405,13 @@ void main(){
       { id: "flat6", name: "Flat-Six Wail", tag: "4.0 L flat-6, 9,000 rpm", layout: "F6", disp: 4, redline: 9e3, idle: 950, tq: 470, cP: 0.74, cW: 0.45, cA: 0.5, Ie: 0.15, ex: 2, intake: 2, cam: 2, crackle: 0.3, seq: 1, mass: 1420, drv: "RWD" },
       { id: "rotary2", name: "Bridge-Port Twin Rotor", tag: "1.3 L two-rotor, bridge port", layout: "R2", disp: 1.3, redline: 9200, idle: 1300, tq: 215, cP: 0.7, cW: 0.45, cA: 0.45, Ie: 0.08, ex: 3, intake: 1, cam: 3, crackle: 0.75, mass: 1150, drv: "RWD" },
       { id: "rotary3", name: "Three-Rotor Shriek", tag: "2.6 L three-rotor, peripheral ports", layout: "R3", disp: 2.6, redline: 9500, idle: 1400, tq: 340, cP: 0.78, cW: 0.42, cA: 0.42, Ie: 0.1, ex: 4, intake: 3, cam: 3, crackle: 0.5, seq: 1, gearWhine: 1, mass: 900, drv: "RWD", mu: 1.6 }
-    ], DEFAULTS = { fi: "none", boost: 1, tsize: 1, antilag: 0, bov: "valve", ex: 1, intake: 0, cam: 0, crackle: 0.3, seq: 0, gearWhine: 0, nos: 0, launch: 0, launchRpm: 5e3, limiter: "hard", mass: 1350, drv: "RWD", cdA: 0.68, mu: 1.15 };
+    ], DEFAULTS2 = { fi: "none", boost: 1, tsize: 1, antilag: 0, bov: "valve", ex: 1, intake: 0, cam: 0, crackle: 0.3, seq: 0, gearWhine: 0, nos: 0, launch: 0, launchRpm: 5e3, limiter: "hard", mass: 1350, drv: "RWD", cdA: 0.68, mu: 1.15 };
     function makeSpec(base) {
-      let e = Object.assign({}, DEFAULTS, base), L = LAYOUTS[e.layout];
+      let e = Object.assign({}, DEFAULTS2, base), L = LAYOUTS[e.layout];
       e.cyl = L.fire.length, e.rotary = !!L.rotary, e.limiterRpm = Math.round(e.redline * 1.022 + 40), e.ch = Object.assign({ tr: 1, td: 1, scatter: 0.18, rasp: 1, bright: 1, lope: 0 }, L.ch || {}), e.turbo = e.fi === "turbo" || e.fi === "twin", e.sup = ["roots", "screw", "cent"].includes(e.fi) ? e.fi : "";
       let ts = TURBO_SIZE[e.tsize | 0];
       e.s0 = e.redline * ts.s0, e.s1 = e.redline * ts.s1, e.lag = ts.lag * (e.fi === "twin" ? 0.8 : 1), e.fiBoost = e.fi === "none" ? 0 : e.boost, e.nosKw = [0, 26, 56, 93, 186][e.nos | 0], e.nosT = 8, e.resp = [1, 1.1, 1.25, 1.7][e.intake | 0], e.gears = (e.gears || (e.seq ? GEARS6R : GEARS6)).slice(), e.nG = e.gears.length, e.shiftT = e.seq ? 0.06 : 0.3, e.peak = peakPower(e);
-      let vTop = clamp3(46 + e.peak.hp * 0.06, 62, 98);
+      let vTop = clamp2(46 + e.peak.hp * 0.06, 62, 98);
       return e.R = 0.33, e.fd = e.limiterRpm * TAU2 / 60 * e.R / (e.gears[e.nG - 1] * vTop), e.shiftRpm = e.redline * 0.99, e;
     }
     function engTq2(e, rpm, thr, boost) {
@@ -3221,8 +3473,8 @@ void main(){
       };
     }
     class EngineSim {
-      constructor(spec) {
-        this.st = "off", this.t = 0, this.we = 0, this.rpm = 0, this.thr = 0, this.boost = 0, this.gear = 0, this.v = 0, this.cutT = 0, this.cutFrac = 0, this.shiftT = 0, this.shiftTo = 0, this.clutch = "open", this.engage = 0, this.spin = !1, this.nos = 1, this.nosOn = !1, this.thrPrev = 0, this.load = 0, this.twostep = !1, this.events = [], this.pos = -40, this.ww = 0, this.launching = !1, this.launchT = 0, this.wHold = 0, this.slip = 0, this.tc = !0, this.tcOn = !1, this.jump = !1, this.held = !1, this.aPrev = 0, this.lopeT = 0, this.rpmOut = 0, this.mode = "free", this.auto = !0, spec && this.setSpec(spec);
+      constructor(spec2) {
+        this.st = "off", this.t = 0, this.we = 0, this.rpm = 0, this.thr = 0, this.boost = 0, this.gear = 0, this.v = 0, this.cutT = 0, this.cutFrac = 0, this.shiftT = 0, this.shiftTo = 0, this.clutch = "open", this.engage = 0, this.spin = !1, this.nos = 1, this.nosOn = !1, this.thrPrev = 0, this.load = 0, this.twostep = !1, this.events = [], this.pos = -40, this.ww = 0, this.launching = !1, this.launchT = 0, this.wHold = 0, this.slip = 0, this.tc = !0, this.tcOn = !1, this.jump = !1, this.held = !1, this.aPrev = 0, this.lopeT = 0, this.rpmOut = 0, this.mode = "free", this.auto = !0, spec2 && this.setSpec(spec2);
       }
       setSpec(e) {
         let keep = this.e;
@@ -3247,7 +3499,7 @@ void main(){
       step(dt, inp) {
         let e = this.e, idleW = e.idle * TAU2 / 60, limW = e.limiterRpm * TAU2 / 60;
         this.t += dt, this.lopeT += dt, this.twostep = !1, this.cutFrac = 0;
-        let thrIn = clamp3(inp.thr || 0, 0, 1), brk = clamp3(inp.brk || 0, 0, 1);
+        let thrIn = clamp2(inp.thr || 0, 0, 1), brk = clamp2(inp.brk || 0, 0, 1);
         if (this.st === "off") {
           this.we = 0, this.v = Math.max(0, this.v - dt * 3), this._out();
           return;
@@ -3266,9 +3518,9 @@ void main(){
         if (this.cutT > 0)
           this.cutT -= dt, thr = 0, this.cutFrac = 1;
         else if (e.limiter === "hard" && rpm > e.limiterRpm)
-          this.cutT = clamp3(24 / e.cyl * 60 / rpm * 2, 0.025, 0.07), thr = 0, this.cutFrac = 1;
+          this.cutT = clamp2(24 / e.cyl * 60 / rpm * 2, 0.025, 0.07), thr = 0, this.cutFrac = 1;
         else if (e.limiter === "soft" && rpm > e.limiterRpm - 160) {
-          let k = clamp3((e.limiterRpm - rpm) / 160, 0, 1);
+          let k = clamp2((e.limiterRpm - rpm) / 160, 0, 1);
           thr *= k, this.cutFrac = 1 - k;
         }
         let drive = this.mode === "drive", R2 = e.R;
@@ -3277,12 +3529,12 @@ void main(){
             e.seq && thrIn > 0.7 ? (thr = 0, this.cutFrac = 1) : (thr = 0, thrSnd = 0);
           else {
             let tgt = e.gears[this.shiftTo - 1] * e.fd * this.ww;
-            thr = Math.max(thr, clamp3((tgt - this.we) * 0.03, 0, 1)), thrSnd = thr;
+            thr = Math.max(thr, clamp2((tgt - this.we) * 0.03, 0, 1)), thrSnd = thr;
           }
           this.shiftT <= 0 && (this.gear = this.shiftTo, this.clutch = "slip", this.launching = !1, this.engage = e.seq ? 0.85 : 0.3, this.engT = e.seq ? 0.05 : 0.18);
         }
         if (drive && this.v < 0.4 && brk > 0.5 ? (this.held = !0, this.clutch = "open", this.launching = !1, this.gear === 0 && (this.gear = 1), e.launch && rpm > e.launchRpm && (thr = 0, this.cutFrac = 0.75, this.twostep = thrIn > 0.4)) : drive && this.held && brk < 0.3 && (this.held = !1), drive && this.gear === 0 && thrIn > 0.1 && this.running && (this.gear = 1), drive && this.clutch === "open" && !this.held && this.shiftT <= 0 && this.gear > 0 && thrIn > 0.1 && this.running && (this.clutch = "slip", this.launching = this.v < 4, this.launchT = 0, this.engage = this.launching ? 0.6 : 0.2, this.engT = 0.25, this.wHold = e.launch ? e.launchRpm * TAU2 / 60 : lerp3(idleW * 1.4, e.redline * 0.55 * TAU2 / 60, thrIn)), this.tcOn = !1, this.tc && drive && this.gear > 0 && this.clutch !== "open" && this.slip > 0.16 && this.v > 0.5) {
-          let k = clamp3((this.slip - 0.16) * 4.5, 0, 0.85);
+          let k = clamp2((this.slip - 0.16) * 4.5, 0, 0.85);
           thr *= 1 - k, this.cutFrac = Math.max(this.cutFrac, k), this.tcOn = k > 0.05;
         }
         if (e.turbo) {
@@ -3293,8 +3545,8 @@ void main(){
         let Te = engTq2(e, Math.max(rpm, 1), thr, this.boost);
         this.nosOn = !1, inp.nos && e.nosKw && this.nos > 0 && thrIn > 0.5 && this.running && this.shiftT <= 0 && !this.held && this.cutFrac < 0.5 && (this.nosOn = !0, this.nos = Math.max(0, this.nos - dt / e.nosT), Te += Math.min(e.nosKw * 1e3 / Math.max(this.we, 150), e.tq * 1.6)), this.st === "run" && this.we < idleW * 1.1 && thr < 0.3 && (Te += Math.max(0, (idleW - this.we) * e.Ie * 28));
         let TeS = engTq2(e, Math.max(rpm, 1), thrSnd, this.boost);
-        this.load = this.st === "run" ? clamp3(thrSnd * (TeS > 0 ? 1 : 0) * (0.42 + 0.58 * Math.min(1, TeS / e.tq)), 0, 1) : 0;
-        let m = e.mass, eta = 0.9, G2 = drive && this.gear > 0 ? e.gears[this.gear - 1] * e.fd : 0, Iw = e.drv === "AWD" ? 4.8 : 2.4, drvF = e.drv === "AWD" ? 1 : e.drv === "FWD" ? 0.6 - 0.15 * this.aPrev / G0 : 0.56 + 0.18 * this.aPrev / G0, Fmax = e.mu * m * G0 * clamp3(drvF, 0.35, 1), vn = Math.max(this.v, 3), kap = (this.ww * R2 - this.v) / vn, KP = 0.12, sl = kap / KP, as = Math.abs(sl), tf, tdf;
+        this.load = this.st === "run" ? clamp2(thrSnd * (TeS > 0 ? 1 : 0) * (0.42 + 0.58 * Math.min(1, TeS / e.tq)), 0, 1) : 0;
+        let m = e.mass, eta = 0.9, G2 = drive && this.gear > 0 ? e.gears[this.gear - 1] * e.fd : 0, Iw = e.drv === "AWD" ? 4.8 : 2.4, drvF = e.drv === "AWD" ? 1 : e.drv === "FWD" ? 0.6 - 0.15 * this.aPrev / G0 : 0.56 + 0.18 * this.aPrev / G0, Fmax = e.mu * m * G0 * clamp2(drvF, 0.35, 1), vn = Math.max(this.v, 3), kap = (this.ww * R2 - this.v) / vn, KP = 0.12, sl = kap / KP, as = Math.abs(sl), tf, tdf;
         as < 1 ? (tf = sl * (2 - as), tdf = 2 - 2 * as) : (tf = Math.sign(sl) * (0.82 + 0.18 * Math.exp(-(as - 1) * 0.8)), tdf = 0);
         let F0 = Fmax * tf, K = Fmax * tdf / KP, res = 0.5 * 1.2 * e.cdA * this.v * this.v + (this.v > 0.05 ? 0.013 * m * G0 + brk * m * G0 * 0.95 : 0), wheel = (Tw, J) => {
           let dww = dt * (Tw - F0 * R2) / (J + dt * K * R2 * R2 / vn);
@@ -3308,9 +3560,9 @@ void main(){
           if (this.launching && wCar >= this.we - 15 && (this.launching = !1), this.launching) {
             this.launchT += dt;
             let wT = Math.max(wCar, this.wHold * Math.max(0.8, 1 - 0.25 * this.launchT));
-            Tc = clamp3(Te + 30 * e.Ie * (this.we - wT), 0, cap);
+            Tc = clamp2(Te + 30 * e.Ie * (this.we - wT), 0, cap);
           } else
-            Tc = cap * clamp3((this.we - wG) / 14, -1, 1), Tc > 0 && this.we < idleW * 1.25 && (Tc = Math.min(Tc, Math.max(0, Te + e.Ie * 30 * (this.we - idleW * 1.05))));
+            Tc = cap * clamp2((this.we - wG) / 14, -1, 1), Tc > 0 && this.we < idleW * 1.25 && (Tc = Math.min(Tc, Math.max(0, Te + e.Ie * 30 * (this.we - idleW * 1.05))));
           this.we += dt * (Te - Tc) / e.Ie, F = wheel(Tc * G2 * eta, Iw), this.engage >= 1 && !this.launching && Math.abs(this.we - G2 * this.ww) < 8 && (this.clutch = "lock", this.launching = !1, this.we = G2 * this.ww), this.launching && this.launchT > 3 && (this.launching = !1);
         } else
           F = wheel(Te * G2 * eta, Iw + e.Ie * G2 * G2 * eta), this.we = G2 * this.ww, this.we < idleW * 0.8 && this.v < 6 && (this.clutch = "open");
@@ -3326,13 +3578,13 @@ void main(){
         drive && this.v < 0.5 && this.gear > 1 && this.shiftT <= 0 && (this.gear = 1), this.pos += this.v * dt, this.pos > 170 && (this.pos = -170, this.jump = !0), this._out();
       }
       _out() {
-        let e = this.e, w = 1 - clamp3((this.rpm - e.idle) / (e.idle * 0.9), 0, 1), lope = CAM_LOPE[e.cam | 0] * 1.4 + (e.ch.lope || 0), mod = this.running && lope ? lope * w * (Math.sin(this.lopeT * TAU2 * 1.55) + 0.6 * Math.sin(this.lopeT * TAU2 * 0.62 + 1.3)) : 0;
+        let e = this.e, w = 1 - clamp2((this.rpm - e.idle) / (e.idle * 0.9), 0, 1), lope = CAM_LOPE[e.cam | 0] * 1.4 + (e.ch.lope || 0), mod = this.running && lope ? lope * w * (Math.sin(this.lopeT * TAU2 * 1.55) + 0.6 * Math.sin(this.lopeT * TAU2 * 0.62 + 1.3)) : 0;
         this.rpmOut = this.st === "off" ? 0 : this.st === "crank" ? this.we * 60 / TAU2 : this.we * 60 / TAU2 * (1 + mod);
       }
       /* parameters for the synth. listener: 0 behind the car, 1 in the cabin, 2 trackside */
       params(listener, vol = 1) {
         let e = this.e, dist = 3, pan = 0, rear = 1;
-        return listener === 1 ? (dist = 1.4, rear = 0.35) : listener === 2 && (dist = Math.hypot(this.pos, 7), pan = clamp3(this.pos / dist, -1, 1), rear = 0.5 + 0.5 * this.pos / dist), {
+        return listener === 1 ? (dist = 1.4, rear = 0.35) : listener === 2 && (dist = Math.hypot(this.pos, 7), pan = clamp2(this.pos / dist, -1, 1), rear = 0.5 + 0.5 * this.pos / dist), {
           on: this.st !== "off" && this.st !== "crank" ? 1 : 0,
           firing: this.st === "run" || this.st === "catch" ? 1 : 0,
           crank: this.st === "crank" ? 1 : 0,
@@ -3363,7 +3615,7 @@ void main(){
         return this.events = [], ev;
       }
     }
-    return { LAYOUTS, LAYOUT_IDS, PRESETS, DEFAULTS, EXHAUSTS, INTAKES, CAMS, INDUCTION, NOS_SHOTS, TURBO_SIZE, makeSpec, engTq: engTq2, steadyBoost: steadyBoost2, curve, bankIntervals, dspCfg, EngineSim, clamp: clamp3 };
+    return { LAYOUTS, LAYOUT_IDS, PRESETS, DEFAULTS: DEFAULTS2, EXHAUSTS, INTAKES, CAMS, INDUCTION, NOS_SHOTS, TURBO_SIZE, makeSpec, engTq: engTq2, steadyBoost: steadyBoost2, curve, bankIntervals, dspCfg, EngineSim, clamp: clamp2 };
   })();
 
   // src/physics/powertrain.js
@@ -3607,9 +3859,9 @@ void main(){
     sport: { id: "sport", name: "Sport", steer: 0.75, esc: 0.65, tc: 1, abs: 1, drift: 0, auto: 1, catchSpin: 0 },
     sim: { id: "sim", name: "Simulation", steer: 0, esc: 0, tc: 0, abs: 1, drift: 0, auto: 1, catchSpin: 0 }
   }, SURF_MU = { road: 1, curb: 0.95, shoulder: 0.9, ground: 0.7 }, Vehicle = class {
-    constructor(chassis, spec, world2) {
+    constructor(chassis, spec2, world2) {
       let c = chassis;
-      this.c = c, this.spec = spec, this.world = world2, this.m = c.mass || spec.mass;
+      this.c = c, this.spec = spec2, this.world = world2, this.m = c.mass || spec2.mass;
       let L = c.body.L, Wd = c.body.W, H = c.body.H, m = this.m;
       this.I = [m * (Wd * Wd + H * H) / 12, m * (L * L + Wd * Wd) / 12 * 1.05, m * (L * L + H * H) / 12];
       let a = c.wb * (1 - c.wf), b = c.wb * c.wf;
@@ -3649,7 +3901,7 @@ void main(){
         disc: 0,
         temp: 0.45,
         escBrake: 0
-      })), this.tyre = Object.assign({}, TYRE_DEFAULT, c.tyre, { fz0: m * G / 4 }), this.pt = new Powertrain(spec, { drive: spec.drv || "RWD", clutch: spec.tq * (2.2 + spec.fiBoost * 0.9), engage: 0.22, diff: c.diff, Iw: c.Iw, R: c.R, mu: this.tyre.mu });
+      })), this.tyre = Object.assign({}, TYRE_DEFAULT, c.tyre, { fz0: m * G / 4 }), this.pt = new Powertrain(spec2, { drive: spec2.drv || "RWD", clutch: spec2.tq * (2.2 + spec2.fiBoost * 0.9), engage: 0.22, diff: c.diff, Iw: c.Iw, R: c.R, mu: this.tyre.mu });
       let hx = L / 2 - 0.06, hz = Wd / 2 - 0.02, yb = -c.hcg + 0.16, ym = -c.hcg + 0.55, yt = -c.hcg + H - 0.04;
       this.hull = [];
       for (let x of [hx, hx * 0.45, -hx * 0.45, -hx]) for (let z of [-hz, hz]) this.hull.push([x, yb, z * (Math.abs(x) > hx * 0.9 ? 0.9 : 1)], [x, ym, z]);
@@ -3856,7 +4108,7 @@ void main(){
       clR: 0.42,
       diff: { pre: 40, acc: 0.35, dec: 0.15 }
     }
-  };
+  }, ENGINE_CHOICES = ["six", "flatplane", "muscle", "v10", "v12", "screamer", "boxer", "five", "rotary3", "v6tt", "blown", "gp"];
   function carSpec(presetId) {
     let p = SIM.PRESETS.find((q) => q.id === presetId) || SIM.PRESETS.find((q) => q.id === "six");
     return SIM.makeSpec(Object.assign({}, p, { mass: CHASSIS.sl3.mass }));
@@ -3912,8 +4164,8 @@ void main(){
       if (this.key("look") && (out.look = !0), gp) {
         let sx = ((v, d = 0.08) => Math.abs(v) < d ? 0 : (v - Math.sign(v) * d) / (1 - d))(gp.axes[0] || 0), rt = gp.buttons[7] ? gp.buttons[7].value : 0, lt = gp.buttons[6] ? gp.buttons[6].value : 0;
         (Math.abs(sx) > 0 || rt > 0.02 || lt > 0.02 || gp.buttons.some((b) => b.pressed)) && (this.usingPad = !0), this.usingPad && (out.steer = Math.sign(sx) * Math.pow(Math.abs(sx), 1.35), out.thr = rt, out.brk = lt, out.hb = gp.buttons[0] && gp.buttons[0].pressed ? 1 : out.hb, out.nos = out.nos || !!(gp.buttons[5] && gp.buttons[5].pressed));
-        let prev = this.padPrev || [], press = (i) => gp.buttons[i] && gp.buttons[i].pressed && !prev[i];
-        press(1) && (out.up = !0), press(2) && (out.down = !0), press(3) && (out.cam = !0), press(9) && (out.pause = !0), press(8) && (out.reset = !0), press(4) && (out.look = !0), this.padPrev = gp.buttons.map((b) => b.pressed);
+        let prev = this.padPrev || [], press = (i) => gp.buttons[i] && gp.buttons[i].pressed && !prev[i], now = performance.now(), ay = gp.axes[1] || 0, ax0 = gp.axes[0] || 0, dir = gp.buttons[12] && gp.buttons[12].pressed || ay < -0.6 ? "up" : gp.buttons[13] && gp.buttons[13].pressed || ay > 0.6 ? "down" : gp.buttons[14] && gp.buttons[14].pressed || ax0 < -0.6 ? "left" : gp.buttons[15] && gp.buttons[15].pressed || ax0 > 0.6 ? "right" : null;
+        out.nav = [], dir && (dir !== this.navDir || now > this.navT) && (out.nav.push(dir), this.navT = now + (dir !== this.navDir ? 380 : 110)), this.navDir = dir, press(0) && out.nav.push("enter"), press(1) && out.nav.push("back"), press(1) && (out.up = !0), press(2) && (out.down = !0), press(3) && (out.cam = !0), press(9) && (out.pause = !0), press(8) && (out.reset = !0), press(4) && (out.look = !0), this.padPrev = gp.buttons.map((b) => b.pressed);
       }
       return this.pressed.clear(), out;
     }
@@ -4012,215 +4264,6 @@ void main(){
     }
   };
 
-  // src/render/glsl/particles.js
-  var POINT_LIGHT = `
-uniform vec3 uFogAmb;
-/* returns scattered radiance for a thin, mostly forward-scattering medium */
-vec3 lightAt(vec3 X,vec3 V){
-  vec3 c=mix(uAmbDn,uAmbUp,.6)*1.2+uFogAmb*4.;
-  if(dot(uSunCol,uSunCol)>1e-6)c+=uSunCol*(.25+.75*pow(saturate(dot(-V,uSunDir)),4.));
-  if(uLightsOn>0.0){ivec2 cell=ivec2(floor((X.xz-uGridP.xy)*uGridP.z));int gw=int(uGridP.w);
-    if(cell.x>=0&&cell.y>=0&&cell.x<gw&&cell.y<gw){uvec2 oc=texelFetch(uLGrid,cell,0).xy;int n=min(int(oc.y),12);
-      for(int k=0;k<n;k++){int idx=int(oc.x)+k;int li=int(texelFetch(uLList,ivec2(idx&1023,idx>>10),0).x);
-        vec4 A=LT(li,0),B=LT(li,1),C=LT(li,2),D=LT(li,3);int code=int(B.w+.5),type=code&7,fl=code>>3;
-        vec3 Lp=A.xyz;if(type==2){vec3 ax=C.xyz;Lp+=ax*clamp(dot(X-Lp,ax)/max(dot(ax,ax),1e-4),-1.,1.);}
-        vec3 Lv=Lp-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
-        float att=falloff(d2,A.w);if(type==1)att*=smoothstep(C.w,D.x,dot(-L,C.xyz));
-        /* drops light up most when the light is behind them */
-        c+=B.rgb*(fl>0?uFlick[fl&7]:1.0)*att*(.025+.11*pow(saturate(dot(-V,L)),3.))*uLightsOn;}}}
-  for(int i=0;i<uNDyn;i++){vec4 A=uDyn[i*3],B=uDyn[i*3+1],C=uDyn[i*3+2];vec3 Lv=A.xyz-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
-    float att=falloff(d2,A.w);if(int(B.w+.5)==1)att*=smoothstep(C.w,C.w+.12,dot(-L,C.xyz));c+=B.rgb*att*(.025+.11*pow(saturate(dot(-V,L)),3.));}
-  if(uHL[0].w>0.0){vec3 F=uHL[2].xyz,Rt=uHL[3].xyz,Up=cross(Rt,F);vec3 hp=(uHL[0].xyz+uHL[1].xyz)*.5;vec3 Lv=hp-X;float d2=dot(Lv,Lv);
-    if(d2<uHL[4].w*uHL[4].w){vec3 L=Lv*inversesqrt(d2);float b=beam(-L,F,Rt,Up,uHL[1].w);c+=uHL[4].rgb*b*falloff(d2,uHL[4].w)*(.02+.13*pow(saturate(dot(-V,L)),3.))*uHL[0].w;}}
-  return c;
-}`, SOFT = `
-uniform highp sampler2D uDepth;uniform vec2 uOutRes;
-float linz(float d){float z=d*2.-1.;return 2.*uNear*uFar/(uFar+uNear-z*(uFar-uNear));}
-float soft(float vz,float range){float sz=linz(texture(uDepth,gl_FragCoord.xy/uOutRes).r);return saturate((sz-vz)/range);}
-`, MASK = "uniform sampler2D uMask;uniform vec4 uMaskP;vec2 maskAt(vec2 xz){return texture(uMask,(xz-uMaskP.xy)*uMaskP.z).rg;}", RAIN_VS = FRAME + NOISE + LIGHTING + POINT_LIGHT + MASK + `
-uniform vec3 uBox;uniform vec3 uFall;uniform vec3 uCamVel;uniform float uStreak;uniform float uDensity;
-out vec2 vQ;out vec3 vC;out float vA;out float vZ;
-void main(){
-  int id=gl_InstanceID,v=gl_VertexID;
-  float fi=float(id);vec3 h=vec3(h11(fi*.1031+.13),h11(fi*.7311+.37),h11(fi*.3771+.71));
-  if(h11(fi*.917+.5)>uDensity){gl_Position=vec4(2,2,2,1);return;}
-  vec3 fall=uFall*(.85+.3*h11(fi*.21));
-  vec3 p=uCam+(fract((h*uBox-uCam+fall*uTime)/uBox)-.5)*uBox;
-  vec2 m=maskAt(p.xz);if(m.y<.5&&p.y<m.x+12.){gl_Position=vec4(2,2,2,1);return;}
-  if(p.y<m.x){gl_Position=vec4(2,2,2,1);return;}
-  vec3 rel=fall-uCamVel;vec3 tail=p-rel*uStreak;
-  vec4 a=uVP*vec4(p,1.),b=uVP*vec4(tail,1.);
-  if(a.w<.2||b.w<.2){gl_Position=vec4(2,2,2,1);return;}
-  vec2 sa=a.xy/a.w,sb=b.xy/b.w;vec2 d=(sb-sa)*uRes;float L=length(d);vec2 dir=L>1e-3?d/L:vec2(0,1);vec2 nr=vec2(-dir.y,dir.x);
-  /* a drop is about 2 mm wide: draw at least one pixel and fade instead */
-  float wpx=.0025*uProj[1][1]*uRes.y*.5/a.w;float w=max(wpx,.75);vA=min(1.,wpx/.75);
-  int c=v<3?v:(v==3?2:(v==4?1:3));
-  vec2 corner=vec2(float(c&1),float(c>>1));
-  vec4 P=mix(a,b,corner.y);vec2 off=nr*(corner.x*2.-1.)*w/uRes*2.*P.w;
-  gl_Position=vec4(P.xy+off,P.zw);
-  vQ=vec2(corner.x*2.-1.,corner.y);
-  vec3 V=normalize(uCam-p);
-  vC=lightAt(p,V);vZ=a.w;
-  vA*=smoothstep(.8,3.,a.w)*(1.0-smoothstep(uBox.x*.35,uBox.x*.5,length(p.xz-uCam.xz)))*min(1.,30./max(L,1.)+.3);
-}`, RAIN_FS = FRAME + SOFT + `
-in vec2 vQ;in vec3 vC;in float vA;in float vZ;out vec4 o;
-void main(){float e=1.0-vQ.x*vQ.x;float a=e*vA*(.35+.65*sin(vQ.y*3.14))*.55*soft(vZ,.4);
-  if(a<.002)discard;o=vec4(vC*a*5.,a*.2);}`, SPLASH_VS = FRAME + NOISE + LIGHTING + POINT_LIGHT + MASK + `
-uniform float uRadius;uniform float uDensity;
-out vec2 vQ;out vec3 vC;out float vA;out float vZ;out float vAge;
-void main(){
-  int id=gl_InstanceID,v=gl_VertexID;float fi=float(id);
-  float per=.35+.4*h11(fi*.37);float ph=h11(fi*.71);float cyc=floor(uTime/per+ph);float age=fract(uTime/per+ph);
-  if(age>.22||h11(fi*.53+cyc*.17)>uDensity){gl_Position=vec4(2,2,2,1);return;}
-  vec2 r=vec2(h11(fi*.113+cyc*.731),h11(fi*.419+cyc*.297));float ang=r.x*6.2831,rad=sqrt(r.y)*uRadius;
-  vec2 xz=uCam.xz+vec2(cos(ang),sin(ang))*rad;vec2 m=maskAt(xz);if(m.y<.5){gl_Position=vec4(2,2,2,1);return;}
-  vec3 p=vec3(xz.x,m.x+.01,xz.y);
-  vec3 V=normalize(uCam-p);vec3 rt=normalize(cross(vec3(0,1,0),V));
-  float sz=(.05+.11*age/.22)*(.7+.6*h11(fi*.9));
-  int c=v<3?v:(v==3?2:(v==4?1:3));vec2 corner=vec2(float(c&1),float(c>>1));
-  vec3 P=p+rt*(corner.x*2.-1.)*sz+vec3(0,1,0)*corner.y*sz*1.2;
-  vec4 cp=uVP*vec4(P,1.);gl_Position=cp;vZ=cp.w;
-  vQ=vec2(corner.x*2.-1.,corner.y);vAge=age/.22;
-  vC=lightAt(p+vec3(0,.05,0),V);vA=(1.0-smoothstep(uRadius*.6,uRadius,rad))*smoothstep(1.,3.,cp.w);
-}`, SPLASH_FS = FRAME + NOISE + SOFT + `
-in vec2 vQ;in vec3 vC;in float vA;in float vZ;in float vAge;out vec4 o;
-void main(){
-  vec2 q=vQ*vec2(1.,1.);float r=length(vec2(q.x,q.y*1.4));
-  /* a crown: a thin rim that rises and spreads, flung droplets above it */
-  float rim=smoothstep(.15,0.,abs(q.y-(.15+.25*vAge)*(1.0-q.x*q.x*.8)))*step(q.y,.6)*(1.0-abs(q.x));
-  vec2 dq=fract(q*vec2(3.,2.5)+vec2(0,-vAge))-.5;float drops=smoothstep(.18,.0,length(dq))*step(.3,q.y)*(1.0-vAge);
-  float a=max(rim,drops)*(1.0-vAge)*vA*.7*soft(vZ,.15);
-  if(a<.003)discard;o=vec4(vC*a*4.,a*.25);}`, PUFF_VS = FRAME + NOISE + LIGHTING + POINT_LIGHT + `
-layout(location=0) in vec4 iP;   /* position, size */
-layout(location=1) in vec4 iD;   /* alpha, kind, seed, age */
-out vec2 vQ;out vec3 vC;out float vA;out float vZ;out vec2 vS;
-void main(){
-  int v=gl_VertexID;int c=v<3?v:(v==3?2:(v==4?1:3));vec2 corner=vec2(float(c&1),float(c>>1))*2.-1.;
-  vec3 p=iP.xyz;float sz=iP.w;vec3 V=normalize(uCam-p);vec3 rt=normalize(cross(vec3(0,1,0),V)),up=cross(V,rt);
-  float rot=iD.z*6.2831+iD.w*.6;vec2 cr=vec2(cos(rot)*corner.x-sin(rot)*corner.y,sin(rot)*corner.x+cos(rot)*corner.y);
-  vec3 P=p+(rt*cr.x+up*cr.y)*sz;vec4 cp=uVP*vec4(P,1.);gl_Position=cp;vZ=cp.w;
-  vQ=corner;vS=vec2(iD.y,iD.z);
-  vC=lightAt(p,V);vA=iD.x;
-}`, PUFF_FS = FRAME + NOISE + SOFT + `
-in vec2 vQ;in vec3 vC;in float vA;in float vZ;in vec2 vS;out vec4 o;
-void main(){
-  float r=length(vQ);if(r>1.)discard;
-  float n=fbm(vQ*1.7+vS.y*37.)*.7+.3;
-  float a=smoothstep(1.,.2,r)*n*vA*soft(vZ,.6);
-  int kind=int(vS.x+.5);
-  vec3 tint=kind==1?vec3(.82,.84,.88):kind==2?vec3(.9):vec3(.75,.8,.86);
-  if(a<.002)discard;o=vec4(vC*tint*a*.5,a);}`;
-
-  // src/render/particles.js
-  var MAXP = 3e3, Particles = class {
-    constructor(R2, mask, { rainN = 9e3, splashN = 1400 } = {}) {
-      this.R = R2;
-      let G2 = R2.G, gl = R2.gl;
-      this.G = G2, this.P = { rain: G2.program("rain", RAIN_VS, RAIN_FS), splash: G2.program("splash", SPLASH_VS, SPLASH_FS), puff: G2.program("puff", PUFF_VS, PUFF_FS) };
-      let md = new Float32Array(mask.n * mask.n * 2);
-      md.set(mask.data), this.maskT = G2.texture(mask.n, mask.n, "rg32f", { data: md, filter: G2.ext.flt ? "linear" : "nearest" }), this.maskP = mask.params, this.rainN = rainN, this.splashN = splashN, this.n = 0, this.p = new Float32Array(MAXP * 3), this.v = new Float32Array(MAXP * 3), this.life = new Float32Array(MAXP), this.age = new Float32Array(MAXP), this.size0 = new Float32Array(MAXP), this.size1 = new Float32Array(MAXP), this.a0 = new Float32Array(MAXP), this.kind = new Uint8Array(MAXP), this.seed = new Float32Array(MAXP), this.inst = new Float32Array(MAXP * 8), this.order = new Uint16Array(MAXP), this.vao = gl.createVertexArray(), gl.bindVertexArray(this.vao), this.buf = gl.createBuffer(), gl.bindBuffer(gl.ARRAY_BUFFER, this.buf), gl.bufferData(gl.ARRAY_BUFFER, this.inst.byteLength, gl.DYNAMIC_DRAW), gl.enableVertexAttribArray(0), gl.vertexAttribPointer(0, 4, gl.FLOAT, !1, 32, 0), gl.vertexAttribDivisor(0, 1), gl.enableVertexAttribArray(1), gl.vertexAttribPointer(1, 4, gl.FLOAT, !1, 32, 16), gl.vertexAttribDivisor(1, 1), gl.bindVertexArray(null), this.rain = { on: 0, fall: [1.2, -9.5, 0.6], camVel: [0, 0, 0] }, this.emitAcc = /* @__PURE__ */ new Map(), R2.extra.push(this);
-    }
-    /* spawn one puff. kind: 0 spray, 1 tyre smoke, 2 steam */
-    spawn(kind, p, v, life, s0, s1, a0) {
-      let i;
-      this.n < MAXP ? i = this.n++ : i = Math.floor(Math.random() * MAXP), this.p.set(p, i * 3), this.v.set(v, i * 3), this.life[i] = life, this.age[i] = 0, this.size0[i] = s0, this.size1[i] = s1, this.a0[i] = a0, this.kind[i] = kind, this.seed[i] = Math.random();
-    }
-    /* emit at a rate (per second) from a named source, carrying the fraction between frames */
-    emit(key, rate, dt, fn) {
-      let a = (this.emitAcc.get(key) || 0) + rate * dt;
-      for (; a >= 1; )
-        fn(), a -= 1;
-      this.emitAcc.set(key, a);
-    }
-    update(dt, camPos) {
-      let w = 0;
-      for (let i = 0; i < this.n; i++) {
-        if (this.age[i] += dt, this.age[i] >= this.life[i]) continue;
-        let k = this.kind[i], o = i * 3, drag = k === 0 ? 2.2 : k === 1 ? 1.1 : 0.5, rise = k === 0 ? -1.6 : k === 1 ? 0.45 : 0.9, e = Math.exp(-drag * dt);
-        if (this.v[o] *= e, this.v[o + 1] = this.v[o + 1] * e + rise * dt, this.v[o + 2] *= e, this.p[o] += this.v[o] * dt, this.p[o + 1] += this.v[o + 1] * dt, this.p[o + 2] += this.v[o + 2] * dt, w !== i) {
-          this.p.copyWithin(w * 3, o, o + 3), this.v.copyWithin(w * 3, o, o + 3);
-          for (let A of [this.life, this.age, this.size0, this.size1, this.a0, this.kind, this.seed]) A[w] = A[i];
-        }
-        w++;
-      }
-      this.n = w;
-      let d = new Float32Array(this.n);
-      for (let i = 0; i < this.n; i++) {
-        let o = i * 3;
-        d[i] = (this.p[o] - camPos[0]) ** 2 + (this.p[o + 1] - camPos[1]) ** 2 + (this.p[o + 2] - camPos[2]) ** 2, this.order[i] = i;
-      }
-      let ord = Array.from(this.order.subarray(0, this.n)).sort((a, b) => d[b] - d[a]);
-      for (let j = 0; j < ord.length; j++) {
-        let i = ord[j], o = i * 3, t = this.age[i] / this.life[i], q = j * 8, sz = this.size0[i] + (this.size1[i] - this.size0[i]) * Math.sqrt(t), a = this.a0[i] * Math.min(1, t * 6) * (1 - t) * (1 - t);
-        this.inst[q] = this.p[o], this.inst[q + 1] = this.p[o + 1], this.inst[q + 2] = this.p[o + 2], this.inst[q + 3] = sz, this.inst[q + 4] = a, this.inst[q + 5] = this.kind[i], this.inst[q + 6] = this.seed[i], this.inst[q + 7] = this.age[i];
-      }
-    }
-    particles(R2, U, texs) {
-      let G2 = this.G, gl = R2.gl;
-      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA), gl.disable(gl.DEPTH_TEST), gl.disable(gl.CULL_FACE);
-      let common = Object.assign({ uMask: this.maskT, uDepth: R2.dT }, texs), vals = { uMaskP: this.maskP, uOutRes: [R2.W, R2.H], uFogAmb: U.uFogAmb }, U2 = Object.assign({}, U, { uVP: U.uVPnj });
-      if (this.rain.on > 0.01) {
-        let P = G2.use(this.P.rain);
-        G2.set(P, U2), G2.set(P, vals), G2.tex(P, common), G2.set(P, { uBox: [38, 22, 38], uFall: this.rain.fall, uCamVel: this.rain.camVel, uStreak: 1 / 45, uDensity: this.rain.on }), G2.procedural(6, this.rainN), P = G2.use(this.P.splash), G2.set(P, U2), G2.set(P, vals), G2.tex(P, common), G2.set(P, { uRadius: 22, uDensity: this.rain.on }), G2.procedural(6, this.splashN);
-      }
-      if (this.n) {
-        let P = G2.use(this.P.puff);
-        G2.set(P, U2), G2.set(P, vals), G2.tex(P, common), gl.bindBuffer(gl.ARRAY_BUFFER, this.buf), gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.inst, 0, this.n * 8), gl.bindVertexArray(this.vao), gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, this.n), gl.bindVertexArray(null);
-      }
-    }
-  };
-
-  // src/world/rainmask.js
-  function buildRainMask(T2, city2, { x0 = -340, z0 = -600, size = 860, cell = 2 } = {}) {
-    let n = Math.ceil(size / cell), data = new Float32Array(n * n * 2), tun = city2.info.tunnel, el = city2.info.el, hint = -1;
-    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-      let X = x0 + (i + 0.5) * cell, Z = z0 + (j + 0.5) * cell, mx = X, my = -Z, h = 0.15, open = 1, k = T2.nearest(mx, my, 1);
-      if (k >= 0 && Math.hypot(T2.mx[k] - mx, T2.my[k] - my) < 16) {
-        let L = T2.locate(X, Z, k);
-        if (L) {
-          let ad = Math.abs(L.d);
-          ad < T2.wl + 4.5 && (h = ad <= T2.wl ? T2.surf(L.s, L.d).y : T2.yAt(L.s) + 0.12, tun && L.s > tun[0] - 1 && L.s < tun[1] + 1 && ad < T2.wl + 0.6 && (open = 0));
-        }
-      } else h = 0;
-      el && Math.abs(mx - el.x) < 4.2 && my > el.y0 && my < el.y1 && (open = Math.min(open, 0.35)), tun && mx > -130 && mx < -82 && my > 205 && my < 275 && (open = 0), data[(j * n + i) * 2] = h, data[(j * n + i) * 2 + 1] = open;
-    }
-    return { n, data, params: [x0, z0, 1 / size, n] };
-  }
-
-  // src/render/drs.js
-  var DRS = class {
-    constructor({ min = 0.5, max = 1, start = 0.8 } = {}) {
-      this.min = min, this.max = max, this.scale = start, this.period = 1e3 / 60, this.hist = [], this.cool = 0, this.okT = 0, this.enabled = !0, this.gpuSm = -1;
-    }
-    /* learn the display's refresh period from the steadiest frame deltas */
-    noteFrame(ms) {
-      if (this.hist.push(ms), this.hist.length > 90 && this.hist.shift(), this.hist.length >= 30) {
-        let s = [...this.hist].sort((a, b) => a - b), p = s[Math.floor(s.length * 0.2)], hz = [60, 75, 90, 100, 120, 144, 165, 240].reduce((b, h) => Math.abs(1e3 / h - p) < Math.abs(1e3 / b - p) ? h : b, 60);
-        this.period = 1e3 / Math.min(hz, 120);
-      }
-    }
-    update(frameMs, gpuMs) {
-      if (!this.enabled) return this.scale;
-      if (this.noteFrame(frameMs), this.cool > 0)
-        return this.cool--, this.scale;
-      let budget = this.period * 0.88, s = this.scale;
-      if (gpuMs > 0) {
-        this.gpuSm = this.gpuSm < 0 ? gpuMs : this.gpuSm * 0.85 + gpuMs * 0.15;
-        let want = s * Math.sqrt(budget / Math.max(this.gpuSm, 0.5));
-        (want < s * 0.97 || want > s * 1.05) && (s = s + (want - s) * 0.35);
-      } else {
-        if (frameMs > this.period * 1.3)
-          this.bad = this.scale, this.badT = 900, s -= frameMs > this.period * 2 ? 0.1 : 0.05, this.okT = 0;
-        else if (this.okT++, this.okT > 120) {
-          let cap = this.badT > 0 ? this.bad - 0.05 : this.max;
-          s + 0.05 <= cap + 1e-6 && (s += 0.05), this.okT = 0;
-        }
-        this.badT > 0 && this.badT--;
-      }
-      return s = Math.round(Math.max(this.min, Math.min(this.max, s)) * 20) / 20, s !== this.scale && (this.scale = s, this.cool = 20), this.scale;
-    }
-  };
-
   // src/game/bot.js
   function makeBot(T2, prof, { pace = 0.95, look = 0.7 } = {}) {
     let st = { iv: 0 };
@@ -4232,73 +4275,901 @@ void main(){
     };
   }
 
-  // game/main.js
-  var Q = new URLSearchParams(location.search), canvas = document.getElementById("view"), hudC = document.getElementById("hud"), hud = hudC.getContext("2d"), R = new Renderer(canvas, { quality: Q.get("q") || "high" }), T = buildTrack("neon"), city = buildCity(T);
-  R.loadWorld(city, T);
-  var CR = new CarRenderer(R, CHASSIS.sl3), PS = new Particles(R, buildRainMask(T, city)), drs = new DRS({ min: 0.5, max: R.Q.maxScale, start: +(Q.get("scale") || 0.85) });
-  Q.has("scale") && (drs.enabled = !1);
-  var world = new TrackWorld(T), engineId = Q.get("engine") || "six", car = new Vehicle(CHASSIS.sl3, carSpec(engineId), world);
-  car.setAssists(Q.get("assist") || "arcade");
-  var startS = T.len - 14;
-  car.placeOnTrack(T, startS, -2.2);
-  car.pt.start();
-  var input = new Input(window), cam = new CameraRig(T), bot = null;
-  if (Q.has("auto")) {
-    let prof = speedProfile(T, { mass: car.m, clF: car.c.clF, clR: car.c.clR, cdA: car.c.cdA, powerKw: car.spec.peak.kw }, { mu: car.tyre.mu * 0.84 });
-    bot = makeBot(T, prof, { pace: 0.9 });
+  // src/audio/engine-dsp.js
+  function makeDSP() {
+    "use strict";
+    let TAU2 = Math.PI * 2, clamp2 = (v, a, b) => v < a ? a : v > b ? b : v, lerp3 = (a, b, t) => a + (b - a) * t, C_GAS = 500, C_AIR = 343, ftanh = (x) => {
+      if (x > 3) return 1;
+      if (x < -3) return -1;
+      let x2 = x * x;
+      return x * (27 + x2) / (27 + 9 * x2);
+    }, LP = 0, HP = 1, BP = 2;
+    class Biquad {
+      constructor() {
+        this.b0 = 1, this.b1 = 0, this.b2 = 0, this.a1 = 0, this.a2 = 0, this.z1 = 0, this.z2 = 0;
+      }
+      set(type, f2, q, sr) {
+        let w = TAU2 * clamp2(f2, 8, sr * 0.47) / sr, cw = Math.cos(w), al = Math.sin(w) / (2 * q), a0 = 1 + al, b0, b1, b2;
+        return type === LP ? (b0 = (1 - cw) / 2, b1 = 1 - cw, b2 = b0) : type === HP ? (b0 = (1 + cw) / 2, b1 = -(1 + cw), b2 = b0) : (b0 = al, b1 = 0, b2 = -al), this.b0 = b0 / a0, this.b1 = b1 / a0, this.b2 = b2 / a0, this.a1 = -2 * cw / a0, this.a2 = (1 - al) / a0, this;
+      }
+      tick(x) {
+        let y = this.b0 * x + this.z1;
+        return this.z1 = this.b1 * x - this.a1 * y + this.z2, this.z2 = this.b2 * x - this.a2 * y, y;
+      }
+      reset() {
+        this.z1 = this.z2 = 0;
+      }
+    }
+    class Waveguide {
+      constructor(sec, sr, rPort = 0.7, rEnd = -0.8) {
+        let n = sec.length;
+        this.n = n, this.rPort = rPort, this.rEnd = rEnd, this.m = new Int32Array(n), this.a = new Float64Array(n), this.g = new Float64Array(n), this.K = new Float64Array(n), this.p = new Int32Array(n), this.yr = new Float64Array(n), this.yl = new Float64Array(n), this.ar = new Float64Array(n), this.al = new Float64Array(n), this.nr = new Float64Array(n), this.nl = new Float64Array(n), this.R = [], this.L = [];
+        for (let i = 0; i < n; i++) {
+          let [l, , pk] = sec[i];
+          this.m[i] = Math.max(2, Math.round(l / C_GAS * sr)), this.a[i] = Math.min(0.75, 1 - Math.min(0.9, 0.6 * pk)), this.g[i] = 0.985 - 0.08 * pk, this.R.push(new Float64Array(this.m[i])), this.L.push(new Float64Array(this.m[i]));
+        }
+        for (let i = 0; i < n - 1; i++) {
+          let A1 = sec[i][1] * sec[i][1], A2 = sec[i + 1][1] * sec[i + 1][1];
+          this.K[i] = (A1 - A2) / (A1 + A2);
+        }
+        this.tip = 0, this.u1 = 0, this.dn = 1e-20;
+      }
+      tick(x) {
+        let n = this.n, a = this.a, g = this.g, ar = this.ar, al = this.al, nr = this.nr, nl = this.nl, R2 = this.R, L = this.L, p = this.p, yr = this.yr, yl = this.yl, K = this.K, m = this.m;
+        for (let i = 0; i < n; i++) {
+          let q = p[i];
+          yr[i] += a[i] * (R2[i][q] - yr[i]), ar[i] = yr[i] * g[i], yl[i] += a[i] * (L[i][q] - yl[i]), al[i] = yl[i] * g[i];
+        }
+        this.dn = -this.dn, nr[0] = this.rPort * al[0] + x + this.dn;
+        for (let i = 0; i < n - 1; i++) {
+          let k = K[i];
+          nr[i + 1] = (1 + k) * ar[i] - k * al[i + 1], nl[i] = k * ar[i] + (1 - k) * al[i + 1];
+        }
+        this.tip += 0.5 * (ar[n - 1] - this.tip);
+        let back = this.rEnd * this.tip, u = ar[n - 1] - back;
+        nl[n - 1] = back;
+        let out = u - 0.6 * this.u1;
+        this.u1 = u;
+        for (let i = 0; i < n; i++) {
+          let q = p[i];
+          R2[i][q] = nr[i], L[i][q] = nl[i], p[i] = q + 1 >= m[i] ? 0 : q + 1;
+        }
+        return out;
+      }
+    }
+    function irOf(sec, sr, rp, re) {
+      let w = new Waveguide(sec, sr, rp, re), n = Math.round(0.15 * sr), o = new Float64Array(n);
+      for (let t = 0; t < n; t++) o[t] = w.tick(t === 0 ? 1 : 0);
+      return o;
+    }
+    function pulsePeak(ir, sr) {
+      let n = Math.round(5e-3 * sr), P = new Float64Array(n);
+      for (let q = 0; q < n; q++) {
+        let t = q / sr * 1.5;
+        P[q] = (1 - Math.exp(-t / 1e-4)) * Math.exp(-t / 15e-4);
+      }
+      let M = Math.min(ir.length, Math.round(0.04 * sr)), pk = 1e-6;
+      for (let t = 0; t < M; t++) {
+        let s = 0;
+        for (let q = 0; q < n && q <= t; q++) s += P[q] * ir[t - q];
+        Math.abs(s) > pk && (pk = Math.abs(s));
+      }
+      return pk;
+    }
+    let PIPES = [
+      [[0.34, 0.036, 0.05], [0.26, 0.05, 0.05], [0.26, 0.1, 0.35], [1.05, 0.048, 0.05], [0.34, 0.09, 0.4], [0.85, 0.048, 0.05], [0.42, 0.11, 0.55], [0.3, 0.045, 0.05]],
+      /* stock: manifold, cat, resonator, packed muffler */
+      [[0.34, 0.036, 0.05], [0.26, 0.05, 0.05], [0.26, 0.1, 0.35], [1.3, 0.056, 0.04], [0.42, 0.09, 0.28], [0.34, 0.058, 0.04]],
+      /* cat-back: bigger pipe, straight-through box */
+      [[0.74, 0.04, 0.04], [0.3, 0.06, 0.04], [0.22, 0.085, 0.18], [1.3, 0.062, 0.03], [0.34, 0.09, 0.2], [0.3, 0.063, 0.03]],
+      /* long-tube headers, high-flow cat */
+      [[0.78, 0.042, 0.03], [0.3, 0.064, 0.03], [1.9, 0.068, 0.02], [0.22, 0.076, 0.02]],
+      /* straight pipe */
+      [[0.62, 0.042, 0.02], [0.2, 0.056, 0.02]]
+    ], INTAKES = [
+      [[0.22, 0.04, 0.03], [0.32, 0.13, 0.35], [0.06, 0.06, 0.05], [0.45, 0.07, 0.08], [0.3, 0.2, 0.6], [0.22, 0.06, 0.1]],
+      /* airbox */
+      [[0.22, 0.04, 0.03], [0.32, 0.13, 0.3], [0.06, 0.065, 0.04], [0.55, 0.075, 0.05], [0.12, 0.12, 0.25]],
+      /* cold air: long pipe, cone filter */
+      [[0.22, 0.04, 0.03], [0.32, 0.13, 0.25], [0.06, 0.07, 0.03], [0.35, 0.09, 0.05], [0.2, 0.16, 0.2], [0.25, 0.1, 0.05]],
+      /* ram air */
+      [[0.2, 0.044, 0.02], [0.08, 0.052, 0.02]]
+    ], EXK = { ex: [0.5, 0.66, 0.82, 1, 1.1], drive: [0.55, 0.65, 0.8, 1, 1.12], bright: [0.55, 0.75, 0.9, 1.15, 1.3], rasp: [0.05, 0.09, 0.15, 0.24, 0.3], pop: [0.25, 0.45, 0.7, 1, 1.15], crk: [0.35, 0.6, 1, 1.35, 1.6] }, INK = [0.22, 0.3, 0.38, 0.75];
+    function pipeGeom(c, bank) {
+      let lv = c.ex | 0, bore = Math.pow(c.disp / 2, 0.33), P = PIPES[lv].map((s) => s.slice());
+      P[0][0] *= clamp2(Math.pow(7e3 / c.redline, 0.7), 0.5, 1.25), bank && (P[0][0] += c.split * (lv >= 2 && !c.rumble ? 0.4 : 1), c.dual && (P[Math.min(3, P.length - 1)][0] += 0.16)), c.turbo && P.splice(2, 0, [0.1, 0.032, 0.5]);
+      for (let s of P) s[1] *= bore;
+      return P;
+    }
+    function intakeGeom(c) {
+      let bore = Math.pow(c.disp / 2, 0.25);
+      return INTAKES[c.intake | 0].map((s) => [s[0] * clamp2(Math.pow(7e3 / c.redline, 0.5), 0.6, 1.2), s[1] * bore, s[2]]);
+    }
+    let hermite = (y0, y1, y2, y3, f2) => {
+      let c1 = 0.5 * (y2 - y0), c2 = y0 - 2.5 * y1 + 2 * y2 - 0.5 * y3;
+      return (((0.5 * (y3 - y0) + 1.5 * (y1 - y2)) * f2 + c2) * f2 + c1) * f2 + y1;
+    };
+    class EngineDSP {
+      constructor(sr) {
+        this.sr = sr, this.t = 0, this.cfg = null, this.pend = null, this.p = { on: 0, firing: 0, crank: 0, crankT: 0, rpm: 0, load: 0, cutFrac: 0, boost: 0, nos: 0, speed: 0, gear: 0, twostep: 0, antilag: 0, view: 0, dist: 3, pan: 0, rear: 1, vol: 1 }, this.rpm = 0, this.load = 0, this.ph = 0, this.ei = 0, this.idleW = 1, this.kOn = 0, this.und = 0.3, this.pl = 0, this.crk = 0, this.bs = [{ e1: 0, e2: 0, u1: 0, u2: 0, env: 0 }, { e1: 0, e2: 0, u1: 0, u2: 0, env: 0 }], this.bg = [{ a1: 0, a2: 0, an: 0, d1: 0, d2: 0, dn: 0 }, { a1: 0, a2: 0, an: 0, d1: 0, d2: 0, dn: 0 }], this.dc = { d1: 0, d2: 0, d3: 0, d4: 0, de: 0 }, this.pq = [], this.vox = [];
+        let B = () => new Biquad();
+        this.f = {
+          rasp: B().set(BP, 2400, 0.55, sr),
+          roar: B(),
+          rush: B(),
+          sup: B(),
+          nos: B().set(BP, 3800, 1.2, sr),
+          start: B().set(LP, 900, 1.4, sr),
+          hpL: B().set(HP, 28, 0.7, sr),
+          hpR: B().set(HP, 28, 0.7, sr),
+          lpL: B(),
+          lpR: B(),
+          lpI: B(),
+          lpI2: B()
+        }, this.g = { og: 0, exG: 0, inG: 0, drive: 1, post: 1, rasp: 0, roar: 0, tw: 0, rush: 0, sup: 0, gw: 0, nos: 0, st: 0, fade: 0, pan: 0, gd: 1 }, this.T = {};
+        for (let k in this.g) this.T[k] = this.g[k];
+        this.ph1 = 0, this.ph2 = 0, this.ph3 = 0, this.phS = 0, this.phG = 0, this.phSt = 0, this.phAm = 0, this.xd = { n: 64, a: new Float64Array(64), b: new Float64Array(64), w: 0, d: 6, x: 0.9 }, this.dn = 32768, this.dlL = new Float64Array(this.dn), this.dlR = new Float64Array(this.dn), this.dw = 0, this.dS = 3, this.airL = 0, this.airR = 0, this.aa = 1, this.stats = { pops: 0, fires: 0 }, this.ks = 1 - Math.exp(-1 / (0.012 * sr)), this.kd = 1 - Math.exp(-1 / (0.06 * sr));
+      }
+      /* ---------- control from the main thread ---------- */
+      configure(c) {
+        if (!this.cfg) {
+          this._apply(c, !1), this.g.fade = 0, this.T.fade = 1;
+          return;
+        }
+        let geo = (k) => JSON.stringify([k.layout, k.ex, k.intake, k.disp, k.redline, !!k.turbo, k.split, k.dual, k.rumble]);
+        geo(c) !== geo(this.cfg) ? (this.pend = c, this.T.fade = 0) : this._apply(c, !0);
+      }
+      set(p) {
+        this.p = p, p.jump && (this.dS = p.dist);
+      }
+      event(e) {
+        let T2 = this.t, sr = this.sr;
+        if (e.type === "bov") {
+          let k = clamp2((this.p.boost || 0) / 0.9, 0.35, 1.3);
+          if (e.flutter) {
+            for (let i = 0; i < 10; i++) this._vox(T2 + (0.015 + i * 0.036 * (1 + i * 0.07)) * sr, 0.026, 0.3 * k * Math.pow(0.82, i), 1500 - i * 50, 1100 - i * 40, BP, 2.4);
+            this._vox(T2, 0.18, 0.16 * k, 700, 300, LP, 0.7);
+          } else
+            this._vox(T2, 0.42, 0.26 * k, 5200, 1400, BP, 0.9), this._vox(T2, 0.12, 0.12 * k, 9e3, 6e3, HP, 0.7);
+        } else e.type === "pop" ? this._bang(Math.random() < 0.5 ? 0 : 1, e.k || 0.8) : e.type === "shift" ? this.cfg && this.cfg.ex >= 1 && this._bang(Math.random() < 0.5 ? 0 : 1, 0.5) : e.type === "purge" && (this._vox(T2, 1.1, 0.32, 7e3, 3e3, HP, 0.7), this._vox(T2, 0.9, 0.2, 2600, 900, BP, 0.8));
+      }
+      takeStats() {
+        let s = this.stats;
+        return !s.pops && !s.fires ? null : (this.stats = { pops: 0, fires: 0 }, s);
+      }
+      _apply(c, soft) {
+        let prev = this.cfg;
+        this.cfg = c;
+        let lv = c.ex | 0, tb = !!c.turbo, ch = c.ch;
+        if (this.k = {
+          ex: EXK.ex[lv],
+          drive: EXK.drive[lv],
+          bright: EXK.bright[lv] * (tb ? 0.82 : 1) * ch.bright,
+          rasp: EXK.rasp[lv] * (tb ? 0.6 : 1) * ch.rasp,
+          pop: EXK.pop[lv],
+          inl: INK[c.intake | 0],
+          crackle: c.crackle * EXK.crk[lv] * (tb ? 0.75 : 1),
+          whine: c.gearWhine ? 1 : 0.15,
+          gain: c.gain || 1
+        }, soft && prev && prev.layout === c.layout) return;
+        let sr = this.sr;
+        this.wgA = new Waveguide(pipeGeom(c, 0), sr), this.wgB = new Waveguide(pipeGeom(c, 1), sr), this.wgI = new Waveguide(intakeGeom(c), sr, 0.8, -0.85), this.gEx = 1 / pulsePeak(irOf(pipeGeom(c, 0), sr), sr), this.gIn = 1 / pulsePeak(irOf(intakeGeom(c), sr, 0.8, -0.85), sr), this.xd.d = Math.round((c.dual ? 35e-5 : 12e-5) * sr), this.xd.x = c.dual ? 0.5 : 0.92, this.xd.a.fill(0), this.xd.b.fill(0);
+        for (let b of this.bs)
+          b.e1 = b.e2 = b.u1 = b.u2 = b.env = 0;
+        for (let b of this.bg)
+          b.a1 = b.a2 = b.an = 0;
+        for (let k of ["hpL", "hpR", "lpL", "lpR", "lpI", "lpI2"]) this.f[k].reset();
+        this.ei = c.ang.findIndex((a) => a > this.ph), this.ei < 0 && (this.ei = c.ang.length);
+      }
+      /* noise voice: an enveloped, swept, filtered noise burst (blow-off, flutter, purge) */
+      _vox(t0, dur, vol, f0, f1, type, q) {
+        this.vox.length > 40 && this.vox.shift();
+        let sr = this.sr, N2 = Math.max(8, Math.round(dur * sr)), att = Math.round(4e-3 * sr);
+        this.vox.push({ t0: Math.round(t0), N: N2, att, e: 1e-4, mA: Math.pow(vol / 1e-4, 1 / att), mD: Math.pow(1e-4 / vol, 1 / Math.max(1, N2 - att)), f0, f1, type, q, bq: new Biquad().set(type, f0, q, sr) });
+      }
+      /* a bang in the pipe: a hard pressure spike with a ragged tail, sometimes a double or a triple */
+      _bang(b, k, extra = !0) {
+        let s = this.bg[b], sr = this.sr, rate = 0.75 + 0.5 * Math.random(), tr = 4e-5 / rate, td = 5e-4 / rate, A = k * this.k.pop * 1.6;
+        if (s.d1 = Math.exp(-1 / (td * sr)), s.d2 = Math.exp(-1 / (1 / (1 / tr + 1 / td) * sr)), s.dn = Math.exp(-1 / (6e-3 / rate * sr)), s.a1 += A, s.a2 += A, s.an += A, this.stats.pops++, extra) {
+          let r = Math.random();
+          r < 0.4 && this._sched(this.t + (5e-3 + Math.random() * 0.022) * sr, b, k * (0.35 + 0.5 * Math.random()), 0), r < 0.15 && this._sched(this.t + (0.02 + Math.random() * 0.03) * sr, b, k * (0.3 + 0.4 * Math.random()), 0);
+        }
+      }
+      _sched(at, b, k, kind) {
+        if (this.pq.length > 64) return;
+        let e = { at: Math.round(at), b, k, kind }, i = this.pq.length;
+        for (; i > 0 && this.pq[i - 1].at > e.at; ) i--;
+        this.pq.splice(i, 0, e);
+      }
+      _burst(expect, k, n) {
+        let c = Math.floor(expect) + (Math.random() < expect % 1 ? 1 : 0);
+        for (; c-- > 0; ) this._sched(this.t + Math.random() * n, Math.random() < 0.5 ? 0 : 1, k, 0);
+      }
+      /* one cylinder's exhaust valve cracks open */
+      _fire(i) {
+        let c = this.cfg, p = this.p, b = c.bank[i], base = c.amp[i], R2 = Math.random, s = this.bs[b], A;
+        if (this.stats.fires++, !p.firing || R2() < p.cutFrac)
+          A = base * 0.1 * (0.8 + 0.4 * R2()), p.firing && R2() < 0.1 * this.k.crackle + (p.twostep || p.antilag ? 0.12 : 0) && this._sched(this.t + (12e-4 + R2() * 4e-3) * this.sr, b, 0.5 + 0.6 * R2(), 0);
+        else {
+          let r1 = R2(), sc = c.ch.scatter, kOn = this.kOn, on = base * (1 - sc * 0.5 + sc * r1) * (1 + 0.5 * Math.min(p.boost || 0, 2.5) + (p.nos ? 0.35 : 0)), off = base * (0.32 + 0.55 * r1 * r1) * (0.7 + 0.3 * Math.min(1, this.rpm / this.cfg.redline * 1.5));
+          A = off + (on - off) * kOn;
+          let lope = c.lope * this.idleW;
+          lope > 0 && (A *= 1 + lope * (R2() - 0.5) * 5, R2() < lope * 1.6 && (A *= 0.2)), kOn < 0.5 && R2() < (0.02 + 0.08 * this.k.crackle) * (1 - kOn * 2) && this._sched(this.t + (14e-4 + R2() * 3e-3) * this.sr, b, (0.45 + 0.6 * R2()) * 0.35, 1);
+        }
+        let u = this.und;
+        s.e1 += A, s.e2 += A, s.u1 += A * u, s.u2 += A * u, s.env += A;
+      }
+      process(L, R2, n) {
+        for (let o = 0; o < n; o += 128) this._block(L, R2, o, Math.min(128, n - o));
+      }
+      _block(OL, OR, o, n) {
+        if (!this.cfg) {
+          for (let i = 0; i < n; i++)
+            OL[o + i] = 0, OR[o + i] = 0;
+          this.t += n;
+          return;
+        }
+        this.pend && this.g.fade < 2e-3 && (this._apply(this.pend, !1), this.pend = null, this.T.fade = 1);
+        let c = this.cfg, p = this.p, sr = this.sr, bt = n / sr, T2 = this.T, g = this.g, f2 = this.f, k = this.k, r0 = this.rpm, rT = p.on || p.crank ? Math.max(0, p.rpm) : 0;
+        this.rpm += (rT - this.rpm) * (1 - Math.exp(-bt / 0.01));
+        let r1 = this.rpm, cut = p.cutFrac > 0.5;
+        this.load += ((p.load || 0) - this.load) * (1 - Math.exp(-bt / (cut ? 3e-3 : 0.02)));
+        let L = this.load, rpm = Math.max(r1, 1), x = rpm / c.redline;
+        this.idleW = 1 - clamp2((rpm - c.idle) / (c.idle * 0.7), 0, 1), this.kOn = p.firing ? Math.max(Math.pow(L, 0.6), this.idleW * 0.55) : 0;
+        let kOn = this.kOn, lw = Math.max(L, this.idleW * 0.3, p.firing ? 0.3 * Math.min(1, x) : 0), ts = clamp2(Math.pow(3e3 / Math.max(rpm, 250), 0.6), 0.26, 2.8), tr = lerp3(22e-5, 1e-4, kOn) * ts * c.ch.tr, td = lerp3(11e-4, 15e-4, kOn) * ts * c.ch.td, td3 = 2.7 * td, dc = this.dc;
+        dc.d1 = Math.exp(-1 / (td * sr)), dc.d2 = Math.exp(-1 / (sr / (1 / tr + 1 / td))), dc.d3 = Math.exp(-1 / (td3 * sr)), dc.d4 = Math.exp(-1 / (sr / (1 / td + 1 / td3))), dc.de = Math.exp(-1 / (2e-3 * ts * sr)), this.und = lerp3(0.16, 0.3, kOn);
+        let view = p.view | 0, cab = view === 1, rear = p.rear === void 0 ? 1 : p.rear, vol = p.vol === void 0 ? 1 : p.vol;
+        T2.drive = k.drive * (0.5 + 0.9 * lw * Math.min(1, x * 1.2)) * (1 + 0.25 * Math.min(p.boost || 0, 2)), T2.post = 1 / (0.6 + 0.5 * k.drive), f2.lpL.set(LP, clamp2((700 + (1800 + 7e3 * lw) * x) * k.bright * (cab ? 0.45 : 1) * (0.75 + 0.35 * rear), 250, 17e3), 0.6, sr), f2.lpR.b0 = f2.lpL.b0, f2.lpR.b1 = f2.lpL.b1, f2.lpR.b2 = f2.lpL.b2, f2.lpR.a1 = f2.lpL.a1, f2.lpR.a2 = f2.lpL.a2, T2.exG = k.ex * (cab ? 0.6 : 1) * (0.75 + 0.35 * rear), T2.rasp = k.rasp * lw * Math.min(1.2, x * x * 1.4), T2.inG = k.inl * (0.12 + 0.88 * L) * (0.35 + 0.65 * x) * (cab ? 2 : 1) * (0.7 + 0.5 * (1 - rear)), f2.lpI.set(LP, 3500, 0.5, sr), f2.lpI2.set(LP, 3500 * (cab ? 0.7 : 1), 0.5, sr), T2.roar = k.inl * 0.09 * L * x * (cab ? 1.6 : 1), f2.roar.set(BP, 380 + rpm * 0.12, 0.8, sr);
+        let b = c.fiBoost > 0 ? clamp2((p.boost || 0) / Math.max(0.3, c.fiBoost), 0, 1.3) : 0;
+        this.fw = 900 + b * 4200 + rpm * 0.05, T2.tw = c.turbo ? b * b * 0.04 * (0.35 + 0.65 * L) : 0, T2.rush = c.turbo ? b * 0.04 * L + (p.antilag ? b * 0.02 : 0) : 0, f2.rush.set(BP, 1300 + b * 2400, 1.1, sr), c.sup === "roots" ? (this.fs = rpm * 0.13, f2.sup.set(BP, rpm * 0.26, 1.1, sr), T2.sup = 0.07 * Math.pow(clamp2(x, 0, 1.1), 1.2) * (0.45 + 0.55 * L)) : c.sup === "screw" ? (this.fs = rpm * 0.24, f2.sup.set(BP, rpm * 0.245, 2.5, sr), T2.sup = 0.055 * Math.pow(clamp2(x, 0, 1.1), 1.3) * (0.45 + 0.55 * L)) : c.sup === "cent" ? (this.fs = 700 + 5200 * x * x, T2.sup = 0.05 * x * x * (0.3 + 0.7 * L)) : T2.sup = 0, this.fg = rpm / 60 * 23, T2.gw = k.whine * 0.026 * clamp2((p.speed || 0) / 30, 0, 1) * (0.4 + 0.6 * L) * (cab ? 1.8 : 1), T2.nos = p.nos ? 0.06 : 0, T2.st = p.crank ? 0.5 : 0, this.fSt = 90 + 60 * Math.min(1, (p.crankT || 0) / 0.8), this.fAm = 6 + 6 * Math.min(1, (p.crankT || 0) / 0.8), T2.og = 0.42 * vol * (0.32 + 0.22 * L + 0.75 * Math.pow(Math.min(1.05, x), 1.4)) * k.gain * (p.on || p.crank ? 1 : 0) + (p.crank ? 0.25 : 0);
+        let dT = Math.max(0.5, p.dist || 3);
+        this.aa = 1 - Math.exp(-TAU2 * clamp2(21e3 / (1 + this.dS / 28), 900, 2e4) / sr), T2.pan = clamp2(p.pan || 0, -1, 1), T2.gd = clamp2(3 / Math.max(this.dS, 0.6), 0, 2.4) * (view === 2 ? 1.5 : 1);
+        let width = clamp2(5 / Math.max(this.dS, 1), 0.15, 1);
+        this.pl > 0.5 && L < 0.15 && x > 0.45 && k.crackle > 0 && (this.crk = Math.max(this.crk, 0.25 + Math.random() * 0.5 * k.crackle)), this.pl = L, L < 0.2 && this.crk > 0 ? (this.crk -= bt, this._burst((5 + 9 * k.crackle) * clamp2(x * 1.3, 0, 1.2) * (this.crk > 0.15 ? 1 : 0.45) * bt, 0.3 + 0.5 * Math.random(), n)) : L > 0.3 && (this.crk = 0), p.antilag && L < 0.2 && x > 0.3 && this._burst(14 * bt, 0.8 + 0.4 * Math.random(), n), p.twostep && this._burst(11 * bt, 0.7 + 0.3 * Math.random(), n);
+        let ang = c.ang, nE = ang.length, A = this.bs[0], B = this.bs[1], GA = this.bg[0], GB = this.bg[1], ks = this.ks, kd = this.kd, xd = this.xd, dl = this.dlL, dr = this.dlR, dn = this.dn, dm = dn - 1, gEx = this.gEx, gIn = this.gIn, ftw = this.fw / sr, fsu = (this.fs || 0) / sr, fgw = this.fg / sr, fst = this.fSt / sr, fam = this.fAm / sr, twin = !!c.twin, cent = c.sup === "cent", d1 = dc.d1, d2 = dc.d2, d3 = dc.d3, d4 = dc.d4, de = dc.de;
+        for (let i = 0; i < n; i++) {
+          g.og += (T2.og - g.og) * ks, g.exG += (T2.exG - g.exG) * ks, g.inG += (T2.inG - g.inG) * ks, g.drive += (T2.drive - g.drive) * ks, g.post += (T2.post - g.post) * ks, g.rasp += (T2.rasp - g.rasp) * ks, g.roar += (T2.roar - g.roar) * ks, g.tw += (T2.tw - g.tw) * ks, g.rush += (T2.rush - g.rush) * ks, g.sup += (T2.sup - g.sup) * ks, g.gw += (T2.gw - g.gw) * ks, g.nos += (T2.nos - g.nos) * ks, g.st += (T2.st - g.st) * ks, g.fade += (T2.fade - g.fade) * ks * 1.5, g.pan += (T2.pan - g.pan) * ks * 0.25, g.gd += (T2.gd - g.gd) * ks * 0.25;
+          let rpmI = r0 + (r1 - r0) * (i / n);
+          if (rpmI > 25 && (p.on || p.crank)) {
+            for (this.ph += rpmI * 6 / sr; this.ei < nE && this.ph >= ang[this.ei]; ) this._fire(this.ei++);
+            if (this.ph >= 720)
+              for (this.ph -= 720, this.ei = 0; this.ei < nE && this.ph >= ang[this.ei]; ) this._fire(this.ei++);
+          }
+          for (; this.pq.length && this.pq[0].at <= this.t; ) {
+            let e = this.pq.shift();
+            if (e.kind === 1) {
+              let s = this.bg[e.b], sr2 = sr;
+              s.d1 = Math.exp(-1 / (6e-4 * sr2)), s.d2 = Math.exp(-1 / (sr2 / (1 / 6e-5 + 1 / 6e-4))), s.dn = Math.exp(-1 / (15e-4 * sr2)), s.a1 += e.k, s.a2 += e.k, s.an += e.k * 0.5;
+            } else this._bang(e.b, e.k, !0);
+          }
+          this.t++;
+          let w = Math.random() * 2 - 1, w2 = Math.random() * 2 - 1, pa = A.e1 - A.e2 - (A.u1 - A.u2), pb = B.e1 - B.e2 - (B.u1 - B.u2);
+          A.e1 *= d1, A.e2 *= d2, A.u1 *= d3, A.u2 *= d4, A.env *= de, B.e1 *= d1, B.e2 *= d2, B.u1 *= d3, B.u2 *= d4, B.env *= de;
+          let ba = 2.4 * (GA.a1 - GA.a2) + 0.32 * GA.an * w, bb = 2.4 * (GB.a1 - GB.a2) + 0.32 * GB.an * w2;
+          GA.a1 *= GA.d1, GA.a2 *= GA.d2, GA.an *= GA.dn, GB.a1 *= GB.d1, GB.a2 *= GB.d2, GB.an *= GB.dn;
+          let rn = f2.rasp.tick(w), xa = this.wgA.tick(pa + rn * A.env * g.rasp + ba) * gEx, xb = this.wgB.tick(pb + rn * B.env * g.rasp + bb) * gEx;
+          xd.a[xd.w] = xa, xd.b[xd.w] = xb;
+          let ri = (xd.w - xd.d + xd.n) % xd.n, da = xd.a[ri], db = xd.b[ri];
+          xd.w = (xd.w + 1) % xd.n;
+          let l = xa + db * xd.x, r = da * xd.x + xb;
+          l = clamp2(l * g.drive, -1, 1), r = clamp2(r * g.drive, -1, 1), l = ftanh(1.5 * (l + 0.16 * l * l)) * 1.07 * g.post, r = ftanh(1.5 * (r + 0.16 * r * r)) * 1.07 * g.post, l = f2.lpL.tick(f2.hpL.tick(l)) * g.exG, r = f2.lpR.tick(f2.hpR.tick(r)) * g.exG;
+          let m = f2.lpI2.tick(f2.lpI.tick(this.wgI.tick(pa + pb) * gIn)) * g.inG + f2.roar.tick(w2) * (A.env + B.env) * g.roar + (ba + bb) * k.pop * 0.08;
+          if (c.turbo) {
+            this.ph1 += ftw, this.ph1 > 1 && (this.ph1 -= 1), this.ph2 += ftw * 1.51, this.ph2 > 1 && (this.ph2 -= 1);
+            let tw = Math.sin(TAU2 * this.ph1) + 0.35 * Math.sin(TAU2 * this.ph2);
+            twin && (this.ph3 += ftw * 1.034, this.ph3 > 1 && (this.ph3 -= 1), tw += 0.8 * Math.sin(TAU2 * this.ph3)), m += tw * g.tw + f2.rush.tick(w) * g.rush;
+          }
+          g.sup > 1e-5 && (this.phS += fsu, this.phS > 1 && (this.phS -= 1), m += (cent ? Math.sin(TAU2 * this.phS) + 0.3 * Math.sin(2 * TAU2 * this.phS) : f2.sup.tick(2 * this.phS - 1) * 3) * g.sup), g.gw > 1e-5 && (this.phG += fgw, this.phG > 1 && (this.phG -= 1), m += (4 * Math.abs(this.phG - 0.5) - 1) * g.gw), g.nos > 1e-5 && (m += f2.nos.tick(w2) * g.nos * 3), g.st > 1e-4 && (this.phSt += fst, this.phSt > 1 && (this.phSt -= 1), this.phAm += fam, this.phAm > 1 && (this.phAm -= 1), m += f2.start.tick(2 * this.phSt - 1) * (0.55 + 0.45 * (this.phAm < 0.5 ? 1 : -1)) * g.st);
+          for (let v = this.vox.length - 1; v >= 0; v--) {
+            let o2 = this.vox[v], age = this.t - o2.t0;
+            if (!(age < 0)) {
+              if (age >= o2.N) {
+                this.vox.splice(v, 1);
+                continue;
+              }
+              (age & 31) === 0 && o2.bq.set(o2.type, o2.f0 * Math.pow(o2.f1 / o2.f0, age / o2.N), o2.q, sr), o2.e *= age < o2.att ? o2.mA : o2.mD, m += o2.bq.tick(Math.random() * 2 - 1) * o2.e * 3;
+            }
+          }
+          l = (l + m) * g.og * g.fade, r = (r + m) * g.og * g.fade, this.dS += (dT - this.dS) * kd, dl[this.dw] = l, dr[this.dw] = r;
+          let dly = Math.min(dn - 4, this.dS / C_AIR * sr + 1), ip = Math.floor(dly), fr = dly - ip, j = this.dw - ip, j0 = j + 1 & dm, j1 = j & dm, j2 = j - 1 & dm, j3 = j - 2 & dm;
+          l = hermite(dl[j0], dl[j1], dl[j2], dl[j3], fr), r = hermite(dr[j0], dr[j1], dr[j2], dr[j3], fr), this.dw = this.dw + 1 & dm, this.airL += this.aa * (l - this.airL), this.airR += this.aa * (r - this.airR);
+          let mid = (this.airL + this.airR) * 0.5, side = (this.airL - this.airR) * 0.5 * width, th = (g.pan + 1) * Math.PI / 4;
+          l = (mid + side) * Math.cos(th) * 1.4142 * g.gd, r = (mid - side) * Math.sin(th) * 1.4142 * g.gd;
+          let al = Math.abs(l), ar = Math.abs(r);
+          al > 0.9 && (l = Math.sign(l) * (0.9 + 0.1 * ftanh((al - 0.9) * 10))), ar > 0.9 && (r = Math.sign(r) * (0.9 + 0.1 * ftanh((ar - 0.9) * 10))), OL[o + i] = l, OR[o + i] = r;
+        }
+      }
+    }
+    return EngineDSP;
   }
-  var envId = Q.get("env") || "rain", env = ENVS[envId], paint = PAINTS[Q.get("paint") || "magenta"], debug = Q.get("debug"), debugGain = +(Q.get("gain") || 1), highBeam = !1, led = !1, showHud = !0;
+
+  // src/audio/fx-dsp.js
+  function makeFX() {
+    let TAU2 = Math.PI * 2;
+    class FX {
+      constructor(sr) {
+        this.sr = sr, this.p = { slip: [0, 0, 0, 0], load: [0, 0, 0, 0], wet: 0, rain: 0, speed: 0, cabin: 0, curb: 0, scrape: 0, air: 0, vol: 1, tunnel: 0 }, this.g = { sq: [0, 0, 0, 0], rd: 0, hiss: 0, wind: 0, rain: 0, curb: 0, scr: 0, cab: 0 }, this.sq = [0, 1, 2, 3].map((i) => ({ f: 700 + i * 37, y1: 0, y2: 0, ph: Math.random(), drift: 0 })), this.seed = 22222, this.b = [0, 0, 0, 0, 0, 0, 0], this.lp = [0, 0, 0, 0, 0, 0, 0, 0], this.curbPh = 0, this.thumpE = 0, this.hits = [], this.dropT = 0, this.drops = [];
+      }
+      set(p) {
+        this.p = p;
+      }
+      event(e) {
+        e.type === "hit" && this.hits.push({ t: 0, a: Math.min(1.5, e.a), f: 60 + Math.random() * 25 });
+      }
+      rnd() {
+        let s = this.seed;
+        return s ^= s << 13, s ^= s >>> 17, s ^= s << 5, this.seed = s, (s >>> 0) / 4294967296 * 2 - 1;
+      }
+      process(L, R2, n) {
+        let p = this.p, g = this.g, sr = this.sr, k = 1 - Math.exp(-1 / (sr * 0.04)), sp = p.speed || 0, cab = p.cabin ? 1 : 0, sqT = p.slip.map((s, i) => {
+          let sl = Math.max(0, s);
+          return Math.max(0, Math.min(1, (sl - 0.8) / 0.55)) * (1 - Math.max(0, Math.min(1, (sl - 4) / 3))) * Math.min(1.2, (p.load[i] || 0) / 3600) * (1 - 0.75 * p.wet) * Math.min(1, sp / 3);
+        }), rdT = Math.min(1, sp / 45) * 0.5, hissT = p.wet * Math.min(1, sp / 30) * 0.7, windT = Math.min(1.2, (sp / 55) ** 2) * 0.6, rainT = p.rain * 0.35 * (1 - 0.6 * p.tunnel), curbT = p.curb ? Math.min(1, sp / 20) : 0, scrT = Math.min(1, p.scrape / 10), wcab = cab ? 0.35 : 1;
+        for (let i = 0; i < n; i++) {
+          for (let w = 0; w < 4; w++) g.sq[w] += (sqT[w] - g.sq[w]) * k;
+          g.rd += (rdT - g.rd) * k, g.hiss += (hissT - g.hiss) * k, g.wind += (windT - g.wind) * k, g.rain += (rainT - g.rain) * k, g.curb += (curbT - g.curb) * k, g.scr += (scrT - g.scr) * k * 3, g.cab += (cab - g.cab) * k;
+          let wn = this.rnd(), b = this.b;
+          b[0] = 0.99765 * b[0] + wn * 0.099046, b[1] = 0.963 * b[1] + wn * 0.2965164, b[2] = 0.57 * b[2] + wn * 1.0526913;
+          let pink = (b[0] + b[1] + b[2] + wn * 0.1848) * 0.12;
+          b[3] = (b[3] + 0.02 * wn) / 1.02;
+          let brown = b[3] * 3.5, l = 0, r = 0;
+          for (let w = 0; w < 4; w++) {
+            let a = g.sq[w];
+            if (a < 1e-4) continue;
+            let v2 = this.sq[w];
+            v2.drift += (this.rnd() * 0.5 - v2.drift * 2e-3) * 0.02;
+            let f2 = (640 + v2.drift * 90 + w * 23 + 60 * a) * (1 + 0.04 * Math.sin(v2.ph));
+            v2.ph += TAU2 * 27 / sr;
+            let q = 0.012, w0 = TAU2 * f2 / sr, rr = 1 - q * w0, c = 2 * rr * Math.cos(w0), y = wn * (1 - rr) * 2.2 + c * v2.y1 - rr * rr * v2.y2;
+            v2.y2 = v2.y1, v2.y1 = y;
+            let out = y * a * 0.9 * (0.7 + 0.3 * Math.sin(v2.ph * 0.37));
+            w % 2 === 0 ? (l += out * 1.15, r += out * 0.75) : (l += out * 0.75, r += out * 1.15);
+          }
+          let lp = this.lp;
+          lp[0] += (brown - lp[0]) * (0.02 + g.rd * 0.05), lp[1] += (pink - lp[1]) * 0.25;
+          let hissS = pink - lp[1], road = lp[0] * g.rd * 1.4 + hissS * g.hiss * (cab ? 0.25 : 0.9) * 1.6;
+          l += road, r += road, lp[2] += (pink - lp[2]) * (0.04 + g.wind * 0.04);
+          let wind = (lp[2] - lp[3]) * g.wind * (cab ? 0.5 : 1.1);
+          if (lp[3] += (lp[2] - lp[3]) * 5e-3, l += wind * 1.1, r += wind * 0.9, g.rain > 1e-4) {
+            lp[4] += (pink - lp[4]) * 0.35;
+            let rh = (pink - lp[4]) * g.rain * (cab ? 0.25 : 1.8);
+            l += rh, r += rh, cab && Math.random() < g.rain * 0.02 && this.drops.push({ t: 0, a: 0.15 + Math.random() * 0.25, f: 900 + Math.random() * 1600, pan: Math.random() }), !cab && Math.random() < g.rain * 4e-3 && this.drops.push({ t: 0, a: 0.05 + Math.random() * 0.08, f: 2500 + Math.random() * 3e3, pan: Math.random() });
+          }
+          for (let d = this.drops.length - 1; d >= 0; d--) {
+            let D = this.drops[d];
+            D.t += 1 / sr;
+            let e = Math.exp(-D.t * 300) * D.a, s = Math.sin(TAU2 * D.f * D.t) * e * (1 + this.rnd() * 0.3);
+            l += s * (1 - D.pan), r += s * D.pan, D.t > 0.03 && this.drops.splice(d, 1);
+          }
+          if (g.curb > 1e-3) {
+            this.curbPh += Math.max(sp, 1) / 1 / sr, this.curbPh >= 1 && (this.curbPh -= 1, this.thumpE = 1), this.thumpE *= Math.exp(-1 / (sr * 0.018)), lp[5] += (brown * 4 - lp[5]) * 0.06;
+            let t = (Math.sin(TAU2 * 55 * this.thumpE) * 0.6 + lp[5]) * this.thumpE * g.curb * 0.35;
+            l += t, r += t;
+          }
+          if (g.scr > 1e-3) {
+            lp[6] += (wn - lp[6]) * 0.5;
+            let sc = (wn - lp[6]) * g.scr * (0.5 + 0.5 * Math.sin(TAU2 * this.curbPh * 7)) * 0.5;
+            l += sc, r += sc;
+          }
+          for (let h = this.hits.length - 1; h >= 0; h--) {
+            let H = this.hits[h];
+            H.t += 1 / sr;
+            let e = Math.exp(-H.t * 14) * H.a;
+            lp[7] += (wn - lp[7]) * 0.15;
+            let s = (Math.sin(TAU2 * H.f * H.t * (1 - H.t * 1.5)) * 0.9 + lp[7] * 1.5 * Math.exp(-H.t * 30) + wn * 0.3 * Math.exp(-H.t * 60)) * e;
+            l += s, r += s, H.t > 0.6 && this.hits.splice(h, 1);
+          }
+          let v = (p.vol ?? 1) * 0.55;
+          L[i] = l * v, R2[i] = r * v;
+        }
+      }
+    }
+    return FX;
+  }
+
+  // src/audio/game-audio.js
+  function roomIR(ctx, kind) {
+    let sr = ctx.sampleRate, n = Math.round(sr * { street: 0.9, tunnel: 2.4 }[kind]), b = ctx.createBuffer(2, n, sr), seed = 1234567, rnd = () => (seed = seed * 16807 % 2147483647, seed / 2147483647 * 2 - 1);
+    for (let ch = 0; ch < 2; ch++) {
+      let X = b.getChannelData(ch), lp = 0;
+      if (kind === "tunnel") {
+        for (let k = 1; k < 44; k++) {
+          let i = Math.round((k * 0.036 + (k & 1 ? ch * 0.011 : 0) + rnd() * 15e-4) * sr);
+          if (i >= n) break;
+          let a = Math.pow(0.8, k) * (k + ch & 1 ? 0.55 : 1);
+          for (let q = 0; q < 90 && i + q < n; q++) X[i + q] += a * Math.exp(-q / (5 + k * 1.4)) * (q ? rnd() * 0.6 : 1);
+        }
+        for (let i = 0; i < n; i++) {
+          let t = i / sr;
+          lp += 0.3 * (rnd() - lp), X[i] += lp * 0.55 * Math.exp(-t * 2.5) * Math.min(1, t / 0.03);
+        }
+      } else {
+        X[Math.round((45e-4 + ch * 6e-4) * sr)] += 0.5;
+        for (let [t, a, d] of [[0.052, 0.3, 10], [0.071, 0.24, 12], [0.118, 0.16, 16], [0.176, 0.1, 20], [0.25, 0.06, 26]]) {
+          let s = Math.round((t + ch * 6e-3) * sr);
+          for (let q = 0; q < 90; q++) X[s + q] += a * Math.exp(-q / d) * rnd();
+        }
+        for (let i = 0; i < n; i++) {
+          let t = i / sr;
+          lp += 0.25 * (rnd() - lp), X[i] += lp * 0.16 * Math.exp(-t * 6) * Math.min(1, t / 0.02);
+        }
+      }
+    }
+    return b;
+  }
+  var ENGINE_SRC = () => `const EngineDSP=(${makeDSP.toString()})();
+class ShiftlightEngine extends AudioWorkletProcessor{
+  constructor(){super();this.d=new EngineDSP(sampleRate);this.port.onmessage=e=>{const m=e.data;if(m.t==='cfg')this.d.configure(m.cfg);else if(m.t==='p')this.d.set(m.p);else if(m.t==='ev')this.d.event(m.ev);};}
+  process(i,o){const out=o[0];this.d.process(out[0],out[1]||out[0],out[0].length);return true;}}
+registerProcessor('shiftlight-engine',ShiftlightEngine);
+const FXDSP=(${makeFX.toString()})();
+class ShiftlightFX extends AudioWorkletProcessor{
+  constructor(){super();this.d=new FXDSP(sampleRate);this.port.onmessage=e=>{const m=e.data;if(m.t==='p')this.d.set(m.p);else if(m.t==='ev')this.d.event(m.ev);};}
+  process(i,o){const out=o[0];this.d.process(out[0],out[1]||out[0],out[0].length);return true;}}
+registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
+    constructor() {
+      this.ready = !1, this.starting = null, this.vol = 0.8, this.muted = !1, this.cfg = null, this.tunnel = 0;
+    }
+    /* call from a user gesture */
+    start() {
+      return this.starting ? this.starting : (this.starting = (async () => {
+        let AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        let ctx = new AC({ latencyHint: "interactive" });
+        this.ctx = ctx;
+        let master = ctx.createGain();
+        master.gain.value = this.muted ? 0 : this.vol, this.master = master;
+        let comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = -10, comp.knee.value = 6, comp.ratio.value = 4, comp.attack.value = 3e-3, comp.release.value = 0.2, master.connect(comp), comp.connect(ctx.destination);
+        let dry = ctx.createGain();
+        dry.connect(master);
+        let mk = (k) => {
+          let send = ctx.createGain();
+          send.gain.value = 0;
+          let cv = ctx.createConvolver();
+          return cv.buffer = roomIR(ctx, k), send.connect(cv), cv.connect(master), send;
+        };
+        this.sendS = mk("street"), this.sendT = mk("tunnel");
+        let bus = ctx.createGain();
+        bus.connect(dry), bus.connect(this.sendS), bus.connect(this.sendT);
+        try {
+          if (!ctx.audioWorklet) throw new Error("no worklet");
+          let src = ENGINE_SRC();
+          try {
+            await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([src], { type: "application/javascript" })));
+          } catch {
+            await ctx.audioWorklet.addModule("data:application/javascript;charset=utf-8," + encodeURIComponent(src));
+          }
+          let eng = new AudioWorkletNode(ctx, "shiftlight-engine", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] }), fx = new AudioWorkletNode(ctx, "shiftlight-fx", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+          eng.connect(bus), fx.connect(bus), this.eng = { post: (m) => eng.port.postMessage(m) }, this.fx = { post: (m) => fx.port.postMessage(m) }, this.kind = "worklet";
+        } catch {
+          let D = makeDSP(), F = makeFX(), d = new D(ctx.sampleRate), f2 = new F(ctx.sampleRate), node = ctx.createScriptProcessor(1024, 1, 2), tmpL = new Float32Array(1024), tmpR = new Float32Array(1024), src = ctx.createConstantSource ? ctx.createConstantSource() : null;
+          src && (src.offset.value = 0, src.connect(node), src.start()), node.onaudioprocess = (ev) => {
+            let b = ev.outputBuffer, L = b.getChannelData(0), R2 = b.getChannelData(1), n = b.length;
+            d.process(L, R2, n), f2.process(tmpL, tmpR, n);
+            for (let i = 0; i < n; i++)
+              L[i] += tmpL[i], R2[i] += tmpR[i];
+          }, node.connect(bus), this.eng = { post: (m) => {
+            m.t === "cfg" ? d.configure(m.cfg) : m.t === "p" ? d.set(m.p) : m.t === "ev" && d.event(m.ev);
+          } }, this.fx = { post: (m) => {
+            m.t === "p" ? f2.set(m.p) : m.t === "ev" && f2.event(m.ev);
+          } }, this.kind = "main thread";
+        }
+        ctx.state !== "running" && await ctx.resume(), this.cfg && this.eng.post({ t: "cfg", cfg: this.cfg }), this.ready = !0;
+      })(), this.starting);
+    }
+    configure(cfg) {
+      this.cfg = cfg, this.ready && this.eng.post({ t: "cfg", cfg });
+    }
+    setVolume(v) {
+      this.vol = v, this.master && this.master.gain.setTargetAtTime(this.muted ? 0 : v, this.ctx.currentTime, 0.05);
+    }
+    setMuted(m) {
+      this.muted = m, this.setVolume(this.vol);
+    }
+    suspend(on) {
+      this.ctx && (on ? this.ctx.suspend() : this.ctx.resume());
+    }
+    /* once per frame */
+    update(engineP, engineEvents, fxP, fxEvents, { tunnel = 0, cabin = !1 } = {}) {
+      if (!this.ready) return;
+      for (let e of engineEvents) this.eng.post({ t: "ev", ev: e });
+      this.eng.post({ t: "p", p: engineP });
+      for (let e of fxEvents) this.fx.post({ t: "ev", ev: e });
+      this.fx.post({ t: "p", p: fxP });
+      let t = this.ctx.currentTime, c = cabin ? 0.4 : 1;
+      this.tunnel += (tunnel - this.tunnel) * 0.08, this.sendS.gain.setTargetAtTime(0.32 * c * (1 - this.tunnel), t, 0.08), this.sendT.gain.setTargetAtTime(0.85 * c * this.tunnel, t, 0.08);
+    }
+  };
+
+  // src/ui/hud.js
+  var C = { white: "#f4f2ff", cyan: "#4fe3ff", pink: "#ff4fa0", amber: "#ffb040", red: "#ff3d5a", green: "#5dff7a", violet: "#a878ff", dim: "rgba(200,190,230,.10)", ink: "#e8e4f2", faint: "rgba(232,228,242,.55)" }, fmtT = (t) => {
+    if (!(t > 0)) return "-:--.---";
+    let m = Math.floor(t / 60), s = t - m * 60;
+    return m + ":" + (s < 10 ? "0" : "") + s.toFixed(3);
+  }, HUD = class {
+    constructor(canvas2) {
+      this.c = canvas2, this.g = canvas2.getContext("2d"), this.led = null, this.msg = null, this.msgT = 0, this.mapPath = null, this.flash = 0;
+    }
+    message(text, col = C.white, dur = 2.2) {
+      this.msg = { text, col }, this.msgT = dur;
+    }
+    /* the minimap outline, normalised to a unit box once */
+    setTrack(T2) {
+      let xs = T2.mx, ys = T2.my, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      for (let i = 0; i < T2.N; i++)
+        x0 = Math.min(x0, xs[i]), x1 = Math.max(x1, xs[i]), y0 = Math.min(y0, ys[i]), y1 = Math.max(y1, ys[i]);
+      let sc = 1 / Math.max(x1 - x0, y1 - y0);
+      this.map = { T: T2, x0, y0, sc, w: (x1 - x0) * sc, h: (y1 - y0) * sc };
+    }
+    /* ------------ dot primitives ------------ */
+    dots(ctx, str, x, y, p, col, { r = 0.38, unlit = !0, glow = !0, align = "l", font = 5 } = {}) {
+      str = String(str), this.pixel && (p = Math.max(1, Math.round(p)), x = Math.round(x), y = Math.round(y));
+      let w = str.length * 6 * p - p;
+      if (align === "c" ? x -= Math.round(w / 2) : align === "r" && (x -= w), this.pixel) {
+        ctx.fillStyle = col;
+        let d = Math.max(1, p - (p > 2 ? 1 : 0));
+        for (let ch of str) {
+          let g = G5[ch] || G5[ch.toUpperCase()] || G5[" "];
+          for (let row = 0; row < 7; row++) for (let c = 0; c < 5; c++) g && g[row] >> 4 - c & 1 && ctx.fillRect(x + c * p, y + row * p, d, d);
+          x += 6 * p;
+        }
+        return w;
+      }
+      let R2 = p * r;
+      for (let ch of str) {
+        let g = G5[ch] || G5[ch.toUpperCase()] || G5[" "];
+        for (let row = 0; row < 7; row++) for (let c = 0; c < 5; c++) {
+          let on = g && g[row] >> 4 - c & 1, cx = x + c * p + p / 2, cy = y + row * p + p / 2;
+          on ? (glow && (ctx.fillStyle = col, ctx.globalAlpha = 0.16, ctx.beginPath(), ctx.arc(cx, cy, R2 * 2.1, 0, 6.283), ctx.fill(), ctx.globalAlpha = 1), ctx.fillStyle = col, ctx.beginPath(), ctx.arc(cx, cy, R2, 0, 6.283), ctx.fill()) : unlit && (ctx.fillStyle = C.dim, ctx.beginPath(), ctx.arc(cx, cy, R2 * 0.8, 0, 6.283), ctx.fill());
+        }
+        x += 6 * p;
+      }
+      return w;
+    }
+    small(ctx, str, x, y, p, col, align = "l") {
+      str = String(str), this.pixel && (p = Math.max(1, Math.round(p)), x = Math.round(x), y = Math.round(y));
+      let w = 0;
+      for (let ch of str) {
+        let g = G3[ch] || G3[ch.toUpperCase()];
+        w += ((g ? g[0].length : 3) + 1) * p;
+      }
+      w -= p, align === "c" ? x -= w / 2 : align === "r" && (x -= w), ctx.fillStyle = col;
+      for (let ch of str) {
+        let g = G3[ch] || G3[ch.toUpperCase()];
+        if (!g) {
+          x += 4 * p;
+          continue;
+        }
+        for (let r = 0; r < 5; r++) {
+          let row = g[r];
+          for (let c = 0; c < row.length; c++) row.charCodeAt(c) === 49 && ctx.fillRect(x + c * p, y + r * p, p * 0.86, p * 0.86);
+        }
+        x += (g[0].length + 1) * p;
+      }
+      return w;
+    }
+    /* ------------ the frame ------------ */
+    draw(S, dt) {
+      let ctx = this.g, W2 = this.c.width, H = this.c.height;
+      if (ctx.clearRect(0, 0, W2, H), !S || S.hidden) return;
+      let s = Math.min(W2 / 1920, H / 1080) * (this.pixel ? 1.25 : 1), pad = 44 * s;
+      ctx.imageSmoothingEnabled = !this.pixel, this.flash += dt, this.msgT > 0 && (this.msgT -= dt), ctx.save();
+      let cx = W2 - pad - 250 * s, cy = H - pad - 150 * s, Rr = 210 * s, n = 34, frac = S.rpm / S.limiter, shift = S.rpm > S.shiftRpm * 0.985, a0 = Math.PI * 1.08, a1 = Math.PI * 1.92;
+      for (let i = 0; i < n; i++) {
+        let t = i / (n - 1), a = a0 + (a1 - a0) * t, lit = t <= frac, col = t > S.shiftRpm / S.limiter ? C.red : t > S.shiftRpm / S.limiter * 0.86 ? C.amber : C.cyan, x0 = cx + Math.cos(a) * Rr, y0 = cy + Math.sin(a) * Rr, x1 = cx + Math.cos(a) * (Rr - 26 * s), y1 = cy + Math.sin(a) * (Rr - 26 * s);
+        ctx.lineCap = "round", lit ? (ctx.strokeStyle = col, ctx.globalAlpha = 0.25, ctx.lineWidth = 13 * s, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke(), ctx.globalAlpha = 1, ctx.lineWidth = 6 * s, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke()) : (ctx.strokeStyle = "rgba(200,190,230,.10)", ctx.lineWidth = 6 * s, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke());
+      }
+      if (shift && (this.flash * 12 | 0) % 2 === 0) {
+        ctx.fillStyle = C.red, ctx.globalAlpha = 0.85;
+        for (let d of [-1, 1])
+          ctx.beginPath(), ctx.arc(cx + d * 36 * s, cy - Rr - 26 * s, 9 * s, 0, 6.283), ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      let kmh = Math.round(Math.abs(S.speed) * 3.6), sp = String(kmh).padStart(3, " ");
+      this.dots(ctx, sp, cx - 12 * s, cy - 74 * s, 15 * s, C.white, { align: "c" }), this.small(ctx, S.units || "KM/H", cx - 12 * s, cy + 42 * s, 4 * s, C.faint, "c");
+      let gear = S.rev ? "R" : S.gear === 0 ? "N" : String(S.gear);
+      this.dots(ctx, gear, cx + 150 * s, cy - 60 * s, 11 * s, S.shiftLamp ? C.red : C.pink, { align: "c" }), this.small(ctx, S.auto ? "AUTO" : "MAN", cx + 150 * s, cy + 30 * s, 3 * s, C.faint, "c");
+      let by = cy + 72 * s;
+      if (S.boostMax > 0) {
+        let b = Math.max(0, S.boost), bw = 230 * s;
+        this.small(ctx, "BOOST", cx - 130 * s, by, 3 * s, C.faint), ctx.fillStyle = "rgba(200,190,230,.12)", ctx.fillRect(cx - 70 * s, by, bw, 12 * s), ctx.fillStyle = C.violet, ctx.fillRect(cx - 70 * s, by, bw * Math.min(1, b / S.boostMax), 12 * s), this.small(ctx, (b * 1).toFixed(1) + " BAR", cx + 170 * s, by, 3 * s, C.faint), by += 24 * s;
+      }
+      if (S.nosMax > 0) {
+        this.small(ctx, "N2O", cx - 130 * s, by, 3 * s, C.faint);
+        let bw = 230 * s;
+        ctx.fillStyle = "rgba(200,190,230,.12)", ctx.fillRect(cx - 70 * s, by, bw, 12 * s), ctx.fillStyle = S.nosOn ? C.white : C.cyan, ctx.fillRect(cx - 70 * s, by, bw * S.nos, 12 * s);
+      }
+      let lx = pad, ly = pad;
+      if (this.small(ctx, "NEON LOOP", lx, ly, 4 * s, C.pink), this.small(ctx, "LAP " + Math.max(1, S.lap), lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, fmtT(S.lapT), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "BEST", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.best), lx + 70 * s, ly + 118 * s, 3 * s, S.best > 0 ? C.green : C.faint), this.small(ctx, "LAST", lx, ly + 140 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.last), lx + 70 * s, ly + 140 * s, 3 * s, C.ink), S.delta !== null && S.delta !== void 0 && S.best > 0) {
+        let d = S.delta;
+        this.small(ctx, (d >= 0 ? "+" : "-") + Math.abs(d).toFixed(2), lx + 250 * s, ly + 74 * s, 4 * s, d > 0 ? C.red : C.green);
+      }
+      if (this.map) {
+        let M = this.map, sz = 230 * s, mx = W2 - pad - sz, my = pad, P = (x, y) => [mx + (x - M.x0) * M.sc * sz + (1 - M.w) * sz / 2, my + sz - ((y - M.y0) * M.sc * sz + (1 - M.h) * sz / 2)], T2 = M.T;
+        ctx.lineJoin = "round";
+        for (let [w, a, col] of [[12 * s, 0.12, C.pink], [4 * s, 0.85, C.pink]]) {
+          ctx.strokeStyle = col, ctx.globalAlpha = a, ctx.lineWidth = w, ctx.beginPath();
+          for (let i = 0; i <= T2.N; i += 4) {
+            let k = i % T2.N, [x, y] = P(T2.mx[k], T2.my[k]);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          }
+          ctx.closePath(), ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        let [sx, sy] = P(T2.mx[0], T2.my[0]);
+        if (ctx.fillStyle = C.white, ctx.fillRect(sx - 1.5 * s, sy - 7 * s, 3 * s, 14 * s), S.mapCar) {
+          let [x, y] = P(S.mapCar[0], S.mapCar[1]);
+          ctx.fillStyle = C.white, ctx.globalAlpha = 0.3, ctx.beginPath(), ctx.arc(x, y, 12 * s, 0, 6.283), ctx.fill(), ctx.globalAlpha = 1, ctx.beginPath(), ctx.arc(x, y, 6 * s, 0, 6.283), ctx.fill();
+        }
+      }
+      let ax = pad, ay = H - pad - 30 * s;
+      this.small(ctx, S.assistName || "", ax, ay - 40 * s, 3 * s, C.faint), [["TC", S.tc], ["ABS", S.abs], ["ESC", S.esc], ["DRIFT", S.drift]].forEach(([t, on], i) => {
+        let x = ax + i * 86 * s;
+        ctx.strokeStyle = on ? C.amber : "rgba(200,190,230,.18)", ctx.lineWidth = 2 * s, ctx.strokeRect(x, ay, 74 * s, 26 * s), on && (ctx.fillStyle = "rgba(255,176,64,.22)", ctx.fillRect(x, ay, 74 * s, 26 * s)), this.small(ctx, t, x + 37 * s, ay + 7 * s, 3 * s, on ? C.amber : "rgba(200,190,230,.35)", "c");
+      }), S.driftScore > 0 && (this.small(ctx, "DRIFT", W2 / 2, H * 0.2, 5 * s, C.pink, "c"), this.dots(ctx, Math.round(S.driftScore), W2 / 2, H * 0.2 + 36 * s, 7 * s, C.white, { align: "c", unlit: !1 })), this.msg && this.msgT > 0 && (ctx.globalAlpha = Math.min(1, this.msgT * 2), this.dots(ctx, this.msg.text, W2 / 2, H * 0.32, 9 * s, this.msg.col, { align: "c", unlit: !1 }), ctx.globalAlpha = 1), S.hint && (ctx.globalAlpha = 0.85, this.small(ctx, S.hint, W2 / 2, H - pad - 20 * s, 4 * s, C.faint, "c"), ctx.globalAlpha = 1), ctx.restore();
+    }
+  };
+
+  // src/ui/menu.js
+  var KEY = "shiftlight.settings.v1";
+  function loadSettings(defaults) {
+    let s = {};
+    try {
+      s = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+    } catch {
+    }
+    return Object.assign({}, defaults, s);
+  }
+  function saveSettings(s) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(s));
+    } catch {
+    }
+  }
+  var Menu = class {
+    constructor(root) {
+      this.root = root, this.open = !1, this.rows = [], this.sel = 0, this.onClose = null, root.addEventListener("click", (e) => {
+        let r = e.target.closest("[data-row]");
+        if (!r) return;
+        let i = +r.dataset.row;
+        this.sel = i;
+        let opt = e.target.closest("[data-opt]"), row = this.rows[i];
+        row.type === "action" ? row.act() : opt && row.type === "choice" ? row.set(row.options[+opt.dataset.opt].id) : e.target.closest("[data-step]") && this.step(+e.target.closest("[data-step]").dataset.step), this.render();
+      }), root.addEventListener("input", (e) => {
+        let r = e.target.closest("[data-row]");
+        if (!r) return;
+        let row = this.rows[+r.dataset.row];
+        row.type === "slider" && row.set(+e.target.value);
+      });
+    }
+    show(rows, title) {
+      this.rows = rows, this.title = title, this.open = !0, this.root.hidden = !1, this.sel = Math.min(this.sel, rows.length - 1), this.render();
+    }
+    hide() {
+      this.open = !1, this.root.hidden = !0;
+    }
+    step(d) {
+      let row = this.rows[this.sel];
+      if (row) {
+        if (row.type === "choice") {
+          let i = row.options.findIndex((o) => o.id === row.get()), n = row.options.length;
+          row.set(row.options[((i < 0 ? 0 : i) + d + n) % n].id);
+        } else row.type === "slider" && row.set(Math.max(row.min, Math.min(row.max, row.get() + d * row.stepV)));
+        this.render();
+      }
+    }
+    key(k) {
+      if (!this.open) return !1;
+      if (k === "up") {
+        do
+          this.sel = (this.sel - 1 + this.rows.length) % this.rows.length;
+        while (this.rows[this.sel].type === "head");
+        this.render();
+      } else if (k === "down") {
+        do
+          this.sel = (this.sel + 1) % this.rows.length;
+        while (this.rows[this.sel].type === "head");
+        this.render();
+      } else if (k === "left") this.step(-1);
+      else if (k === "right") this.step(1);
+      else if (k === "enter") {
+        let r = this.rows[this.sel];
+        r.type === "action" ? r.act() : this.step(1), this.render();
+      }
+      return !0;
+    }
+    render() {
+      let esc = (s2) => String(s2).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]), h = `<div class="panel"><div class="ttl">${esc(this.title || "PAUSED")}</div><div class="rows">`;
+      this.rows.forEach((r, i) => {
+        let on = i === this.sel ? " sel" : "";
+        if (r.type === "head") {
+          h += `<div class="head">${esc(r.label)}</div>`;
+          return;
+        }
+        if (r.type === "action") {
+          h += `<button class="row act${on}" data-row="${i}">${esc(r.label)}</button>`;
+          return;
+        }
+        if (r.type === "slider") {
+          h += `<div class="row${on}" data-row="${i}"><span class="lab">${esc(r.label)}</span><input type="range" min="${r.min}" max="${r.max}" step="${r.stepV}" value="${r.get()}" aria-label="${esc(r.label)}"><span class="val">${esc(r.fmt ? r.fmt(r.get()) : r.get())}</span></div>`;
+          return;
+        }
+        let cur = r.options.find((o) => o.id === r.get()) || r.options[0];
+        r.chips ? h += `<div class="row${on}" data-row="${i}"><span class="lab">${esc(r.label)}</span><span class="chips">` + r.options.map((o, k) => `<button class="chip${o.id === cur.id ? " on" : ""}" data-opt="${k}"${o.swatch ? ` style="--sw:${o.swatch}"` : ""}>${o.swatch ? "<i></i>" : ""}${esc(o.label)}</button>`).join("") + `</span>${cur.desc ? `<span class="desc">${esc(cur.desc)}</span>` : ""}</div>` : h += `<div class="row${on}" data-row="${i}"><span class="lab">${esc(r.label)}</span><span class="cyc"><button class="arr" data-step="-1" aria-label="previous">◀</button><b>${esc(cur.label)}</b><button class="arr" data-step="1" aria-label="next">▶</button></span>${cur.desc ? `<span class="desc">${esc(cur.desc)}</span>` : ""}</div>`;
+      }), h += '</div><div class="foot">↑ ↓ choose · ← → change · Enter · Esc to drive</div></div>', this.root.innerHTML = h;
+      let s = this.root.querySelector(".sel");
+      s && s.scrollIntoView && s.scrollIntoView({ block: "nearest" });
+    }
+  };
+
+  // game/main.js
+  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { assist: "arcade", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", volume: 0.8, units: "kmh" }, settings = loadSettings(DEFAULTS);
+  for (let k of Object.keys(DEFAULTS)) Q.has(k) && (settings[k] = isNaN(+Q.get(k)) || k === "scale" && Q.get(k) === "auto" ? Q.get(k) : +Q.get(k));
+  var save = () => {
+    Q.has("manual") || saveSettings(settings);
+  }, canvas = $("view"), hudC = $("hud"), R = new Renderer(canvas, { quality: settings.quality }), T = buildTrack("neon"), city = buildCity(T);
+  R.loadWorld(city, T);
+  var CR = new CarRenderer(R, CHASSIS.sl3), PS = new Particles(R, buildRainMask(T, city), { rainN: { low: 4e3, medium: 6500, high: 9e3, ultra: 12e3 }[settings.quality] || 9e3 }), world = new TrackWorld(T), drs = new DRS({ min: 0.5, max: R.Q.maxScale, start: settings.scale === "auto" ? 0.85 : +settings.scale });
+  drs.enabled = settings.scale === "auto";
+  var hud = new HUD(hudC);
+  hud.setTrack(T);
+  var ledHud = document.createElement("canvas"), ledHudView = new HUD(ledHud);
+  ledHudView.setTrack(T);
+  var audio = new GameAudio();
+  audio.setVolume(settings.volume);
+  var input = new Input(window), cam = new CameraRig(T), menu = new Menu($("menu")), env = ENVS[settings.env] || ENVS.rain;
+  cam.mode = Math.max(0, CAM_MODES.indexOf(settings.cam));
   if (Q.get("orbit")) {
     let o = Q.get("orbit").split(",").map(Number);
     cam.orbit = { yaw: o[0], pitch: o[1], dist: o[2], fov: o[3] || 0.7, y: o[4] || 0 };
   }
-  Q.get("cam") && (cam.mode = Math.max(0, ["chase", "far", "hood", "bumper", "cockpit", "tv"].indexOf(Q.get("cam"))));
-  document.getElementById("boot").hidden = !0;
-  var DT = 1 / 240, acc = 0, time = 0, frameN = 0;
+  var GRID_S = T.len - 14, car = null, spec = null;
+  function makeCar(engineId, keep) {
+    spec = carSpec(engineId);
+    let c = new Vehicle(CHASSIS.sl3, spec, world);
+    c.setAssists(settings.assist), c.pt.auto = settings.gearbox === "auto", keep ? (c.p = keep.p.slice(), c.q = keep.q.slice(), c.v = keep.v.slice(), c.w = keep.w.slice(), c.wheels.forEach((w, i) => {
+      w.w = keep.wheels[i].w, w.ang = keep.wheels[i].ang;
+    }), c.hint = keep.hint, c.pt.st = "run", c.pt.we = Math.max(c.pt.we, spec.idle * 6.283 / 60 * 1.5), c.pt.gear = Math.min(keep.pt.gear, spec.nG), c.pt.rpm = keep.pt.rpm) : c.placeOnTrack(T, GRID_S, -2.2), car = c, audio.configure(SIM.dspCfg(spec));
+    let prof = speedProfile(T, { mass: car.m, clF: car.c.clF, clR: car.c.clR, cdA: car.c.cdA, powerKw: car.spec.peak.kw }, { mu: car.tyre.mu * 0.84 });
+    return botFn = makeBot(T, prof, { pace: 0.88 }), c;
+  }
+  var botFn = null;
+  makeCar(settings.engine);
+  car.pt.start();
+  var BEST_KEY = "shiftlight.best.neon", lap = { n: 0, t0: -1, lastS: null, last: 0, best: 0, trace: null, bestTrace: null, armed: !1 };
+  try {
+    let b = JSON.parse(localStorage.getItem(BEST_KEY) || "null");
+    b && b.t > 0 && (lap.best = b.t, lap.bestTrace = b.trace ? Float32Array.from(b.trace) : null);
+  } catch {
+  }
+  function lapUpdate() {
+    if (!car.loc) return;
+    let s = car.loc.s;
+    if (lap.lastS !== null)
+      if (lap.lastS > T.len - 40 && s < 40) {
+        if (lap.t0 >= 0 && lap.armed) {
+          let t = time - lap.t0;
+          if (lap.last = t, !lap.best || t < lap.best) {
+            lap.best = t, lap.bestTrace = lap.trace, hud.message("BEST LAP", "#5dff7a");
+            try {
+              localStorage.setItem(BEST_KEY, JSON.stringify({ t, trace: Array.from(lap.trace || []) }));
+            } catch {
+            }
+          } else hud.message(fmt(t), "#f4f2ff", 1.6);
+        }
+        lap.t0 = time, lap.n++, lap.trace = new Float32Array(Math.ceil(T.len) + 1), lap.armed = !0;
+      } else lap.lastS < 40 && s > T.len - 40 && (lap.armed = !1);
+    lap.trace && lap.t0 >= 0 && (lap.trace[Math.floor(s)] = time - lap.t0), lap.lastS = s;
+  }
+  var fmt = (t) => {
+    let m = Math.floor(t / 60), s = t - m * 60;
+    return m + ":" + (s < 10 ? "0" : "") + s.toFixed(3);
+  }, slowT = 0, slowHinted = !1, state = Q.has("manual") ? "drive" : "title", time = 0, acc = 0, frameN = 0, highBeam = !1, lastInp = {}, DT = 1 / 240;
+  state === "title" && ($("title").hidden = !1, cam.orbit = { yaw: 2.5, pitch: 0.1, dist: 7.6, fov: 0.72, y: 0.2 }, $("titleSub").textContent = "Neon Loop · " + env.name);
+  $("boot").hidden = !0;
+  function begin() {
+    state === "title" && (state = "drive", $("title").hidden = !0, cam.orbit = null, cam.mode = Math.max(0, CAM_MODES.indexOf(settings.cam)), cam.cut = !0, car.placeOnTrack(T, GRID_S, -2.2), car.pt.stop && car.pt.stop(), car.pt.start(), lap.n = 0, lap.t0 = -1, lap.lastS = null, audio.start());
+  }
+  var anyKey = () => {
+    state === "title" ? begin() : audio.start();
+  };
+  window.addEventListener("keydown", anyKey);
+  window.addEventListener("pointerdown", anyKey);
+  window.addEventListener("keydown", (e) => {
+    if (!menu.open) return;
+    let k = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "enter", " ": "enter" }[e.key];
+    k && (menu.key(k), e.preventDefault());
+  });
+  function pause(on) {
+    on !== (state === "pause") && (on ? (state = "pause", menu.show(menuRows(), "PAUSED"), audio.suspend(!0)) : (state = "drive", menu.hide(), audio.suspend(!1)));
+  }
+  function swapEngine(id) {
+    settings.engine = id, save();
+    let keep = { p: car.p, q: car.q, v: car.v, w: car.w, wheels: car.wheels, hint: car.hint, pt: car.pt };
+    makeCar(id, keep);
+  }
+  function menuRows() {
+    let opt = (id, label, desc, extra) => Object.assign({ id, label, desc }, extra || {}), set = (k, fn) => (v) => {
+      settings[k] = v, save(), fn && fn(v);
+    };
+    return [
+      { type: "action", label: "Resume", act: () => pause(!1) },
+      { type: "head", label: "Driving" },
+      { type: "choice", label: "Assists", chips: 1, get: () => settings.assist, set: set("assist", (v) => car.setAssists(v)), options: [
+        opt("arcade", "Arcade", "Steering, stability and drift help. Handbrake into a corner and hold the angle with the stick."),
+        opt("sport", "Sport", "Less steering help, a looser stability net. The car moves around more."),
+        opt("sim", "Simulation", "Just the car: no steering or stability help. ABS stays on.")
+      ] },
+      { type: "choice", label: "Gearbox", chips: 1, get: () => settings.gearbox, set: set("gearbox", (v) => {
+        car.pt.auto = v === "auto";
+      }), options: [opt("auto", "Automatic"), opt("manual", "Manual", "Q / E or the B / X buttons to shift.")] },
+      { type: "head", label: "Car" },
+      { type: "choice", label: "Engine", get: () => settings.engine, set: (v) => swapEngine(v), options: ENGINE_CHOICES.map((id) => {
+        let p = SIM.PRESETS.find((q) => q.id === id);
+        return opt(id, p.name, p.tag);
+      }) },
+      { type: "choice", label: "Paint", chips: 1, get: () => settings.paint, set: set("paint"), options: Object.entries(PAINTS).map(([id, p]) => opt(id, p.name, "", { swatch: `rgb(${p.col.map((c) => Math.round(Math.pow(c, 1 / 2.2) * 255)).join(",")})` })) },
+      { type: "head", label: "World" },
+      { type: "choice", label: "Time", chips: 1, get: () => settings.env, set: set("env", (v) => {
+        env = ENVS[v];
+      }), options: ENV_IDS.map((id) => opt(id, ENVS[id].name)) },
+      { type: "head", label: "View" },
+      { type: "choice", label: "Camera", chips: 1, get: () => CAM_MODES[cam.mode], set: (v) => {
+        cam.mode = CAM_MODES.indexOf(v), cam.cut = !0, settings.cam = v, save();
+      }, options: CAM_MODES.map((m) => opt(m, m[0].toUpperCase() + m.slice(1))) },
+      { type: "choice", label: "Display", chips: 1, get: () => settings.display, set: set("display"), options: [opt("modern", "Modern"), opt("led", "LED Matrix", "The whole picture on a wall of round lamps, the HyperDot way. L toggles it while driving.")] },
+      { type: "choice", label: "LED density", chips: 1, get: () => settings.ledRes, set: set("ledRes"), options: [opt("classic", "Classic 320 × 180"), opt("fine", "Fine 480 × 270")] },
+      { type: "choice", label: "Speed units", chips: 1, get: () => settings.units, set: set("units"), options: [opt("kmh", "km/h"), opt("mph", "mph")] },
+      { type: "head", label: "Graphics" },
+      { type: "choice", label: "Quality", chips: 1, get: () => settings.quality, set: (v) => {
+        settings.quality = v, save(), location.reload();
+      }, options: ["low", "medium", "high", "ultra"].map((q) => opt(q, q[0].toUpperCase() + q.slice(1), "Changing this reloads the page.")) },
+      {
+        type: "choice",
+        label: "Resolution",
+        chips: 1,
+        get: () => String(settings.scale),
+        set: (v) => {
+          settings.scale = v === "auto" ? "auto" : +v, save(), drs.enabled = v === "auto", v !== "auto" && R.resize(canvas.width, canvas.height, +v);
+        },
+        options: [opt("auto", "Auto", "Keeps the frame rate by adjusting the render scale; TAA rebuilds full resolution."), opt("0.5", "50%"), opt("0.67", "67%"), opt("0.85", "85%"), opt("1", "100%")]
+      },
+      { type: "head", label: "Sound" },
+      { type: "slider", label: "Volume", min: 0, max: 1, stepV: 0.05, get: () => settings.volume, set: (v) => {
+        settings.volume = v, save(), audio.setVolume(v);
+      }, fmt: (v) => Math.round(v * 100) + "%" },
+      { type: "action", label: "Back to the grid", act: () => {
+        car.placeOnTrack(T, GRID_S, -2.2), car.pt.start(), lap.t0 = -1, lap.lastS = null, pause(!1);
+      } }
+    ];
+  }
   function fit() {
     let dpr = Math.min(2, devicePixelRatio || 1), w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
-    (canvas.width !== w || canvas.height !== h) && (canvas.width = w, canvas.height = h, hudC.width = w, hudC.height = h), R.resize(w, h, R.iw ? R.scale : drs.scale);
+    (canvas.width !== w || canvas.height !== h) && (canvas.width = w, canvas.height = h, hudC.width = w, hudC.height = h), R.resize(w, h, R.iw ? R.scale : settings.scale === "auto" ? drs.scale : +settings.scale);
   }
   function carView() {
-    let W2 = car.wheels;
     return {
       id: 1,
       self: !0,
       p: car.p,
       q: car.q,
-      paint,
+      paint: PAINTS[settings.paint] || PAINTS.magenta,
       caliper: [0.75, 0.03, 0.02],
-      wheels: W2.map((w) => ({ hp: w.hp, len: w.len, steer: w.front ? car.steer : 0, ang: w.ang, disc: w.disc })),
+      wheels: car.wheels.map((w) => ({ hp: w.hp, len: w.len, steer: w.front ? car.steer : 0, ang: w.ang, disc: w.disc })),
       lamps: [env.night > 0.3 ? 1 : 0, env.night > 0.3 ? 1 : 0, car.brkIn > 0.05 ? 1 : 0, car.rev ? 1 : 0]
     };
   }
+  var sc3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
   function carLights() {
     let M = qmat(car.q), F = mcol(M, 0), U = mcol(M, 1), Rt = mcol(M, 2), h = car.c.hcg, at = (x, y, z) => add(car.p, mvec(M, [x, y - h, z])), dyn = [], brake = car.brkIn > 0.05;
-    for (let z of [-0.66, 0.66]) {
-      let p = at(-2.45, 0.78, z);
-      dyn.push({ pos: p, r: brake ? 11 : 6, col: brake ? [5, 0.12, 0.06] : [0.9, 0.02, 0.01], type: 1, dir: norm2(madd(scale3(F, -1), U, -0.35)), cosO: Math.cos(1.3) });
-    }
-    if (car.rev) for (let z of [-0.36, 0.36]) dyn.push({ pos: at(-2.45, 0.77, z), r: 9, col: [3, 2.9, 2.7], type: 1, dir: norm2(madd(scale3(F, -1), U, -0.3)), cosO: Math.cos(1.2) });
-    let on = env.night > 0.3 ? 1 : 0, dir = norm2(madd(F, U, -0.035)), headlights = on ? { on: 1, high: highBeam ? 1 : 0, posL: at(2.12, 0.6, -0.62), posR: at(2.12, 0.6, 0.62), dir, right: Rt, up: U, col: [1050, 1090, 1140], range: 95 } : null;
-    return { dyn, headlights };
+    for (let z of [-0.66, 0.66]) dyn.push({ pos: at(-2.45, 0.78, z), r: brake ? 11 : 6, col: brake ? [5, 0.12, 0.06] : [0.9, 0.02, 0.01], type: 1, dir: norm2(madd(sc3(F, -1), U, -0.35)), cosO: Math.cos(1.3) });
+    if (car.rev) for (let z of [-0.36, 0.36]) dyn.push({ pos: at(-2.45, 0.77, z), r: 9, col: [3, 2.9, 2.7], type: 1, dir: norm2(madd(sc3(F, -1), U, -0.3)), cosO: Math.cos(1.2) });
+    let on = env.night > 0.3;
+    return { dyn, headlights: on ? { on: 1, high: highBeam ? 1 : 0, posL: at(2.12, 0.6, -0.62), posR: at(2.12, 0.6, 0.62), dir: norm2(madd(F, U, -0.035)), right: Rt, up: U, col: [1050, 1090, 1140], range: 95 } : null };
   }
-  var scale3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
   function flicker(t) {
     return [1, 0.9 + 0.1 * Math.sin(t * 37), Math.random() < 0.04 ? 0.15 : 1, Math.sin(t * 3.1) > 0.96 ? 0.25 : 1, 0.88 + 0.12 * Math.sin(t * 61), 0.6 + 0.4 * Math.sin(t * 1.3), Math.sin(t * 5.6) > 0 ? 1 : 0, Math.sin(t * 3) > 0.9 ? 1 : 0.03];
-  }
-  function step(dt) {
-    let inp = input.poll(dt);
-    if (inp.cam && cam.next(), inp.led && (led = !led), inp.high && (highBeam = !highBeam), inp.hud && (showHud = !showHud), inp.env && (envId = ENV_IDS[(ENV_IDS.indexOf(envId) + 1) % ENV_IDS.length], env = ENVS[envId]), inp.reset) {
-      let s = car.loc ? car.loc.s : startS;
-      car.placeOnTrack(T, s, T.lineAt(s));
-    }
-    inp.up && car.pt.shift(1), inp.down && car.pt.shift(-1), car.wet = env.wet, acc += dt;
-    let n = 0;
-    for (; acc >= DT && n < 24; )
-      car.step(DT, bot ? Object.assign({}, inp, bot(car)) : inp), acc -= DT, n++, time += DT;
-    effects(dt);
-    let ev = car.takeEvents();
-    return { inp, ev };
   }
   function effects(dt) {
     let M = qmat(car.q), F = mcol(M, 0), U = mcol(M, 1), Rt = mcol(M, 2), wet = env.wet, sp = len(car.v);
@@ -4318,10 +5189,84 @@ void main(){
       dx * dx + dz * dz > 8100 || PS.emit(s, s.rate * 4, dt, () => PS.spawn(2, [s.pos[0] + (Math.random() - 0.5) * 0.4, s.pos[1] + 0.05, s.pos[2] + (Math.random() - 0.5) * 0.4], [0.3 + (Math.random() - 0.5) * 0.3, 0.7 + Math.random() * 0.4, 0.15 + (Math.random() - 0.5) * 0.3], 3.5 + Math.random() * 2, 0.4, 2.6, 0.1));
     }
   }
+  function soundUpdate(c, ev) {
+    let M = qmat(car.q), F = mcol(M, 0), h = car.c.hcg, mode = CAM_MODES[cam.mode], exhaust = add(car.p, mvec(M, [-2.3, 0.25 - h, 0])), rel = sub2(c.pos, exhaust), dist = len(rel), right = norm2([-c.fwd[2], 0, c.fwd[0]]), dirToCam = norm2(sub2(c.pos, car.p)), listener = 0, geo = { dist: Math.max(1.5, dist), pan: clamp(-dot2(norm2(sub2(car.p, c.pos)), right) * 0.9, -1, 1), rear: 1 };
+    mode === "cockpit" ? (listener = 1, geo = { dist: 1.4, pan: 0, rear: 0.35 }) : mode === "hood" || mode === "bumper" ? geo = { dist: mode === "hood" ? 3.2 : 4.6, pan: 0, rear: mode === "hood" ? 0.3 : 0.15 } : mode === "tv" ? (listener = 2, geo.rear = 0.5 - 0.5 * dot2(dirToCam, F), geo.jump = c.cut) : geo.rear = clamp(0.5 - 0.5 * dot2(dirToCam, F), 0, 1) * 0.6 + 0.4;
+    let ep = car.pt.soundParams(listener, len(car.v), geo), tunnel = city.info.tunnel && car.loc && car.loc.s > city.info.tunnel[0] - 5 && car.loc.s < city.info.tunnel[1] + 5 && Math.abs(car.loc.d) < T.wl ? 1 : 0, fx = {
+      slip: car.wheels.map((w) => w.contact ? w.sg : 0),
+      load: car.wheels.map((w) => w.Fz),
+      wet: env.wet,
+      rain: tunnel ? 0 : env.rain,
+      speed: len(car.v),
+      cabin: listener === 1 ? 1 : 0,
+      curb: car.wheels.some((w) => w.contact && w.surf === "curb") ? 1 : 0,
+      scrape: ev.scrape || 0,
+      vol: 1,
+      tunnel
+    }, fev = [];
+    ev.wall > 1.2 && fev.push({ type: "hit", a: ev.wall / 9 }), ev.land > 2.2 && fev.push({ type: "hit", a: ev.land / 10 }), ev.ground > 2 && fev.push({ type: "hit", a: ev.ground / 8 }), audio.update(ep, car.pt.takeEvents(), fx, fev, { tunnel, cabin: listener === 1 });
+  }
+  function hudState() {
+    let pt = car.pt, e = spec, g = Math.max(1, pt.gear), kmh = settings.units === "mph" ? 0.621371 : 1;
+    return {
+      rpm: pt.rpm,
+      limiter: e.limiterRpm,
+      shiftRpm: pt.upRpm && pt.upRpm[g - 1] || e.shiftRpm,
+      speed: car.vf * kmh,
+      units: settings.units === "mph" ? "MPH" : "KM/H",
+      gear: pt.gear,
+      rev: car.rev,
+      auto: pt.auto,
+      shiftLamp: pt.rpm > (pt.upRpm && pt.upRpm[g - 1] || e.shiftRpm) * 0.985,
+      boost: pt.boost * (e.fiBoost || 0),
+      boostMax: e.turbo || e.sup ? e.fiBoost : 0,
+      nos: pt.nos,
+      nosMax: e.nosKw ? 1 : 0,
+      nosOn: pt.nosOn,
+      lap: lap.n,
+      lapT: lap.t0 >= 0 ? time - lap.t0 : 0,
+      best: lap.best,
+      last: lap.last,
+      delta: lap.bestTrace && lap.t0 >= 0 && car.loc ? time - lap.t0 - (lap.bestTrace[Math.floor(car.loc.s)] || 0) : null,
+      assistName: ASSISTS[settings.assist].name.toUpperCase() + " · " + (pt.auto ? "AUTO" : "MANUAL"),
+      tc: pt.tcOn,
+      abs: car.absOn,
+      esc: car.escOn,
+      drift: car.drift.on,
+      mapCar: [car.p[0], -car.p[2]],
+      hint: state === "drive" && time < 6 && lap.n === 0 ? "ESC FOR THE MENU · C CAMERA · L LED MATRIX" : null
+    };
+  }
   var camPrev = null;
+  function step(dt) {
+    let inp = input.poll(dt);
+    if (lastInp = inp, inp.pause && (state === "drive" ? pause(!0) : state === "pause" && pause(!1)), menu.open && inp.nav) for (let k of inp.nav)
+      k === "back" ? pause(!1) : menu.key(k);
+    if (state === "title" && (inp.nav && inp.nav.includes("enter") && begin(), cam.orbit && (cam.orbit.yaw += dt * 0.11)), state === "drive" && settings.scale === "auto" && drs.scale <= drs.min + 1e-3 && dt > drs.period / 1e3 * 1.45 ? (slowT += dt, slowT > 6 && !slowHinted && (slowHinted = !0, hud.message(settings.quality === "low" ? "LOW FRAME RATE" : "TRY QUALITY: " + (settings.quality === "ultra" ? "HIGH" : settings.quality === "high" ? "MEDIUM" : "LOW"), "#ffb040", 4))) : slowT = Math.max(0, slowT - dt), state === "pause") return { ev: {} };
+    if (state === "drive") {
+      if (inp.cam && (cam.next(), settings.cam = CAM_MODES[cam.mode], save()), inp.led && (settings.display = settings.display === "led" ? "modern" : "led", save()), inp.high && (highBeam = !highBeam), inp.env && (settings.env = ENV_IDS[(ENV_IDS.indexOf(settings.env) + 1) % ENV_IDS.length], env = ENVS[settings.env], save(), hud.message(env.name.toUpperCase(), "#4fe3ff", 1.5)), inp.reset) {
+        let s = car.loc ? car.loc.s : GRID_S;
+        car.placeOnTrack(T, s, T.lineAt(s)), car.pt.start();
+      }
+      inp.up && car.pt.shift(1), inp.down && car.pt.shift(-1);
+    }
+    car.wet = env.wet;
+    let drive = state === "title" || Q.has("auto") ? Object.assign({}, inp, botFn(car)) : inp;
+    acc += dt;
+    let n = 0;
+    for (; acc >= DT && n < 24; )
+      car.step(DT, drive), acc -= DT, n++, time += DT;
+    return acc > DT && (acc = 0), lapUpdate(), effects(dt), { ev: car.takeEvents() };
+  }
   function render(dt, ev) {
-    let c = cam.update(dt, car, { look: !!(lastInp && lastInp.look), impact: Math.max(ev.wall || 0, ev.land || 0) * 0.25 }), L = carLights(), M = qmat(car.q), F = mcol(M, 0), fw = norm2([F[0], 0, F[2]]), camVel = camPrev && !c.cut ? sub2(c.pos, camPrev).map((x) => x / Math.max(dt, 1e-3)) : [0, 0, 0];
-    camPrev = c.pos.slice(), PS.rain.on = env.rain, PS.rain.camVel = camVel, PS.update(dt, c.pos), R.render({
+    let c = cam.update(dt, car, { look: !!lastInp.look, impact: Math.max(ev.wall || 0, ev.land || 0) * 0.25 }), L = carLights(), M = qmat(car.q), F = mcol(M, 0), fw = norm2([F[0], 0, F[2]]), camVel = camPrev && !c.cut ? sub2(c.pos, camPrev).map((x) => x / Math.max(dt, 1e-3)) : [0, 0, 0];
+    camPrev = c.pos.slice(), PS.rain.on = env.rain, PS.rain.camVel = camVel, PS.update(dt, c.pos);
+    let led = settings.display === "led", ledS = null;
+    if (led) {
+      let res = settings.ledRes === "fine" ? [480, 270] : [320, 180];
+      ledHud.width !== res[0] && (ledHud.width = res[0], ledHud.height = res[1]), ledHudView.pixel = !0, ledHudView.draw(state === "drive" ? hudState() : null, dt), ledS = { res, hud: R.hudTexture(ledHud), quant: 15 };
+    }
+    R.render({
       time,
       dt,
       cam: c,
@@ -4335,49 +5280,53 @@ void main(){
       cars: [carView()],
       shutter: 0.5,
       lensRain: c.lensRain * env.rain,
-      led: null,
-      debug,
-      debugGain
-    }), drawHud();
+      led: ledS,
+      debug: Q.get("debug"),
+      debugGain: +(Q.get("gain") || 1)
+    }), hud.draw(state === "drive" && !led ? hudState() : null, dt), state !== "pause" && soundUpdate(c, ev);
   }
-  var lastInp = null;
-  function drawHud() {
-    let W2 = hudC.width, H = hudC.height, s = H / 1080;
-    hud.clearRect(0, 0, W2, H), showHud && (hud.font = `700 ${Math.round(56 * s)}px ui-monospace,Menlo,Consolas,monospace`, hud.fillStyle = "rgba(255,255,255,.92)", hud.textAlign = "right", hud.fillText(Math.round(Math.abs(car.vf) * 3.6) + "", W2 - 60 * s, H - 70 * s), hud.font = `600 ${Math.round(20 * s)}px ui-monospace,Menlo,Consolas,monospace`, hud.fillStyle = "rgba(255,255,255,.6)", hud.fillText("KM/H   " + (car.rev ? "R" : car.pt.gear) + "   " + Math.round(car.pt.rpm) + " RPM", W2 - 60 * s, H - 40 * s), hud.textAlign = "left", hud.fillText(`${env.name}  ·  ${cam.name}  ·  ${R.iw}x${R.ih}  ·  ${fps.toFixed(0)} fps`, 40 * s, 50 * s));
-  }
-  var fps = 60, last = performance.now();
+  var last = performance.now(), fps = 60;
   function frame(dt) {
     fit();
     let r = step(dt);
-    lastInp = r.inp, render(dt, r.ev), frameN++;
-    let sc = drs.update(dt * 1e3, R.gpuMs);
-    Math.abs(sc - R.scale) > 1e-3 && R.resize(canvas.width, canvas.height, sc);
+    if (render(dt, r.ev || {}), frameN++, settings.scale === "auto") {
+      let sc = drs.update(dt * 1e3, R.gpuMs);
+      Math.abs(sc - R.scale) > 1e-3 && R.resize(canvas.width, canvas.height, sc);
+    }
   }
   function loop(now) {
     let dt = Math.min(0.05, (now - last) / 1e3);
     last = now, fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05, frame(dt), requestAnimationFrame(loop);
   }
+  document.addEventListener("visibilitychange", () => {
+    document.hidden && state === "drive" && pause(!0);
+  });
   window.__game = {
     R,
     T,
     city,
-    car,
+    get car() {
+      return car;
+    },
     cam,
     input,
     frame,
+    audio,
+    menu,
+    settings,
+    begin,
+    pause,
+    swapEngine,
     sim: (sec) => {
       for (let t = 0; t < sec; t += 1 / 60) step(1 / 60);
     },
     setEnv: (id) => {
-      envId = id, env = ENVS[id];
+      settings.env = id, env = ENVS[id];
     },
     setPaint: (id) => {
-      paint = PAINTS[id];
+      settings.paint = id;
     },
-    setDebug: (d, g = 1) => {
-      debug = d, debugGain = g;
-    },
-    stats: () => ({ iw: R.iw, ih: R.ih, gpu: R.gpuMs, drawn: R.drawn, speed: car.vf, gear: car.pt.gear, rpm: car.pt.rpm, s: car.loc && car.loc.s, d: car.loc && car.loc.d })
+    stats: () => ({ iw: R.iw, ih: R.ih, gpu: R.gpuMs, drawn: R.drawn, speed: car.vf, gear: car.pt.gear, rpm: car.pt.rpm, s: car.loc && car.loc.s, d: car.loc && car.loc.d, lap: lap.n, state })
   };
   Q.has("manual") || requestAnimationFrame(loop);
 })();

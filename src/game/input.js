@@ -40,6 +40,11 @@ export class Input{
       if(this.usingPad){out.steer=Math.sign(sx)*Math.pow(Math.abs(sx),1.35);out.thr=rt;out.brk=lt;out.hb=gp.buttons[0]&&gp.buttons[0].pressed?1:out.hb;
         out.nos=out.nos||!!(gp.buttons[5]&&gp.buttons[5].pressed);}
       const prev=this.padPrev||[];const press=i=>gp.buttons[i]&&gp.buttons[i].pressed&&!prev[i];
+      /* menu navigation: d-pad or stick, A to choose, B to back out (with key-repeat on hold) */
+      const now=performance.now(),ay=gp.axes[1]||0,ax0=gp.axes[0]||0;
+      const dir=gp.buttons[12]&&gp.buttons[12].pressed||ay<-.6?'up':gp.buttons[13]&&gp.buttons[13].pressed||ay>.6?'down':gp.buttons[14]&&gp.buttons[14].pressed||ax0<-.6?'left':gp.buttons[15]&&gp.buttons[15].pressed||ax0>.6?'right':null;
+      out.nav=[];if(dir){if(dir!==this.navDir||now>this.navT){out.nav.push(dir);this.navT=now+(dir!==this.navDir?380:110);}}this.navDir=dir;
+      if(press(0))out.nav.push('enter');if(press(1))out.nav.push('back');
       if(press(1))out.up=true;if(press(2))out.down=true;if(press(3))out.cam=true;if(press(9))out.pause=true;if(press(8))out.reset=true;if(press(4))out.look=true;
       this.padPrev=gp.buttons.map(b=>b.pressed);
     }

@@ -53,6 +53,14 @@ export class Renderer{
     this.timer=G.timer();this.gpuMs=-1;
     this.W=0;this.H=0;this.iw=0;this.ih=0;
   }
+  /* the HUD canvas as a texture, for the LED matrix to draw as lamps */
+  hudTexture(cv){
+    const gl=this.gl;if(!this.hudT){this.hudT={t:gl.createTexture(),target:gl.TEXTURE_2D};gl.bindTexture(gl.TEXTURE_2D,this.hudT.t);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);}
+    gl.bindTexture(gl.TEXTURE_2D,this.hudT.t);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cv);return this.hudT;
+  }
   /* the world: geometry tiles and the static lights */
   loadWorld(city,T){
     const G=this.G;this.city=city;
