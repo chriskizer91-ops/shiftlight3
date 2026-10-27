@@ -32,6 +32,6 @@ function follow(car,R,d,vT,secs,each){let hint=-1;for(let k=0;k<secs*240;k++){
 /* 4. into a building: run up along an avenue's centre and turn straight into the block */
 {const L=M.lots.find(l=>l.district==='downtown'&&!l.outer&&l.y0>-250&&l.y0<-220),car=newCar();const cx=(L.x0+L.x1)/2;
   car.place([cx,0,240],Math.PI/2);car.pt.start();for(let i=0;i<480;i++)car.step(1/240,{});
-  let hit=0,front=-1e9;for(let k=0;k<240*8;k++){car.step(1/240,{thr:car.vf<12&&!hit?1:0,brk:hit?1:0});const e=car.takeEvents();if(e.wall>2)hit=Math.max(hit,e.wall);front=Math.max(front,-car.p[2]+2.3);}
+  let hit=0,front=-1e9;for(let k=0;k<240*8;k++){car.step(1/240,{thr:car.vf<12&&!hit?1:0,brk:0,hb:hit?1:0});const e=car.takeEvents();if(e.wall>2)hit=Math.max(hit,e.wall);front=Math.max(front,-car.p[2]+2.3);}
   check('hit a building and stop at its wall',hit>4&&front<L.y0+.5&&front>L.y0-.5&&len(car.v)<1,`impact ${hit.toFixed(1)} m/s, nose reached ${front.toFixed(2)} (wall at ${L.y0.toFixed(2)}), speed after ${len(car.v).toFixed(1)} m/s`);}
 console.log(`${results.filter(Boolean).length}/${results.length} passed`);
