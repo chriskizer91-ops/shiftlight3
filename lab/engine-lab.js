@@ -1,3 +1,5 @@
+import {makeDSP} from '../src/audio/engine-dsp.js';
+import {SIM} from '../src/engine/engine-sim.js';
 /* =====================================================================================
    ENGINE LAB — presets, the setup sheet, hands and feet, the audio graph and the instruments.
    ===================================================================================== */

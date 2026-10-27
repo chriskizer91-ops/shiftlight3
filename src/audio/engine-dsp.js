@@ -11,7 +11,7 @@
    makeDSP() returns the EngineDSP class. Its source is stringified into an AudioWorklet
    module, so everything it needs is declared inside this function.
    ===================================================================================== */
-function makeDSP(){
+export function makeDSP(){
 'use strict';
 const TAU=Math.PI*2,clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t;
 const C_GAS=500;   /* speed of sound in hot exhaust gas, m/s */
@@ -285,4 +285,3 @@ class EngineDSP{
 }
 return EngineDSP;
 }
-if(typeof module!=='undefined')module.exports={makeDSP};

@@ -1,7 +1,7 @@
 /* Hold each layout at a steady 3000 rpm and measure its order spectrum: energy at multiples of
    the crank cycle frequency (rpm/120). Even-firing engines put their energy on the firing order;
    uneven ones (cross-plane V8, odd-fire, boxer, inline-5) spread it into the orders in between. */
-const {makeDSP}=require('../src/audio/engine-dsp.js');const SIM=require('../src/engine/engine-sim.js');
+import {makeDSP} from '../src/audio/engine-dsp.js';import {SIM} from '../src/engine/engine-sim.js';
 const EngineDSP=makeDSP(),SR=48000;
 function fftMag(x){const n=x.length,re=Float64Array.from(x),im=new Float64Array(n);
   for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];}}

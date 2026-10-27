@@ -5,8 +5,13 @@
   "description": "Shiftlight 3: a browser street-racing game. Engine Lab first.",
   "scripts": {
     "build": "node tools/build.mjs",
-    "test:audio": "node test/render.cjs test/out",
-    "test:orders": "node test/orders.cjs",
-    "test:browser": "node tools/build.mjs && node test/browser.mjs test/out"
+    "test:audio": "node test/render.mjs test/out",
+    "test:orders": "node test/orders.mjs",
+    "test:browser": "node tools/build.mjs --only lab && node test/browser.mjs test/out",
+    "test:physics": "node test/physics.mjs"
+  },
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

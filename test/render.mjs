@@ -1,7 +1,7 @@
 /* Offline render of every preset through a scripted drive: start, idle, blips, limiter, overrun,
    then a launch and a pull through the gears. Writes WAVs and prints health metrics. */
-const fs=require('fs'),path=require('path');
-const {makeDSP}=require('../src/audio/engine-dsp.js');const SIM=require('../src/engine/engine-sim.js');
+import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';const __dirname=path.dirname(fileURLToPath(import.meta.url));
+import {makeDSP} from '../src/audio/engine-dsp.js';import {SIM} from '../src/engine/engine-sim.js';
 const EngineDSP=makeDSP(),SR=48000,FPS=60,SPF=SR/FPS;
 const out=process.argv[2]||path.join(__dirname,'out');fs.mkdirSync(out,{recursive:true});
 const only=process.argv[3];

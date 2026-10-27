@@ -1,44 +1,36 @@
-/* Bundle a page and its sources into one self-contained HTML file.
-   node tools/build.mjs                       -> dist/engine-lab.html (open it straight in a browser)
-   node tools/build.mjs --fragment out.html   -> also writes the body-only version used for Claude artifacts */
+/* Bundle each page and its modules into one self-contained HTML file.
+   node tools/build.mjs                 -> dist/*.html (open straight from disk, or send to someone)
+   node tools/build.mjs --fragment DIR  -> also writes body-only versions (for Claude artifacts) into DIR
+   node tools/build.mjs --only game     -> build one page */
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
-import {execFileSync} from 'node:child_process';
 import {dirname,join} from 'node:path';
-import {fileURLToPath} from 'node:url';
-import {tmpdir} from 'node:os';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 
 const root=join(dirname(fileURLToPath(import.meta.url)),'..');
-const read=p=>readFileSync(join(root,p),'utf8');
-const PARTS={DSP:'src/audio/engine-dsp.js',SIM:'src/engine/engine-sim.js',UI:'lab/engine-lab.js'};
+let esbuild;
+try{esbuild=await import('esbuild');}
+catch(e){esbuild=await import(pathToFileURL('/opt/npm-tools/node_modules/esbuild/lib/main.js').href);}
 
-let page=read('lab/engine-lab.html');
-let js='';
-for(const [k,p] of Object.entries(PARTS)){
-  const src=read(p);
-  if(/<\/script/i.test(src))throw new Error(`${p} contains a closing script tag`);
-  page=page.replace(`/*@${k}@*/`,()=>`/* ---- ${p} ---- */\n${src}`);
-  js+=src+'\n';
-}
-/* syntax check the bundled script before shipping it */
-const tmp=join(tmpdir(),'shiftlight-bundle-check.js');writeFileSync(tmp,js);
-execFileSync(process.execPath,['--check',tmp],{stdio:'inherit'});
-
-const split=page.indexOf('<div class="app">');
-const head=page.slice(0,split).trim(),body=page.slice(split).trim();
-const full=`<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-${head}
-</head>
-<body>
-${body}
-</body>
-</html>
-`;
+const PAGES={
+  lab:{template:'lab/engine-lab.html',entry:'lab/engine-lab.js',out:'engine-lab.html'},
+  game:{template:'game/index.html',entry:'game/main.js',out:'shiftlight.html'}
+};
+const arg=k=>{const i=process.argv.indexOf(k);return i>0?process.argv[i+1]:null;};
+const only=arg('--only'),frag=arg('--fragment'),minify=process.argv.includes('--minify');
 mkdirSync(join(root,'dist'),{recursive:true});
-writeFileSync(join(root,'dist/engine-lab.html'),full);
-const i=process.argv.indexOf('--fragment');
-if(i>0)writeFileSync(process.argv[i+1],page);
-console.log(`dist/engine-lab.html  ${(full.length/1024).toFixed(1)} KB`);
+
+for(const [name,p] of Object.entries(PAGES)){
+  if(only&&only!==name)continue;
+  let tpl;try{tpl=readFileSync(join(root,p.template),'utf8');}catch(e){continue;}
+  const res=await esbuild.build({entryPoints:[join(root,p.entry)],bundle:true,format:'iife',target:'es2022',write:false,
+    minifySyntax:true,minifyWhitespace:minify,minifyIdentifiers:minify,legalComments:'none',logLevel:'warning',charset:'utf8'});
+  let js=res.outputFiles[0].text;
+  if(/<\/script/i.test(js))js=js.replace(/<\/script/gi,'<\\/script');
+  const page=tpl.replace('/*@BUNDLE@*/',()=>js);
+  const split=page.indexOf('<!--@BODY@-->')>=0?page.indexOf('<!--@BODY@-->'):page.indexOf('<div class="app">');
+  const head=page.slice(0,split).trim(),body=page.slice(split).replace('<!--@BODY@-->','').trim();
+  const full=`<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n${head}\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
+  writeFileSync(join(root,'dist',p.out),full);
+  if(frag){mkdirSync(frag,{recursive:true});writeFileSync(join(frag,p.out),page);}
+  console.log(`dist/${p.out}  ${(full.length/1024).toFixed(1)} KB`);
+}

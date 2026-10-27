@@ -3,7 +3,7 @@
    the synth its rpm, load, boost and ignition cuts. Layouts carry real firing orders: the
    crank angle of each exhaust pulse over a 720 degree cycle and which bank of pipe it feeds.
    ===================================================================================== */
-const SIM=(()=>{
+export const SIM=(()=>{
 'use strict';
 const TAU=Math.PI*2,G0=9.81,clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t;
 const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
@@ -259,4 +259,3 @@ class EngineSim{
 }
 return {LAYOUTS,LAYOUT_IDS,PRESETS,DEFAULTS,EXHAUSTS,INTAKES,CAMS,INDUCTION,NOS_SHOTS,TURBO_SIZE,makeSpec,engTq,steadyBoost,curve,bankIntervals,dspCfg,EngineSim,clamp};
 })();
-if(typeof module!=='undefined')module.exports=SIM;
