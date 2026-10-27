@@ -26,9 +26,10 @@ export function makeFX(){
       this.hissF=new BP();this.hissF.set(2200,.9,sr);this.windF=new BP();this.windF.set(520,.6,sr);
       this.grit=new BP();this.grit.set(900,2.2,sr);this.gritLo=new BP();this.gritLo.set(180,1.2,sr);
       this.seed=22222;this.b=[0,0,0];this.curbPh=0;this.thumpE=0;this.thumpLp=0;this.hits=[];this.grainE=0;this.grainA=0;this.hitLp=0;this.k=0;
-      this.tv=[0,1,2,3].map(()=>({g:0,f:30,pan:0,ph:0,lp:0,rd:0,bp:new BP()}));this.horns=[];}
+      this.tv=[0,1,2,3].map(()=>({g:0,f:30,pan:0,ph:0,lp:0,rd:0,bp:new BP()}));this.horns=[];this.beeps=[];}
     set(p){this.p=p;}
     event(e){if(e.type==='hit')this.hits.push({t:0,a:Math.min(1.4,e.a),f:58+Math.random()*24});
+      else if(e.type==='beep')this.beeps.push({t:0,f:e.f||880,len:e.len||.18,a:e.a||.5,ph:0});
       else if(e.type==='horn'&&this.horns.length<4)this.horns.push({t:0,a:Math.min(1,e.a),len:e.len||.4,f:e.f||420,pan:e.pan||0,ph1:0,ph2:0});}
     rnd(){let s=this.seed;s^=s<<13;s^=s>>>17;s^=s<<5;this.seed=s;return (s>>>0)/4294967296*2-1;}
     process(L,R,n){
@@ -76,6 +77,9 @@ export function makeFX(){
         for(let h=this.horns.length-1;h>=0;h--){const H=this.horns[h];H.t+=1/sr;const env=Math.min(1,H.t/.012)*(H.t>H.len?Math.exp(-(H.t-H.len)*40):1);
           H.ph1+=H.f/sr;H.ph2+=H.f*1.26/sr;const sq=x=>{x-=Math.floor(x);return (x<.5?1:-1)*.7+Math.sin(TAU*x)*.3;};
           const hs=(sq(H.ph1)+sq(H.ph2))*.5*env*H.a*.32,pl=Math.min(1,1-H.pan),pr=Math.min(1,1+H.pan);l+=hs*pl;r+=hs*pr;if(H.t>H.len+.2)this.horns.splice(h,1);}
+        /* the start lights' beeps */
+        for(let h=this.beeps.length-1;h>=0;h--){const B=this.beeps[h];B.t+=1/sr;B.ph+=B.f/sr;const env=Math.min(1,B.t/.004)*(B.t>B.len?Math.exp(-(B.t-B.len)*60):1);
+          const x=(Math.sin(TAU*B.ph)*.8+Math.sin(TAU*B.ph*2)*.15)*env*B.a*.35;l+=x;r+=x;if(B.t>B.len+.1)this.beeps.splice(h,1);}
         const v=(p.vol??1)*.55;L[i]=l*v;R[i]=r*v;
       }
     }

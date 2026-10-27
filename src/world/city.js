@@ -358,6 +358,15 @@ export function buildCity(T){
     const word='SHIFTLIGHT',px=.21,len=word.length*6*px-px;
     for(const sg of [-1,1]){const o=[cen[0]-ax[0]*len/2*(sg>0?1:-1)-fw[0]*.42*sg,cen[1]-.5,cen[2]-ax[2]*len/2*(sg>0?1:-1)-fw[2]*.42*sg];
       neonText(word,o,sg>0?ax:ax.map(v=>-v),[0,1,0],px,[1,.25,.55],0);}
+    /* the start lights: five pods under the beam facing the grid, two red lamps each (channels 8-12),
+       and a row of green below them (channel 13) */
+    {const f0=T.frame(0).f,bk=norm([-f0[0],0,-f0[2]]),cy=cen[1]-.95;
+      for(let i=0;i<5;i++){const o=(i-2)*.95,pc=[cen[0]+ax[0]*o+bk[0]*.5,cy,cen[2]+ax[2]*o+bk[2]*.5];
+        C.mat(8,60,40).col(18,18,22);B.box(pc,ax,[0,1,0],bk,[.36,.42,.14]);
+        for(const dy of [.17,-.08]){C.mat(7,170,8+i).col(255,22,14);B.sphere([pc[0]+bk[0]*.14,pc[1]+dy,pc[2]+bk[2]*.14],.11,8,4);}
+        C.mat(7,150,13).col(40,255,90);B.sphere([pc[0]+bk[0]*.14,pc[1]-.3,pc[2]+bk[2]*.14],.075,8,4);
+        addLight({type:0,pos:[pc[0]+bk[0]*.9,pc[1],pc[2]+bk[2]*.9],r:9,col:[4,.15,.08],flick:8+i,src:.1});}
+      addLight({type:0,pos:[cen[0]+bk[0]*.9,cy-.3,cen[2]+bk[2]*.9],r:14,col:[.6,4,1.2],flick:13,src:.2});}
     addLight({type:2,pos:[cen[0]-fw[0]*1.5,cen[1]-1.2,cen[2]-fw[2]*1.5],axis:ax.map(v=>v*len/2),r:22,col:[12,3,6.5],src:.4});
     addLight({type:2,pos:[cen[0]+fw[0]*1.5,cen[1]-1.2,cen[2]+fw[2]*1.5],axis:ax.map(v=>v*len/2),r:22,col:[12,3,6.5],src:.4});
   }

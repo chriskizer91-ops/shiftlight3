@@ -102,14 +102,14 @@ float falloff(float d2,float r){float x=d2/(r*r);float w=saturate(1.0-x*x);retur
 
 /* ---- the clustered static lights: a world-space grid of cells, each with its list of lights ---- */
 uniform highp sampler2D uLights;uniform highp usampler2D uLGrid;uniform highp usampler2D uLList;
-uniform vec4 uGridP;uniform float uFlick[8];uniform float uLightsOn;
+uniform vec4 uGridP;uniform float uFlick[16];uniform float uLightsOn;
 uniform vec4 uDyn[48];uniform int uNDyn;
 vec4 LT(int i,int k){return texelFetch(uLights,ivec2((i*4+k)&1023,(i*4+k)>>10),0);}
 /* evaluate one light record. Types: 0 point, 1 spot, 2 tube (line) */
 vec3 evalRec(Surf s,vec4 A,vec4 B,vec4 C,vec4 D){
   int code=int(B.w+.5),type=code&7,fl=code>>3;
   vec3 Lc=A.xyz;float r=A.w;
-  vec3 col=B.rgb*(fl>0?uFlick[fl&7]:1.0);
+  vec3 col=B.rgb*(fl>0?uFlick[fl&15]:1.0);
   if(type==2){
     /* tube light: representative point on the segment for the highlight, closest point for the diffuse */
     vec3 ax=C.xyz,P0=Lc-ax-s.P,Ld=2.0*ax;

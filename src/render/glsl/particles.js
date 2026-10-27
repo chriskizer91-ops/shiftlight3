@@ -21,7 +21,7 @@ vec3 lightAt(vec3 X,vec3 V){
         vec3 Lv=Lp-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
         float att=falloff(d2,A.w);if(type==1)att*=smoothstep(C.w,D.x,dot(-L,C.xyz));
         /* drops light up most when the light is behind them */
-        c+=B.rgb*(fl>0?uFlick[fl&7]:1.0)*att*(.025+.11*pow(saturate(dot(-V,L)),3.))*uLightsOn;}}}
+        c+=B.rgb*(fl>0?uFlick[fl&15]:1.0)*att*(.025+.11*pow(saturate(dot(-V,L)),3.))*uLightsOn;}}}
   for(int i=0;i<uNDyn;i++){vec4 A=uDyn[i*3],B=uDyn[i*3+1],C=uDyn[i*3+2];vec3 Lv=A.xyz-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
     float att=falloff(d2,A.w);if(int(B.w+.5)==1)att*=smoothstep(C.w,C.w+.12,dot(-L,C.xyz));c+=B.rgb*att*(.025+.11*pow(saturate(dot(-V,L)),3.));}
   if(uHL[0].w>0.0){vec3 F=uHL[2].xyz,Rt=uHL[3].xyz,Up=cross(Rt,F);vec3 hp=(uHL[0].xyz+uHL[1].xyz)*.5;vec3 Lv=hp-X;float d2=dot(Lv,Lv);

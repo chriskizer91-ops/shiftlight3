@@ -288,7 +288,7 @@ void main(){
   else if(id==5u)matFacade(s,em,ssr,g,uv,vMat,vCol);
   else if(id==6u){s.diff=vec3(.16,.155,.15)*(.7+.5*fbm(uv*.8));s.rough=.92;s.diff*=1.0-.3*uWet;}
   else if(id==7u){
-    float I=float(vMat.y)*.5;int fc=int(vMat.z);float f=fc>0?uFlick[fc&7]:1.0;float on=vMat.w==1u?uNight:1.0;
+    float I=float(vMat.y)*.5;int fc=int(vMat.z);float f=fc>0?uFlick[fc&15]:1.0;float on=vMat.w==1u?uNight:1.0;
     float NoV=saturate(dot(N,s.V));vec3 c=vCol.rgb;
     em=mix(c,mix(c,vec3(1),.45),pow(NoV,2.))*I*f*on;
     s.diff=c*.2;s.rough=.25;

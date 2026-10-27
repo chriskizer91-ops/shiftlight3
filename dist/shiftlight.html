@@ -206,10 +206,10 @@ precision highp float;precision highp int;precision highp sampler2DArray;precisi
       gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, o.mips ? lin ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST_MIPMAP_NEAREST : lin ? gl.LINEAR : gl.NEAREST), gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, lin ? gl.LINEAR : gl.NEAREST);
       let wr = o.wrap === "repeat" ? gl.REPEAT : o.wrap === "mirror" ? gl.MIRRORED_REPEAT : gl.CLAMP_TO_EDGE;
       return gl.texParameteri(target, gl.TEXTURE_WRAP_S, wr), gl.texParameteri(target, gl.TEXTURE_WRAP_T, wr), (o.cube || o.layers) && gl.texParameteri(target, gl.TEXTURE_WRAP_R, wr), o.compare && (gl.texParameteri(target, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE), gl.texParameteri(target, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL)), o.aniso && ext.aniso && gl.texParameterf(target, ext.aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(o.aniso, G4.maxAniso)), o.data && !o.layers && !o.cube && gl.texSubImage2D(target, 0, 0, 0, w, h, f2, ty, o.data), o.data && o.mips && gl.generateMipmap(target), { t, target, w, h, fmt: fmt2, ifmt, f: f2, ty, levels: lv };
-    }, G4.upload = (T2, data, x = 0, y = 0, w = T2.w, h = T2.h) => {
-      gl.bindTexture(T2.target, T2.t), gl.texSubImage2D(T2.target, 0, x, y, w, h, T2.f, T2.ty, data);
-    }, G4.del = (T2) => {
-      T2 && T2.t && gl.deleteTexture(T2.t);
+    }, G4.upload = (T, data, x = 0, y = 0, w = T.w, h = T.h) => {
+      gl.bindTexture(T.target, T.t), gl.texSubImage2D(T.target, 0, x, y, w, h, T.f, T.ty, data);
+    }, G4.del = (T) => {
+      T && T.t && gl.deleteTexture(T.t);
     }, G4.target = (colors, depth) => {
       let fb = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
@@ -225,8 +225,8 @@ precision highp float;precision highp int;precision highp sampler2DArray;precisi
       return { fb, w: Math.max(1, c0.tex.w >> lvl), h: Math.max(1, c0.tex.h >> lvl), n: bufs.length, bufs };
     };
     function bindAtt(point, A) {
-      let T2 = A.tex, lvl = A.level || 0;
-      T2.target === gl.TEXTURE_CUBE_MAP ? gl.framebufferTexture2D(gl.FRAMEBUFFER, point, gl.TEXTURE_CUBE_MAP_POSITIVE_X + (A.face || 0), T2.t, lvl) : T2.target === gl.TEXTURE_2D_ARRAY ? gl.framebufferTextureLayer(gl.FRAMEBUFFER, point, T2.t, lvl, A.layer || 0) : gl.framebufferTexture2D(gl.FRAMEBUFFER, point, gl.TEXTURE_2D, T2.t, lvl);
+      let T = A.tex, lvl = A.level || 0;
+      T.target === gl.TEXTURE_CUBE_MAP ? gl.framebufferTexture2D(gl.FRAMEBUFFER, point, gl.TEXTURE_CUBE_MAP_POSITIVE_X + (A.face || 0), T.t, lvl) : T.target === gl.TEXTURE_2D_ARRAY ? gl.framebufferTextureLayer(gl.FRAMEBUFFER, point, T.t, lvl, A.layer || 0) : gl.framebufferTexture2D(gl.FRAMEBUFFER, point, gl.TEXTURE_2D, T.t, lvl);
     }
     return G4.bind = (R2, vp) => {
       gl.bindFramebuffer(gl.FRAMEBUFFER, R2 ? R2.fb : null), vp ? gl.viewport(vp[0], vp[1], vp[2], vp[3]) : R2 && gl.viewport(0, 0, R2.w, R2.h);
@@ -625,14 +625,14 @@ float falloff(float d2,float r){float x=d2/(r*r);float w=saturate(1.0-x*x);retur
 
 /* ---- the clustered static lights: a world-space grid of cells, each with its list of lights ---- */
 uniform highp sampler2D uLights;uniform highp usampler2D uLGrid;uniform highp usampler2D uLList;
-uniform vec4 uGridP;uniform float uFlick[8];uniform float uLightsOn;
+uniform vec4 uGridP;uniform float uFlick[16];uniform float uLightsOn;
 uniform vec4 uDyn[48];uniform int uNDyn;
 vec4 LT(int i,int k){return texelFetch(uLights,ivec2((i*4+k)&1023,(i*4+k)>>10),0);}
 /* evaluate one light record. Types: 0 point, 1 spot, 2 tube (line) */
 vec3 evalRec(Surf s,vec4 A,vec4 B,vec4 C,vec4 D){
   int code=int(B.w+.5),type=code&7,fl=code>>3;
   vec3 Lc=A.xyz;float r=A.w;
-  vec3 col=B.rgb*(fl>0?uFlick[fl&7]:1.0);
+  vec3 col=B.rgb*(fl>0?uFlick[fl&15]:1.0);
   if(type==2){
     /* tube light: representative point on the segment for the highlight, closest point for the diffuse */
     vec3 ax=C.xyz,P0=Lc-ax-s.P,Ld=2.0*ax;
@@ -1022,7 +1022,7 @@ void main(){
   else if(id==5u)matFacade(s,em,ssr,g,uv,vMat,vCol);
   else if(id==6u){s.diff=vec3(.16,.155,.15)*(.7+.5*fbm(uv*.8));s.rough=.92;s.diff*=1.0-.3*uWet;}
   else if(id==7u){
-    float I=float(vMat.y)*.5;int fc=int(vMat.z);float f=fc>0?uFlick[fc&7]:1.0;float on=vMat.w==1u?uNight:1.0;
+    float I=float(vMat.y)*.5;int fc=int(vMat.z);float f=fc>0?uFlick[fc&15]:1.0;float on=vMat.w==1u?uNight:1.0;
     float NoV=saturate(dot(N,s.V));vec3 c=vCol.rgb;
     em=mix(c,mix(c,vec3(1),.45),pow(NoV,2.))*I*f*on;
     s.diff=c*.2;s.rough=.25;
@@ -1158,7 +1158,7 @@ vec3 scatterLights(vec3 X,vec3 rd){
     vec3 Lp=A.xyz;if(type==2){vec3 ax=C.xyz;float tt=clamp(dot(X-Lp,ax)/max(dot(ax,ax),1e-4),-1.,1.);Lp+=ax*tt;}
     vec3 Lv=Lp-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
     float att=falloff(d2,A.w);if(type==1)att*=smoothstep(C.w,D.x,dot(-L,C.xyz));
-    c+=B.rgb*(fl>0?uFlick[fl&7]:1.0)*att*hg(dot(rd,L),.35);}
+    c+=B.rgb*(fl>0?uFlick[fl&15]:1.0)*att*hg(dot(rd,L),.35);}
   return c*uLightsOn;
 }
 float csmVis(vec3 X){if(uCSMOn<=0.0)return 1.0;
@@ -1378,7 +1378,7 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
       }, this.extra = [];
       let Q2 = this.Q;
       this.csm = G4.texture(Q2.csm, Q2.csm, "depth32f", { layers: 3, compare: !0 }), this.csmFB = [0, 1, 2].map((l) => G4.target(null, { tex: this.csm, layer: l })), this.hlSh = G4.texture(Q2.hl, Q2.hl, "depth32f", { compare: !0 }), this.hlFB = G4.target(null, this.hlSh), this.probe = G4.texture(Q2.probe, Q2.probe, "rgba16f", { cube: !0, mips: !0 }), this.probeDepth = G4.texture(Q2.probe, Q2.probe, "depth32f"), this.probeFB = [0, 1, 2, 3, 4, 5].map((f2) => G4.target([{ tex: this.probe, face: f2 }], this.probeDepth)), this.probeFace = 0, this.probeFilled = 0, this.expo = [0, 1].map(() => G4.texture(1, 1, "rgba16f", { filter: "nearest" })), this.expoFB = this.expo.map((t) => G4.target([t])), this.expoI = 0, this.U = {
-        uFlick: new Float32Array(8).fill(1),
+        uFlick: new Float32Array(16).fill(1),
         uDyn: new Float32Array(192),
         uNDyn: 0,
         uHL: new Float32Array(20),
@@ -1397,13 +1397,13 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
       return this.hudT || (this.hudT = { t: gl.createTexture(), target: gl.TEXTURE_2D }, gl.bindTexture(gl.TEXTURE_2D, this.hudT.t), gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST), gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST), gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE), gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)), gl.bindTexture(gl.TEXTURE_2D, this.hudT.t), gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !1), gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv), this.hudT;
     }
     /* the world: geometry tiles and the static lights */
-    loadWorld(city, T2) {
+    loadWorld(city, T) {
       let G4 = this.G, gl = this.gl;
       this.city = city, this.world && (gl.deleteVertexArray(this.world.vao), gl.deleteBuffer(this.world.vb), this.world.ib && gl.deleteBuffer(this.world.ib)), this.lights && (G4.del(this.lights.tex), G4.del(this.lights.grid), G4.del(this.lights.list)), this.world = G4.mesh(LAYOUT, 36, city.geo.vb, city.geo.ib), this.tiles = city.geo.ranges.map((r) => ({ ...r, c: [(r.mn[0] + r.mx[0]) / 2, (r.mn[1] + r.mx[1]) / 2, (r.mn[2] + r.mx[2]) / 2] })), this.lights = new LightGrid(G4, city.lights, city.info && city.info.lightGrid || {}), this.U.uGridP = this.lights.params;
       let xw = new Float32Array(8).fill(-1);
-      T2 && (city.info.xw || []).forEach((s, i) => {
+      T && (city.info.xw || []).forEach((s, i) => {
         i < 8 && (xw[i] = s);
-      }), this.U.uXw = xw, this.U.uRoad = T2 ? [T2.hw, T2.lanes, T2.len, 1] : [6.5, 2, 1e4, 1], this.resetTAA = !0, this.hasPrev = !1, this.probeFilled = 0;
+      }), this.U.uXw = xw, this.U.uRoad = T ? [T.hw, T.lanes, T.len, 1] : [6.5, 2, 1e4, 1], this.resetTAA = !0, this.hasPrev = !1, this.probeFilled = 0;
     }
     /* (re)allocate everything that depends on the screen size and render scale */
     resize(W3, H, scale2 = this.scale) {
@@ -1520,7 +1520,7 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
         uFogSteps: Q2.fogSteps,
         uFogLights: Q2.fogLights,
         uProbeLod: Math.log2(Q2.probe) - 1
-      }), U.uRoad[3] = E.puddles, U.uFlick.set(S.flicker || [1, 1, 1, 1, 1, 1, 1, 1]);
+      }), U.uRoad[3] = E.puddles, U.uFlick.fill(1), U.uFlick.set((S.flicker || []).slice(0, 16));
       let dyn = S.dyn || [];
       U.uNDyn = Math.min(16, dyn.length), U.uDyn.fill(0), dyn.slice(0, 16).forEach((L, i) => {
         U.uDyn.set([L.pos[0], L.pos[1], L.pos[2], L.r, L.col[0], L.col[1], L.col[2], L.type || 0, L.dir ? L.dir[0] : 0, L.dir ? L.dir[1] : -1, L.dir ? L.dir[2] : 0, L.cosO ?? -1], i * 12);
@@ -1890,15 +1890,15 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
     }
     return out.push(P[P.length - 1].slice()), out;
   }
-  function tableAt(T2, x, j) {
-    for (let i = 0; i < T2.length - 1; i++) {
-      let a = T2[i], b = T2[i + 1], lo = Math.min(a[0], b[0]), hi = Math.max(a[0], b[0]);
+  function tableAt(T, x, j) {
+    for (let i = 0; i < T.length - 1; i++) {
+      let a = T[i], b = T[i + 1], lo = Math.min(a[0], b[0]), hi = Math.max(a[0], b[0]);
       if (x >= lo && x <= hi) {
         let f2 = (x - a[0]) / (b[0] - a[0] || 1);
         return a[j] + (b[j] - a[j]) * f2;
       }
     }
-    return Math.abs(x - T2[0][0]) < Math.abs(x - T2[T2.length - 1][0]) ? T2[0][j] : T2[T2.length - 1][j];
+    return Math.abs(x - T[0][0]) < Math.abs(x - T[T.length - 1][0]) ? T[0][j] : T[T.length - 1][j];
   }
   function buildCar(ch, design = DESIGNS.sl3, { lod = 0 } = {}) {
     let D = design, hcg = ch.hcg, Y = (y) => y - hcg, hi = lod === 0, st = D.st, ns = st.length, xF = st[ns - 1][0], xR = st[0][0], hw = Math.max(...st.map((s) => s[2])), B = new MeshBuilder(hi ? 8192 : 2048), GH = new MeshBuilder(hi ? 4096 : 1024), SUBX = hi ? 4 : 1, SUBP = hi ? 3 : 1, SUBG = hi ? 4 : 2, sx = [];
@@ -3399,8 +3399,8 @@ void main(){
       this.hull.push([hx + 0.04, ym - 0.05, 0], [-hx - 0.04, ym, 0]), this.p = [0, 0, 0], this.q = [0, 0, 0, 1], this.v = [0, 0, 0], this.w = [0, 0, 0], this.steer = 0, this.hint = -1, this.loc = null, this.air = !0, this.airT = 0, this.speed = 0, this.vf = 0, this.beta = 0, this.aid = ASSISTS.arcade, this.wet = 0, this.drift = { on: !1, dir: 0, t: 0, low: 0 }, this.ev = { wall: 0, land: 0, scrape: 0, ground: 0 }, this.rev = !1, this.revT = 0, this.escOn = !1, this.absOn = !1, this.assistTorque = 0, this.plus = null, this.TY = { fx: 0, fy: 0, dk: 0, sg: 0 }, this.acc = [0, 0, 0], this.accB = [0, 0, 0], this.setAssists("arcade");
     }
     /* put the car at rest on the track at (s, d), facing along it */
-    placeOnTrack(T2, s, d = 0) {
-      let fr = T2.frame(s), p = T2.pos(s, d);
+    placeOnTrack(T, s, d = 0) {
+      let fr = T.frame(s), p = T.pos(s, d);
       this.q = qlook(fr.f, fr.u), this.p = madd(p, fr.u, this.c.hcg), this.v = [0, 0, 0], this.w = [0, 0, 0], this.hint = -1;
       for (let wh of this.wheels)
         wh.w = 0, wh.hint = -1;
@@ -4489,11 +4489,11 @@ void main(){
       if (L.kind === "conn" && (c.ind = L.turn === "L" ? [1, 0] : L.turn === "R" ? [0, 1] : [0, 0]), p0 && p0.merge && !c.mergeOk) {
         let dM = (L.closed ? wrapPos(p0.at - c.s, L.len) : p0.at - c.s) - c.I.front;
         if (dM < 80) {
-          let T2 = p0.lane, clear = !0;
-          for (let e of T2.cars) {
+          let T = p0.lane, clear = !0;
+          for (let e of T.cars) {
             let o = e.c;
             if (o === c) continue;
-            let ds = T2.closed ? (e.s - p0.s + T2.len * 1.5) % T2.len - T2.len / 2 : e.s - p0.s;
+            let ds = T.closed ? (e.s - p0.s + T.len * 1.5) % T.len - T.len / 2 : e.s - p0.s;
             if (ds > -(10 + o.v * 1.4) && ds < 9) {
               clear = !1;
               break;
@@ -4723,6 +4723,468 @@ void main(){
     }
   };
 
+  // src/world/track.js
+  var TRACK_DEFS = {
+    neon: {
+      name: "Neon Loop",
+      closed: !0,
+      hw: 6.5,
+      shL: 1.4,
+      shR: 1.4,
+      bank: 0.15,
+      lanes: 2,
+      center: 1,
+      pts: [
+        [0, 0, 0],
+        [190, 0, 0],
+        [236, 10, 0],
+        [254, 48, 0],
+        [256, 80, 0],
+        [256, 104, 3.2],
+        [256, 128, 0],
+        [255, 172, 0],
+        [243, 206, 0],
+        [208, 216, 0],
+        [126, 216, 0],
+        [100, 232, 0],
+        [95, 300, 0],
+        [80, 332, 0],
+        [38, 342, 0],
+        [-62, 340, 0],
+        [-96, 326, 0],
+        [-106, 290, 0],
+        [-106, 192, 0],
+        [-90, 160, 0],
+        [-40, 148, 0],
+        [-20, 128, 0],
+        [-24, 60, 0],
+        [-38, 22, 0],
+        [-30, 4, 0]
+      ]
+    }
+  };
+  function crPoint(p0, p1, p2, p3, t) {
+    let d = (a, b) => Math.pow(Math.hypot(b[0] - a[0], b[1] - a[1], (b[2] - a[2]) * 2) + 1e-6, 0.5), t1 = 0 + d(p0, p1), t2 = t1 + d(p1, p2), t3 = t2 + d(p2, p3), tt = t1 + (t2 - t1) * t, L = (a, b, ta, tb) => {
+      let k = (tt - ta) / (tb - ta);
+      return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+    }, A1 = L(p0, p1, 0, t1), A2 = L(p1, p2, t1, t2), A3 = L(p2, p3, t2, t3), B1 = L(A1, A2, 0, t2), B2 = L(A2, A3, t1, t3);
+    return L(B1, B2, t1, t2);
+  }
+  function smoothArr(a, n, closed, passes = 1) {
+    let N2 = a.length;
+    for (let p = 0; p < passes; p++) {
+      let o = new Float64Array(N2);
+      for (let i = 0; i < N2; i++) {
+        let s = 0, c = 0;
+        for (let k = -n; k <= n; k++) {
+          let j = i + k;
+          if (closed) j = (j + N2) % N2;
+          else if (j < 0 || j >= N2) continue;
+          s += a[j], c++;
+        }
+        o[i] = s / c;
+      }
+      a.set(o);
+    }
+    return a;
+  }
+  function buildTrack(id) {
+    let D = TRACK_DEFS[id], pts = D.pts, closed = D.closed, np = pts.length, P = (i) => {
+      if (closed) return pts[(i + np) % np];
+      if (i < 0) {
+        let a = pts[0], b = pts[1];
+        return [2 * a[0] - b[0], 2 * a[1] - b[1], 2 * a[2] - b[2]];
+      }
+      if (i >= np) {
+        let a = pts[np - 1], b = pts[np - 2];
+        return [2 * a[0] - b[0], 2 * a[1] - b[1], 2 * a[2] - b[2]];
+      }
+      return pts[i];
+    }, dense = [], segs = closed ? np : np - 1;
+    for (let i = 0; i < segs; i++) {
+      let p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+      for (let k = 0; k < 64; k++) dense.push(crPoint(p0, p1, p2, p3, k / 64));
+    }
+    dense.push(closed ? dense[0].slice() : pts[np - 1].slice());
+    let cum = [0];
+    for (let i = 1; i < dense.length; i++) cum.push(cum[i - 1] + Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]));
+    let total = cum[cum.length - 1], N2 = closed ? Math.round(total) : Math.floor(total) + 1, ds = closed ? total / N2 : 1, mx = new Float64Array(N2), my = new Float64Array(N2), Y = new Float64Array(N2), j = 0;
+    for (let i = 0; i < N2; i++) {
+      let s = i * ds;
+      for (; j < cum.length - 2 && cum[j + 1] < s; ) j++;
+      let t = (s - cum[j]) / Math.max(1e-6, cum[j + 1] - cum[j]), a = dense[j], b = dense[j + 1];
+      mx[i] = a[0] + (b[0] - a[0]) * t, my[i] = a[1] + (b[1] - a[1]) * t, Y[i] = a[2] + (b[2] - a[2]) * t;
+    }
+    smoothArr(Y, 8, closed, 2);
+    let T = { id, def: D, name: D.name, closed, N: N2, ds, len: closed ? N2 * ds : (N2 - 1) * ds, hw: D.hw, shL: D.shL, shR: D.shR, lanes: D.lanes || 2, center: D.center || 0, mx, my, Y }, idx = (i) => closed ? (i % N2 + N2) % N2 : clamp(i, 0, N2 - 1);
+    T.idx = idx;
+    let TH = new Float64Array(N2), K = new Float64Array(N2), BK = new Float64Array(N2), SL = new Float64Array(N2), YY = new Float64Array(N2);
+    for (let i = 0; i < N2; i++) {
+      let a = idx(i - 1), b = idx(i + 1);
+      TH[i] = Math.atan2(my[b] - my[a], mx[b] - mx[a]);
+    }
+    for (let i = 0; i < N2; i++) {
+      let a = idx(i - 2), b = idx(i + 2);
+      K[i] = wrapA(TH[b] - TH[a]) / (4 * ds);
+    }
+    smoothArr(K, 3, closed, 2);
+    for (let i = 0; i < N2; i++) BK[i] = clamp(K[i] * D.bank * 9, -0.09, 0.09);
+    smoothArr(BK, 12, closed, 2);
+    for (let i = 0; i < N2; i++) {
+      let a = idx(i - 2), b = idx(i + 2);
+      SL[i] = (Y[b] - Y[a]) / (4 * ds);
+    }
+    for (let i = 0; i < N2; i++) {
+      let a = idx(i - 3), b = idx(i + 3);
+      YY[i] = (Y[b] - 2 * Y[i] + Y[a]) / (9 * ds * ds);
+    }
+    Object.assign(T, { TH, K, BK, SL, YY });
+    let curb = new Uint8Array(N2);
+    for (let i = 0; i < N2; i++) if (Math.abs(K[i]) > 1 / 90) for (let k = -14; k <= 14; k++) curb[idx(i + k)] |= K[i] > 0 ? 1 : 2;
+    T.curb = curb, T.wl = D.hw + D.shL + 0.35, T.wr = D.hw + D.shR + 0.35;
+    let lerpA = (A, s) => {
+      let f2 = s / ds, i = Math.floor(f2);
+      f2 -= i;
+      let a = idx(i), b = idx(i + 1);
+      return A[a] + (A[b] - A[a]) * f2;
+    };
+    T.at = lerpA, T.kap = (s) => lerpA(K, s), T.slope = (s) => lerpA(SL, s), T.bank = (s) => lerpA(BK, s), T.yAt = (s) => lerpA(Y, s), T.headAt = (s) => {
+      let f2 = s / ds, i = Math.floor(f2);
+      f2 -= i;
+      let a = idx(i), b = idx(i + 1);
+      return TH[a] + wrapA(TH[b] - TH[a]) * f2;
+    }, T.wrapS = (s) => closed ? (s % T.len + T.len) % T.len : clamp(s, 0, T.len), T.pos = (s, d, h = 0) => {
+      let f2 = s / ds, i = Math.floor(f2);
+      f2 -= i;
+      let a = idx(i), b = idx(i + 1), x = mx[a] + (mx[b] - mx[a]) * f2, y = my[a] + (my[b] - my[a]) * f2, yy = Y[a] + (Y[b] - Y[a]) * f2, th = TH[a] + wrapA(TH[b] - TH[a]) * f2, bk = BK[a] + (BK[b] - BK[a]) * f2, nx = -Math.sin(th), ny = Math.cos(th), cb = Math.cos(bk);
+      return [x + nx * d * cb, yy - d * Math.sin(bk) + h, -(y + ny * d * cb)];
+    }, T.frame = (s) => {
+      let th = T.headAt(s), bk = T.bank(s), sl = T.slope(s), f2 = [Math.cos(th), sl, -Math.sin(th)], fl = Math.hypot(f2[0], f2[1], f2[2]);
+      f2[0] /= fl, f2[1] /= fl, f2[2] /= fl;
+      let l0 = [-Math.sin(th), 0, -Math.cos(th)], cb = Math.cos(bk), sb = Math.sin(bk), l = [l0[0] * cb, -sb, l0[2] * cb], u = [f2[1] * l[2] - f2[2] * l[1], f2[2] * l[0] - f2[0] * l[2], f2[0] * l[1] - f2[1] * l[0]];
+      return { f: f2, l, u };
+    }, T.surf = (s, d) => {
+      let p = T.pos(s, d), u = T.frame(s).u;
+      return u[1] < 0 && (u = [-u[0], -u[1], -u[2]]), { y: p[1], n: u };
+    };
+    let B = 24, hash = /* @__PURE__ */ new Map();
+    for (let i = 0; i < N2; i++) {
+      let k = Math.floor(mx[i] / B) + "," + Math.floor(my[i] / B), a = hash.get(k);
+      a || hash.set(k, a = []), a.push(i);
+    }
+    let d2 = (i, x, y) => (mx[i] - x) ** 2 + (my[i] - y) ** 2;
+    T.nearest = (x, y, r = 2) => {
+      let bx = Math.floor(x / B), by = Math.floor(y / B), best = 1e18, bi = -1;
+      for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
+        let L = hash.get(bx + a + "," + (by + b));
+        if (L)
+          for (let q of L) {
+            let v = d2(q, x, y);
+            v < best && (best = v, bi = q);
+          }
+      }
+      return bi;
+    }, T.locate = (X, Z, hint = -1) => {
+      let x = X, y = -Z, i = hint;
+      if ((i < 0 || d2(i, x, y) > 900) && (i = T.nearest(x, y, 2), i < 0 && (i = T.nearest(x, y, 8)), i < 0))
+        return null;
+      for (let it = 0; it < 64; it++) {
+        let a2 = idx(i - 1), b2 = idx(i + 1), di = d2(i, x, y);
+        if (d2(a2, x, y) < di && a2 !== i) i = a2;
+        else if (d2(b2, x, y) < di && b2 !== i) i = b2;
+        else break;
+      }
+      let a = i, b = idx(i + 1), ex = mx[b] - mx[a], ey = my[b] - my[a], el = ex * ex + ey * ey || 1, t = ((x - mx[a]) * ex + (y - my[a]) * ey) / el, i0 = a;
+      if (t < 0 && (closed || i > 0)) {
+        i0 = idx(i - 1);
+        let ex2 = mx[a] - mx[i0], ey2 = my[a] - my[i0];
+        t = ((x - mx[i0]) * ex2 + (y - my[i0]) * ey2) / (ex2 * ex2 + ey2 * ey2 || 1);
+      }
+      t = clamp(t, 0, 1);
+      let s = (i0 + t) * ds, th = T.headAt(s), px = lerp(mx[i0], mx[idx(i0 + 1)], t), py = lerp(my[i0], my[idx(i0 + 1)], t), dd = -(x - px) * Math.sin(th) + (y - py) * Math.cos(th);
+      return { s, d: dd / Math.cos(T.bank(s)), i: i0 };
+    }, T.curbAt = (s, d) => {
+      let i = idx(Math.round(s / ds));
+      return d > 0 ? curb[i] & 1 : curb[i] & 2;
+    };
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (let i = 0; i < N2; i++)
+      x0 = Math.min(x0, mx[i]), x1 = Math.max(x1, mx[i]), y0 = Math.min(y0, my[i]), y1 = Math.max(y1, my[i]);
+    return T.bb = [x0, y0, x1, y1], T.startS = 0, racingLine(T), T;
+  }
+  function racingLine(T) {
+    let N2 = T.N, d = new Float64Array(N2), lim = T.hw - 1.5, nx = new Float64Array(N2), ny = new Float64Array(N2);
+    for (let i = 0; i < N2; i++)
+      nx[i] = -Math.sin(T.TH[i]), ny[i] = Math.cos(T.TH[i]);
+    let px = new Float64Array(N2), py = new Float64Array(N2);
+    for (let [k, it] of [[48, 60], [24, 80], [12, 90], [6, 90]])
+      for (let n = 0; n < it; n++) {
+        for (let i = 0; i < N2; i++)
+          px[i] = T.mx[i] + nx[i] * d[i], py[i] = T.my[i] + ny[i] * d[i];
+        for (let i = 0; i < N2; i++) {
+          if (!T.closed && (i < k || i >= N2 - k)) continue;
+          let a = T.idx(i - k), b = T.idx(i + k), mxp = (px[a] + px[b]) / 2, myp = (py[a] + py[b]) / 2, tgt = (mxp - T.mx[i]) * nx[i] + (myp - T.my[i]) * ny[i];
+          d[i] = clamp(d[i] + (tgt - d[i]) * 0.5, -lim, lim);
+        }
+      }
+    smoothArr(d, 4, T.closed, 2);
+    for (let i = 0; i < N2; i++)
+      px[i] = T.mx[i] + nx[i] * d[i], py[i] = T.my[i] + ny[i] * d[i];
+    let lk = new Float64Array(N2);
+    for (let i = 0; i < N2; i++) {
+      let a = T.idx(i - 2), b = T.idx(i + 2), c = i, t1 = Math.atan2(py[c] - py[a], px[c] - px[a]), t2 = Math.atan2(py[b] - py[c], px[b] - px[c]), l = (Math.hypot(px[c] - px[a], py[c] - py[a]) + Math.hypot(px[b] - px[c], py[b] - py[c])) / 2;
+      lk[i] = wrapA(t2 - t1) / Math.max(0.5, l);
+    }
+    smoothArr(lk, 3, T.closed, 2), T.line = d, T.lineK = lk, T.lineAt = (s) => T.at(d, s);
+  }
+  function speedProfile(T, car2, { mu = 1, aMax = null, brake = null, vmax = 95 } = {}) {
+    let N2 = T.N, v = new Float64Array(N2), g = 9.81, m = car2.mass, ds = T.ds, aLat = (vv) => mu * (g + 0.5 * 1.2 * (car2.clF + car2.clR) * vv * vv / m);
+    for (let i = 0; i < N2; i++) {
+      let k = Math.abs(T.lineK[i]) + 1e-5, vv = 10;
+      for (let it = 0; it < 12; it++) vv = Math.sqrt(aLat(vv) / k);
+      v[i] = Math.min(vmax, vv);
+    }
+    let acc2 = aMax || ((vv) => Math.min(car2.powerKw * 1e3 / Math.max(vv, 5) / m, mu * g * 0.7) - 0.5 * 1.2 * car2.cdA * vv * vv / m), brk = brake || mu * g * 0.92;
+    for (let p = 0; p < 2; p++) {
+      for (let i = 0; i < N2; i++) {
+        let j = T.idx(i + 1), vv = v[i], lat = vv * vv * Math.abs(T.lineK[i]), cap = Math.sqrt(Math.max(0, 1 - Math.min(1, lat / aLat(vv)) ** 2)), nv = Math.sqrt(Math.max(4, vv * vv + 2 * Math.max(0.3, acc2(vv) * Math.max(0.15, cap) - g * T.SL[i]) * ds));
+        nv < v[j] && (v[j] = nv);
+      }
+      for (let i = N2 - 1; i >= 0; i--) {
+        let j = T.idx(i + 1), vv = v[j], lat = vv * vv * Math.abs(T.lineK[i]), cap = Math.sqrt(Math.max(0, 1 - Math.min(1, lat / aLat(vv)) ** 2)), nv = Math.sqrt(Math.max(1, vv * vv + 2 * Math.max(0.5, brk * Math.max(0.2, cap) + 0.5 * 1.2 * car2.cdA * vv * vv / m + g * T.SL[i]) * ds));
+        nv < v[i] && (v[i] = nv);
+      }
+    }
+    return v;
+  }
+
+  // src/game/race.js
+  var RIVALS = [
+    { name: "VEGA", engine: "v10", paint: "silver", caliper: [0.9, 0.75, 0.1], pace: 1, aggr: 0.7, cons: 0.93, brake: 1.03, react: 0.2 },
+    { name: "KOJI", engine: "rotary3", paint: "white", caliper: [0.1, 0.4, 0.9], pace: 0.99, aggr: 0.4, cons: 0.97, brake: 1, react: 0.17 },
+    { name: "MARLOWE", engine: "muscle", paint: "midnight", caliper: [0.8, 0.8, 0.82], pace: 0.965, aggr: 0.9, cons: 0.82, brake: 1.07, react: 0.3 },
+    { name: "SABLE", engine: "flatplane", paint: "black", caliper: [0.95, 0.1, 0.1], pace: 0.98, aggr: 0.55, cons: 0.9, brake: 1.02, react: 0.21 },
+    { name: "RIOT", engine: "blown", paint: "orange", caliper: [0.05, 0.05, 0.05], pace: 0.96, aggr: 1, cons: 0.72, brake: 1.09, react: 0.34 },
+    { name: "JUNO", engine: "screamer", paint: "green", caliper: [0.95, 0.85, 0.2], pace: 0.975, aggr: 0.3, cons: 0.95, brake: 0.98, react: 0.25 },
+    { name: "NOX", engine: "v12", paint: "violet", caliper: [0.7, 0.7, 0.75], pace: 0.98, aggr: 0.6, cons: 0.9, brake: 1.03, react: 0.23 }
+  ], EXTRA_PAINTS = { violet: { name: "Violet", col: [0.18, 0.03, 0.4], metal: 0.8, rough: 0.3, flake: 1, roof: [0.18, 0.03, 0.4] } }, DIFFICULTY = { relaxed: { name: "Relaxed", pace: 0.86, mu: 0.9 }, racing: { name: "Racing", pace: 0.915, mu: 0.94 }, hard: { name: "Hard", pace: 0.965, mu: 0.98 } }, BOX = carBox({ xF: 2.25, xR: -2.3, hw: 0.966, H: 1.28 }, CHASSIS.sl3.hcg);
+  function rngf2(a) {
+    return () => {
+      a |= 0, a = a + 1831565813 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      return t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t, ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  var Race = class {
+    /* level: Neon Loop. you: the player's Vehicle. opts: {rivals, laps, difficulty, wet, seed, assists} */
+    constructor(level2, you, { rivals = 5, laps = 3, difficulty = "racing", wet = 0, seed = Date.now() & 65535, slot = 3 } = {}) {
+      this.level = level2;
+      let T = level2.T;
+      this.T = T, this.laps = laps, this.diff = DIFFICULTY[difficulty] || DIFFICULTY.racing, this.R = rngf2(seed), this.wet = wet;
+      let pool = RIVALS.slice();
+      for (let i = pool.length - 1; i > 0; i--) {
+        let j = Math.floor(this.R() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      let picks = pool.slice(0, rivals), n = rivals + 1;
+      slot = Math.min(slot, n - 1), this.entrants = [];
+      let ri = 0;
+      for (let g = 0; g < n; g++) {
+        let isYou = g === slot, P = isYou ? null : picks[ri++], car2 = isYou ? you : new Vehicle(CHASSIS.sl3, this.rivalSpec(P, you.spec), level2.world), e = {
+          id: isYou ? 1 : 200 + g,
+          you: isYou,
+          name: isYou ? "YOU" : P.name,
+          P,
+          car: car2,
+          grid: g,
+          cross: 0,
+          s: 0,
+          prog: 0,
+          finished: !1,
+          time: 0,
+          best: 0,
+          lapT0: 0,
+          lastLap: 0,
+          box: BOX,
+          paint: isYou ? null : PAINTS[P.paint] || EXTRA_PAINTS[P.paint],
+          caliper: P ? P.caliper : null,
+          state: { off: 0, offT: 0, err: 0, errKind: null, errT: 0, go: 0, hint: -1 }
+        };
+        isYou || (car2.setAssists("arcade"), car2.pt.auto = !0, e.prof = this.profile(car2, P)), this.entrants.push(e);
+      }
+      let lapT = (prof) => {
+        let t = 0;
+        for (let i = 0; i < T.N; i++) t += T.ds / Math.max(prof[i], 1);
+        return t;
+      }, refP = this.profile(you, { brake: 1 }), ref = lapT(refP);
+      for (let e of this.entrants) e.you || (e.adj = lapT(e.prof) / ref);
+      this.refLap = ref, this.NS = 8, this.secT = new Float64Array(this.NS);
+      for (let i = 0; i < T.N; i++) this.secT[Math.min(this.NS - 1, Math.floor(i * T.ds / T.len * this.NS))] += T.ds / Math.max(refP[i], 1);
+      this.placeGrid(), this.phase = "grid", this.t = 0, this.lights = 0, this.goT = -1, this.outAt = 4.6 + this.R() * 1.2, this.finishT = -1, this.events = [], this.order = this.entrants.slice();
+    }
+    /* a rival's engine keeps its character (and its sound) but makes about the power yours does */
+    rivalSpec(P, yours) {
+      let base = SIM.PRESETS.find((q) => q.id === P.engine), mass = CHASSIS.sl3.mass, kw0 = SIM.makeSpec(Object.assign({}, base, { mass })).peak.kw, k = yours.peak.kw / kw0;
+      return SIM.makeSpec(Object.assign({}, base, { mass, tq: base.tq * k }));
+    }
+    profile(car2, P) {
+      let mu = car2.tyre.mu * this.diff.mu * (1 - 0.14 * this.wet);
+      return speedProfile(this.T, { mass: car2.m, clF: car2.c.clF, clR: car2.c.clR, cdA: car2.c.cdA, powerKw: car2.spec.peak.kw }, { mu, brake: mu * 9.81 * 0.92 * P.brake });
+    }
+    /* two columns, staggered, behind the line */
+    placeGrid() {
+      let T = this.T;
+      for (let e of this.entrants) {
+        let row = e.grid, s = T.wrapS(T.len - 9 - row * 7.5), d = (row % 2 ? -1 : 1) * 2.3;
+        e.car.placeOnTrack(T, s, d), e.car.pt.start(), e.car.pt.st = "run", e.cross = 0, e.s = s, e.finished = !1, e.time = 0, e.best = 0, e.lastLap = 0, e.lapT0 = 0;
+      }
+    }
+    /* the inputs during the countdown: held on the brakes, revving allowed */
+    hold(inp) {
+      return inp ? (inp.thr || 0) > 0.3 ? { steer: 0, thr: inp.thr, brk: 1, hb: 0, nos: !1 } : { steer: 0, thr: inp.thr || 0, brk: 0.45, hb: 1, nos: !1 } : { steer: 0, thr: 0.65, brk: 1, hb: 0, nos: !1 };
+    }
+    /* ---------- the racer ---------- */
+    drive(e, dt) {
+      let T = this.T, car2 = e.car, P = e.P, st = e.state, loc = car2.loc;
+      if (this.phase === "grid" || this.phase === "countdown") return this.hold(null);
+      if (st.go < P.react)
+        return st.go += dt, this.hold(null);
+      if (!loc) return { steer: 0, thr: 0, brk: 1, hb: 0 };
+      let M = qmat(car2.q), F = mcol(M, 0), Rt = mcol(M, 2), v = Math.max(car2.vf, 1), s = loc.s, d = loc.d, you = this.entrants.find((x) => x.you), gapYou = you ? e.prog - you.prog : 0, pace = this.diff.pace * P.pace * e.adj * (gapYou < -150 ? 1.025 : gapYou > 150 ? 0.98 : 1);
+      st.errT > 0 ? st.errT -= dt : this.R() < (1 - P.cons) * 0.07 * dt * Math.min(1, v / 20) && (st.errKind = this.R() < 0.6 ? "wide" : "wobble", st.errT = 1.2 + this.R() * 1.4), st.errT > 0 && st.errKind === "wide" && (pace *= 1.07);
+      let lim = { l: T.wl - 1.5, r: T.wr - 1.5 }, line = T.lineAt(T.wrapS(s + v * 0.5)), want = 0, vCap = 1e9;
+      for (let o of this.entrants) {
+        if (o === e || !o.car.loc) continue;
+        let ol = o.car.loc, ds = ol.s - s;
+        ds > T.len / 2 && (ds -= T.len), ds < -T.len / 2 && (ds += T.len);
+        let dd = ol.d - d;
+        if (ds > 0 && ds < 45 && Math.abs(dd) < 2.4) {
+          let ov = o.car.vf;
+          if (car2.vf - ov > 0.4 || ds < 12) {
+            let roomL = lim.l - ol.d, roomR = ol.d + lim.r, need = 3.2 - 1.1 * P.aggr, k = T.lineK[T.idx(Math.round(T.wrapS(s + 40) / T.ds))], inside2 = k > 0 ? 1 : -1, side = 0;
+            roomL > need && (roomL >= roomR || inside2 > 0 && roomL > need + 0.5) ? side = 1 : roomR > need && (side = -1), side ? (want = ol.d + side * 2.7 - line, st.offT = 1.5) : vCap = Math.min(vCap, ov + Math.max(0, ds - (5 + 6 * (1 - P.aggr))) * 0.6);
+          }
+          ds < 25 && (st.traffic = 1.5);
+        }
+        Math.abs(ds) < 5.2 && Math.abs(dd) < 2.3 && (want += (dd > 0 ? -1 : 1) * 0.9);
+      }
+      st.offT > 0 ? st.offT -= dt : Math.abs(want) < 0.01 && (want = 0), st.traffic > 0 && (st.traffic -= dt), st.off += ((st.offT > 0 || want ? want : 0) - st.off) * Math.min(1, dt * 1.6);
+      let la = clamp(v * 0.7, 7, 38), s2 = T.wrapS(s + la), dT = clamp(T.lineAt(s2) + st.off, -lim.r, lim.l), tgt = T.pos(s2, dT), dv = sub2(tgt, car2.p), xb = dot2(dv, F), zb = dot2(dv, Rt), kappa = 2 * zb / Math.max(xb * xb + zb * zb, 1), steer = clamp(kappa * v * v / (car2.tyre.mu * 9.81) * 1.05 + zb * 0.02, -1, 1);
+      st.errT > 0 && st.errKind === "wobble" && (steer += Math.sin(this.t * 7.3 + e.grid) * 0.12);
+      let i = T.idx(Math.round(T.wrapS(s + v * 0.55) / T.ds)), vt = Math.min(e.prof[i] * pace, vCap), err = vt - car2.vf, thr = 0, brk = 0;
+      return err > 0 ? thr = clamp(0.5 + err * 0.4, 0, 1) : err < -1 ? brk = clamp(-err * 0.2, 0, 1) : thr = 0.3, { steer: clamp(steer, -1, 1), thr, brk, hb: 0 };
+    }
+    /* ---------- each fixed step: drive the rivals, collide everyone ---------- */
+    stepPhysics(dt, youInputs) {
+      for (let e of this.entrants)
+        e.you || (e.car.wet = this.wet, e.car.step(dt, e.finished && e.car.vf < 3 ? { steer: 0, thr: 0, brk: 0.3, hb: 0 } : this.drive(e, dt)));
+      let E = this.entrants;
+      for (let i = 0; i < E.length; i++) for (let j = i + 1; j < E.length; j++) {
+        let hit = carContact({ veh: E[i].car, box: BOX }, { veh: E[j].car, box: BOX });
+        if (hit > 0) {
+          let y = E[i].you ? E[i] : E[j].you ? E[j] : null;
+          y && hit > 0.8 ? y.car.ev.wall = Math.max(y.car.ev.wall, hit) : hit > 2 && this.events.push({ type: "crash", speed: hit, p: E[i].car.p });
+        }
+      }
+    }
+    /* what the player's car may do right now */
+    gate(inp) {
+      return this.phase === "grid" || this.phase === "countdown" ? this.hold(inp) : inp;
+    }
+    /* ---------- each frame: the lights, laps, the order ---------- */
+    update(dt, time2) {
+      this.t += dt;
+      let T = this.T;
+      if (this.phase === "grid" && this.t > 1.2 && (this.phase = "countdown", this.t = 0), this.phase === "countdown") {
+        let n = Math.min(5, Math.floor(this.t / 0.9));
+        if (n > this.lights && (this.lights = n, this.events.push({ type: "light", n })), this.t > this.outAt) {
+          this.phase = "racing", this.lights = 0, this.goT = time2, this.events.push({ type: "go" });
+          for (let e of this.entrants)
+            e.lapT0 = time2, e.state.go = 0;
+        }
+      }
+      for (let e of this.entrants) {
+        let loc = e.car.loc;
+        if (!loc) continue;
+        let s = loc.s;
+        if (this.phase === "racing" && !e.finished)
+          if (e.s > T.len - 40 && s < 40) {
+            if (e.cross++, e.cross > 1) {
+              let lt = time2 - e.lapT0;
+              e.lastLap = lt, (!e.best || lt < e.best) && (e.best = lt);
+            }
+            e.lapT0 = time2, e.cross > this.laps && (e.finished = !0, e.time = time2 - this.goT, this.events.push({ type: "finish", e }), e.you && this.finishT < 0 && (this.finishT = time2));
+          } else e.s < 40 && s > T.len - 40 && e.cross > 0 && e.cross--;
+        if (!e.you && this.phase === "racing" && !e.finished) {
+          let k = Math.min(this.NS - 1, Math.floor(s / T.len * this.NS));
+          if (e.sec === void 0)
+            e.sec = k, e.secT0 = time2, e.secClean = !1;
+          else if (k !== e.sec) {
+            if (k === (e.sec + 1) % this.NS && e.secClean && !(e.state.traffic > 0) && !(e.state.errT > 0)) {
+              let tgt = this.secT[e.sec] / (this.diff.pace * e.P.pace), r = (time2 - e.secT0) / tgt;
+              e.adj = clamp(e.adj * Math.pow(clamp(r, 0.8, 1.25), 0.45), 0.8, 1.2);
+            }
+            e.sec = k, e.secT0 = time2, e.secClean = e.cross >= 1 && time2 - this.goT > 8;
+          }
+          e.state.traffic > 0 && (e.secClean = !1);
+        }
+        e.s = s, e.finished ? e.prog = 1e9 - e.time : e.prog = e.cross === 0 ? s - (s > T.len / 2 ? T.len : 0) : (e.cross - 1) * T.len + s;
+      }
+      this.order = this.entrants.slice().sort((a, b) => b.prog - a.prog), this.order.forEach((e, i) => e.pos = i + 1), this.phase === "racing" && this.entrants.every((e) => e.finished) && (this.phase = "done");
+      let you = this.entrants.find((e) => e.you);
+      if (you && you.finished && this.phase === "racing" && time2 - this.finishT > 25) {
+        for (let e of this.entrants) e.finished || (e.finished = !0, e.dnf = !0, e.time = 0);
+        this.phase = "done";
+      }
+    }
+    /* the HUD's view of it */
+    hud(time2) {
+      let you = this.entrants.find((e) => e.you), T = this.T;
+      return {
+        race: !0,
+        pos: you.pos,
+        n: this.entrants.length,
+        lap: Math.min(this.laps, Math.max(1, you.cross)),
+        laps: this.laps,
+        lights: this.phase === "countdown" ? this.lights : 0,
+        go: this.phase === "racing" && time2 - this.goT < 2.2,
+        finished: you.finished,
+        lapT: this.phase === "racing" && you.cross > 0 && !you.finished ? time2 - you.lapT0 : 0,
+        best: you.best,
+        last: you.lastLap,
+        tower: this.order.map((e) => {
+          let lead = this.order[0], gap = e === lead ? null : e.finished && lead.finished ? e.time - lead.time : (lead.prog - e.prog) / Math.max(20, lead.car.vf || 20);
+          return { name: e.name, you: e.you, gap, finished: e.finished, dnf: e.dnf };
+        })
+      };
+    }
+    /* standings for the results screen */
+    results() {
+      let lead = this.order[0];
+      return this.order.map((e, i) => ({ pos: i + 1, name: e.name, you: e.you, time: e.finished && !e.dnf ? e.time : null, gap: i && e.finished && !e.dnf && lead.finished ? e.time - lead.time : null, best: e.best, dnf: !!e.dnf, engine: e.P ? e.car.spec.name : null }));
+    }
+    /* the rivals as the renderer wants them */
+    views(night) {
+      return this.entrants.filter((e) => !e.you).map((e) => {
+        let c = e.car;
+        return {
+          id: e.id,
+          design: "sl3",
+          p: c.p,
+          q: c.q,
+          paint: e.paint,
+          caliper: e.caliper,
+          wheels: c.wheels.map((w) => ({ hp: w.hp, len: w.len, steer: w.front ? c.steer : 0, ang: w.ang, disc: w.disc })),
+          lamps: [night ? 1 : 0, night ? 1 : 0, c.brkIn > 0.05 ? 1 : 0, 0]
+        };
+      });
+    }
+    takeEvents() {
+      let e = this.events;
+      return this.events = [], e;
+    }
+  };
+
   // src/render/env.js
   var N = (v) => {
     let l = Math.hypot(...v);
@@ -4853,7 +5315,7 @@ vec3 lightAt(vec3 X,vec3 V){
         vec3 Lv=Lp-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
         float att=falloff(d2,A.w);if(type==1)att*=smoothstep(C.w,D.x,dot(-L,C.xyz));
         /* drops light up most when the light is behind them */
-        c+=B.rgb*(fl>0?uFlick[fl&7]:1.0)*att*(.025+.11*pow(saturate(dot(-V,L)),3.))*uLightsOn;}}}
+        c+=B.rgb*(fl>0?uFlick[fl&15]:1.0)*att*(.025+.11*pow(saturate(dot(-V,L)),3.))*uLightsOn;}}}
   for(int i=0;i<uNDyn;i++){vec4 A=uDyn[i*3],B=uDyn[i*3+1],C=uDyn[i*3+2];vec3 Lv=A.xyz-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
     float att=falloff(d2,A.w);if(int(B.w+.5)==1)att*=smoothstep(C.w,C.w+.12,dot(-L,C.xyz));c+=B.rgb*att*(.025+.11*pow(saturate(dot(-V,L)),3.));}
   if(uHL[0].w>0.0){vec3 F=uHL[2].xyz,Rt=uHL[3].xyz,Up=cross(Rt,F);vec3 hp=(uHL[0].xyz+uHL[1].xyz)*.5;vec3 Lv=hp-X;float d2=dot(Lv,Lv);
@@ -5034,241 +5496,6 @@ void main(){
     }
   };
 
-  // src/world/track.js
-  var TRACK_DEFS = {
-    neon: {
-      name: "Neon Loop",
-      closed: !0,
-      hw: 6.5,
-      shL: 1.4,
-      shR: 1.4,
-      bank: 0.15,
-      lanes: 2,
-      center: 1,
-      pts: [
-        [0, 0, 0],
-        [190, 0, 0],
-        [236, 10, 0],
-        [254, 48, 0],
-        [256, 80, 0],
-        [256, 104, 3.2],
-        [256, 128, 0],
-        [255, 172, 0],
-        [243, 206, 0],
-        [208, 216, 0],
-        [126, 216, 0],
-        [100, 232, 0],
-        [95, 300, 0],
-        [80, 332, 0],
-        [38, 342, 0],
-        [-62, 340, 0],
-        [-96, 326, 0],
-        [-106, 290, 0],
-        [-106, 192, 0],
-        [-90, 160, 0],
-        [-40, 148, 0],
-        [-20, 128, 0],
-        [-24, 60, 0],
-        [-38, 22, 0],
-        [-30, 4, 0]
-      ]
-    }
-  };
-  function crPoint(p0, p1, p2, p3, t) {
-    let d = (a, b) => Math.pow(Math.hypot(b[0] - a[0], b[1] - a[1], (b[2] - a[2]) * 2) + 1e-6, 0.5), t1 = 0 + d(p0, p1), t2 = t1 + d(p1, p2), t3 = t2 + d(p2, p3), tt = t1 + (t2 - t1) * t, L = (a, b, ta, tb) => {
-      let k = (tt - ta) / (tb - ta);
-      return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
-    }, A1 = L(p0, p1, 0, t1), A2 = L(p1, p2, t1, t2), A3 = L(p2, p3, t2, t3), B1 = L(A1, A2, 0, t2), B2 = L(A2, A3, t1, t3);
-    return L(B1, B2, t1, t2);
-  }
-  function smoothArr(a, n, closed, passes = 1) {
-    let N2 = a.length;
-    for (let p = 0; p < passes; p++) {
-      let o = new Float64Array(N2);
-      for (let i = 0; i < N2; i++) {
-        let s = 0, c = 0;
-        for (let k = -n; k <= n; k++) {
-          let j = i + k;
-          if (closed) j = (j + N2) % N2;
-          else if (j < 0 || j >= N2) continue;
-          s += a[j], c++;
-        }
-        o[i] = s / c;
-      }
-      a.set(o);
-    }
-    return a;
-  }
-  function buildTrack(id) {
-    let D = TRACK_DEFS[id], pts = D.pts, closed = D.closed, np = pts.length, P = (i) => {
-      if (closed) return pts[(i + np) % np];
-      if (i < 0) {
-        let a = pts[0], b = pts[1];
-        return [2 * a[0] - b[0], 2 * a[1] - b[1], 2 * a[2] - b[2]];
-      }
-      if (i >= np) {
-        let a = pts[np - 1], b = pts[np - 2];
-        return [2 * a[0] - b[0], 2 * a[1] - b[1], 2 * a[2] - b[2]];
-      }
-      return pts[i];
-    }, dense = [], segs = closed ? np : np - 1;
-    for (let i = 0; i < segs; i++) {
-      let p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
-      for (let k = 0; k < 64; k++) dense.push(crPoint(p0, p1, p2, p3, k / 64));
-    }
-    dense.push(closed ? dense[0].slice() : pts[np - 1].slice());
-    let cum = [0];
-    for (let i = 1; i < dense.length; i++) cum.push(cum[i - 1] + Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]));
-    let total = cum[cum.length - 1], N2 = closed ? Math.round(total) : Math.floor(total) + 1, ds = closed ? total / N2 : 1, mx = new Float64Array(N2), my = new Float64Array(N2), Y = new Float64Array(N2), j = 0;
-    for (let i = 0; i < N2; i++) {
-      let s = i * ds;
-      for (; j < cum.length - 2 && cum[j + 1] < s; ) j++;
-      let t = (s - cum[j]) / Math.max(1e-6, cum[j + 1] - cum[j]), a = dense[j], b = dense[j + 1];
-      mx[i] = a[0] + (b[0] - a[0]) * t, my[i] = a[1] + (b[1] - a[1]) * t, Y[i] = a[2] + (b[2] - a[2]) * t;
-    }
-    smoothArr(Y, 8, closed, 2);
-    let T2 = { id, def: D, name: D.name, closed, N: N2, ds, len: closed ? N2 * ds : (N2 - 1) * ds, hw: D.hw, shL: D.shL, shR: D.shR, lanes: D.lanes || 2, center: D.center || 0, mx, my, Y }, idx = (i) => closed ? (i % N2 + N2) % N2 : clamp(i, 0, N2 - 1);
-    T2.idx = idx;
-    let TH = new Float64Array(N2), K = new Float64Array(N2), BK = new Float64Array(N2), SL = new Float64Array(N2), YY = new Float64Array(N2);
-    for (let i = 0; i < N2; i++) {
-      let a = idx(i - 1), b = idx(i + 1);
-      TH[i] = Math.atan2(my[b] - my[a], mx[b] - mx[a]);
-    }
-    for (let i = 0; i < N2; i++) {
-      let a = idx(i - 2), b = idx(i + 2);
-      K[i] = wrapA(TH[b] - TH[a]) / (4 * ds);
-    }
-    smoothArr(K, 3, closed, 2);
-    for (let i = 0; i < N2; i++) BK[i] = clamp(K[i] * D.bank * 9, -0.09, 0.09);
-    smoothArr(BK, 12, closed, 2);
-    for (let i = 0; i < N2; i++) {
-      let a = idx(i - 2), b = idx(i + 2);
-      SL[i] = (Y[b] - Y[a]) / (4 * ds);
-    }
-    for (let i = 0; i < N2; i++) {
-      let a = idx(i - 3), b = idx(i + 3);
-      YY[i] = (Y[b] - 2 * Y[i] + Y[a]) / (9 * ds * ds);
-    }
-    Object.assign(T2, { TH, K, BK, SL, YY });
-    let curb = new Uint8Array(N2);
-    for (let i = 0; i < N2; i++) if (Math.abs(K[i]) > 1 / 90) for (let k = -14; k <= 14; k++) curb[idx(i + k)] |= K[i] > 0 ? 1 : 2;
-    T2.curb = curb, T2.wl = D.hw + D.shL + 0.35, T2.wr = D.hw + D.shR + 0.35;
-    let lerpA = (A, s) => {
-      let f2 = s / ds, i = Math.floor(f2);
-      f2 -= i;
-      let a = idx(i), b = idx(i + 1);
-      return A[a] + (A[b] - A[a]) * f2;
-    };
-    T2.at = lerpA, T2.kap = (s) => lerpA(K, s), T2.slope = (s) => lerpA(SL, s), T2.bank = (s) => lerpA(BK, s), T2.yAt = (s) => lerpA(Y, s), T2.headAt = (s) => {
-      let f2 = s / ds, i = Math.floor(f2);
-      f2 -= i;
-      let a = idx(i), b = idx(i + 1);
-      return TH[a] + wrapA(TH[b] - TH[a]) * f2;
-    }, T2.wrapS = (s) => closed ? (s % T2.len + T2.len) % T2.len : clamp(s, 0, T2.len), T2.pos = (s, d, h = 0) => {
-      let f2 = s / ds, i = Math.floor(f2);
-      f2 -= i;
-      let a = idx(i), b = idx(i + 1), x = mx[a] + (mx[b] - mx[a]) * f2, y = my[a] + (my[b] - my[a]) * f2, yy = Y[a] + (Y[b] - Y[a]) * f2, th = TH[a] + wrapA(TH[b] - TH[a]) * f2, bk = BK[a] + (BK[b] - BK[a]) * f2, nx = -Math.sin(th), ny = Math.cos(th), cb = Math.cos(bk);
-      return [x + nx * d * cb, yy - d * Math.sin(bk) + h, -(y + ny * d * cb)];
-    }, T2.frame = (s) => {
-      let th = T2.headAt(s), bk = T2.bank(s), sl = T2.slope(s), f2 = [Math.cos(th), sl, -Math.sin(th)], fl = Math.hypot(f2[0], f2[1], f2[2]);
-      f2[0] /= fl, f2[1] /= fl, f2[2] /= fl;
-      let l0 = [-Math.sin(th), 0, -Math.cos(th)], cb = Math.cos(bk), sb = Math.sin(bk), l = [l0[0] * cb, -sb, l0[2] * cb], u = [f2[1] * l[2] - f2[2] * l[1], f2[2] * l[0] - f2[0] * l[2], f2[0] * l[1] - f2[1] * l[0]];
-      return { f: f2, l, u };
-    }, T2.surf = (s, d) => {
-      let p = T2.pos(s, d), u = T2.frame(s).u;
-      return u[1] < 0 && (u = [-u[0], -u[1], -u[2]]), { y: p[1], n: u };
-    };
-    let B = 24, hash = /* @__PURE__ */ new Map();
-    for (let i = 0; i < N2; i++) {
-      let k = Math.floor(mx[i] / B) + "," + Math.floor(my[i] / B), a = hash.get(k);
-      a || hash.set(k, a = []), a.push(i);
-    }
-    let d2 = (i, x, y) => (mx[i] - x) ** 2 + (my[i] - y) ** 2;
-    T2.nearest = (x, y, r = 2) => {
-      let bx = Math.floor(x / B), by = Math.floor(y / B), best = 1e18, bi = -1;
-      for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
-        let L = hash.get(bx + a + "," + (by + b));
-        if (L)
-          for (let q of L) {
-            let v = d2(q, x, y);
-            v < best && (best = v, bi = q);
-          }
-      }
-      return bi;
-    }, T2.locate = (X, Z, hint = -1) => {
-      let x = X, y = -Z, i = hint;
-      if ((i < 0 || d2(i, x, y) > 900) && (i = T2.nearest(x, y, 2), i < 0 && (i = T2.nearest(x, y, 8)), i < 0))
-        return null;
-      for (let it = 0; it < 64; it++) {
-        let a2 = idx(i - 1), b2 = idx(i + 1), di = d2(i, x, y);
-        if (d2(a2, x, y) < di && a2 !== i) i = a2;
-        else if (d2(b2, x, y) < di && b2 !== i) i = b2;
-        else break;
-      }
-      let a = i, b = idx(i + 1), ex = mx[b] - mx[a], ey = my[b] - my[a], el = ex * ex + ey * ey || 1, t = ((x - mx[a]) * ex + (y - my[a]) * ey) / el, i0 = a;
-      if (t < 0 && (closed || i > 0)) {
-        i0 = idx(i - 1);
-        let ex2 = mx[a] - mx[i0], ey2 = my[a] - my[i0];
-        t = ((x - mx[i0]) * ex2 + (y - my[i0]) * ey2) / (ex2 * ex2 + ey2 * ey2 || 1);
-      }
-      t = clamp(t, 0, 1);
-      let s = (i0 + t) * ds, th = T2.headAt(s), px = lerp(mx[i0], mx[idx(i0 + 1)], t), py = lerp(my[i0], my[idx(i0 + 1)], t), dd = -(x - px) * Math.sin(th) + (y - py) * Math.cos(th);
-      return { s, d: dd / Math.cos(T2.bank(s)), i: i0 };
-    }, T2.curbAt = (s, d) => {
-      let i = idx(Math.round(s / ds));
-      return d > 0 ? curb[i] & 1 : curb[i] & 2;
-    };
-    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-    for (let i = 0; i < N2; i++)
-      x0 = Math.min(x0, mx[i]), x1 = Math.max(x1, mx[i]), y0 = Math.min(y0, my[i]), y1 = Math.max(y1, my[i]);
-    return T2.bb = [x0, y0, x1, y1], T2.startS = 0, racingLine(T2), T2;
-  }
-  function racingLine(T2) {
-    let N2 = T2.N, d = new Float64Array(N2), lim = T2.hw - 1.5, nx = new Float64Array(N2), ny = new Float64Array(N2);
-    for (let i = 0; i < N2; i++)
-      nx[i] = -Math.sin(T2.TH[i]), ny[i] = Math.cos(T2.TH[i]);
-    let px = new Float64Array(N2), py = new Float64Array(N2);
-    for (let [k, it] of [[48, 60], [24, 80], [12, 90], [6, 90]])
-      for (let n = 0; n < it; n++) {
-        for (let i = 0; i < N2; i++)
-          px[i] = T2.mx[i] + nx[i] * d[i], py[i] = T2.my[i] + ny[i] * d[i];
-        for (let i = 0; i < N2; i++) {
-          if (!T2.closed && (i < k || i >= N2 - k)) continue;
-          let a = T2.idx(i - k), b = T2.idx(i + k), mxp = (px[a] + px[b]) / 2, myp = (py[a] + py[b]) / 2, tgt = (mxp - T2.mx[i]) * nx[i] + (myp - T2.my[i]) * ny[i];
-          d[i] = clamp(d[i] + (tgt - d[i]) * 0.5, -lim, lim);
-        }
-      }
-    smoothArr(d, 4, T2.closed, 2);
-    for (let i = 0; i < N2; i++)
-      px[i] = T2.mx[i] + nx[i] * d[i], py[i] = T2.my[i] + ny[i] * d[i];
-    let lk = new Float64Array(N2);
-    for (let i = 0; i < N2; i++) {
-      let a = T2.idx(i - 2), b = T2.idx(i + 2), c = i, t1 = Math.atan2(py[c] - py[a], px[c] - px[a]), t2 = Math.atan2(py[b] - py[c], px[b] - px[c]), l = (Math.hypot(px[c] - px[a], py[c] - py[a]) + Math.hypot(px[b] - px[c], py[b] - py[c])) / 2;
-      lk[i] = wrapA(t2 - t1) / Math.max(0.5, l);
-    }
-    smoothArr(lk, 3, T2.closed, 2), T2.line = d, T2.lineK = lk, T2.lineAt = (s) => T2.at(d, s);
-  }
-  function speedProfile(T2, car2, { mu = 1, aMax = null, brake = null, vmax = 95 } = {}) {
-    let N2 = T2.N, v = new Float64Array(N2), g = 9.81, m = car2.mass, ds = T2.ds, aLat = (vv) => mu * (g + 0.5 * 1.2 * (car2.clF + car2.clR) * vv * vv / m);
-    for (let i = 0; i < N2; i++) {
-      let k = Math.abs(T2.lineK[i]) + 1e-5, vv = 10;
-      for (let it = 0; it < 12; it++) vv = Math.sqrt(aLat(vv) / k);
-      v[i] = Math.min(vmax, vv);
-    }
-    let acc2 = aMax || ((vv) => Math.min(car2.powerKw * 1e3 / Math.max(vv, 5) / m, mu * g * 0.7) - 0.5 * 1.2 * car2.cdA * vv * vv / m), brk = brake || mu * g * 0.92;
-    for (let p = 0; p < 2; p++) {
-      for (let i = 0; i < N2; i++) {
-        let j = T2.idx(i + 1), vv = v[i], lat = vv * vv * Math.abs(T2.lineK[i]), cap = Math.sqrt(Math.max(0, 1 - Math.min(1, lat / aLat(vv)) ** 2)), nv = Math.sqrt(Math.max(4, vv * vv + 2 * Math.max(0.3, acc2(vv) * Math.max(0.15, cap) - g * T2.SL[i]) * ds));
-        nv < v[j] && (v[j] = nv);
-      }
-      for (let i = N2 - 1; i >= 0; i--) {
-        let j = T2.idx(i + 1), vv = v[j], lat = vv * vv * Math.abs(T2.lineK[i]), cap = Math.sqrt(Math.max(0, 1 - Math.min(1, lat / aLat(vv)) ** 2)), nv = Math.sqrt(Math.max(1, vv * vv + 2 * Math.max(0.5, brk * Math.max(0.2, cap) + 0.5 * 1.2 * car2.cdA * vv * vv / m + g * T2.SL[i]) * ds));
-        nv < v[i] && (v[i] = nv);
-      }
-    }
-    return v;
-  }
-
   // src/ui/font.js
   var F5SRC = `A 01110 10001 10001 11111 10001 10001 10001|B 11110 10001 10001 11110 10001 10001 11110|C 01110 10001 10000 10000 10000 10001 01110|D 11110 10001 10001 10001 10001 10001 11110|E 11111 10000 10000 11110 10000 10000 11111|F 11111 10000 10000 11110 10000 10000 10000|G 01110 10001 10000 10111 10001 10001 01111|H 10001 10001 10001 11111 10001 10001 10001|I 01110 00100 00100 00100 00100 00100 01110|J 00111 00010 00010 00010 00010 10010 01100|K 10001 10010 10100 11000 10100 10010 10001|L 10000 10000 10000 10000 10000 10000 11111|M 10001 11011 10101 10101 10001 10001 10001|N 10001 10001 11001 10101 10011 10001 10001|O 01110 10001 10001 10001 10001 10001 01110|P 11110 10001 10001 11110 10000 10000 10000|Q 01110 10001 10001 10001 10101 10010 01101|R 11110 10001 10001 11110 10100 10010 10001|S 01111 10000 10000 01110 00001 00001 11110|T 11111 00100 00100 00100 00100 00100 00100|U 10001 10001 10001 10001 10001 10001 01110|V 10001 10001 10001 10001 10001 01010 00100|W 10001 10001 10001 10101 10101 10101 01010|X 10001 10001 01010 00100 01010 10001 10001|Y 10001 10001 01010 00100 00100 00100 00100|Z 11111 00001 00010 00100 01000 10000 11111|0 01110 10001 10011 10101 11001 10001 01110|1 00100 01100 00100 00100 00100 00100 01110|2 01110 10001 00001 00010 00100 01000 11111|3 11111 00010 00100 00010 00001 10001 01110|4 00010 00110 01010 10010 11111 00010 00010|5 11111 10000 11110 00001 00001 10001 01110|6 00110 01000 10000 11110 10001 10001 01110|7 11111 00001 00010 00100 01000 01000 01000|8 01110 10001 10001 01110 10001 10001 01110|9 01110 10001 10001 01111 00001 00010 01100|! 00100 00100 00100 00100 00100 00000 00100|. 00000 00000 00000 00000 00000 01100 01100|, 00000 00000 00000 00000 01100 00100 01000|: 00000 01100 01100 00000 01100 01100 00000|- 00000 00000 00000 11111 00000 00000 00000|+ 00000 00100 00100 11111 00100 00100 00000|? 01110 10001 00001 00010 00100 00000 00100|' 00100 00100 01000 00000 00000 00000 00000|/ 00001 00001 00010 00100 01000 10000 10000|> 01000 00100 00010 00001 00010 00100 01000|< 00010 00100 01000 10000 01000 00100 00010|x 00000 00000 10001 01010 00100 01010 10001|$ 00100 01111 10100 01110 00101 11110 00100|% 11001 11010 00010 00100 01000 01011 10011|# 01010 01010 11111 01010 11111 01010 01010|( 00010 00100 01000 01000 01000 00100 00010|) 01000 00100 00010 00010 00010 00100 01000|= 00000 00000 11111 00000 11111 00000 00000|* 00000 00100 10101 01110 10101 00100 00000|^ 00100 01110 10101 00100 00100 00100 00100|~ 00100 00100 00100 00100 10101 01110 00100|[ 00010 00110 01110 11110 01110 00110 00010|] 01000 01100 01110 01111 01110 01100 01000|@ 00100 00100 11111 01110 01110 11011 10001|" 01010 01010 00000 00000 00000 00000 00000|_ 00000 00000 00000 00000 00000 00000 00000`, F3SRC = `A 010 101 111 101 101|B 110 101 110 101 110|C 011 100 100 100 011|D 110 101 101 101 110|E 111 100 110 100 111|F 111 100 110 100 100|G 011 100 101 101 011|H 101 101 111 101 101|I 111 010 010 010 111|J 001 001 001 101 010|K 101 101 110 101 101|L 100 100 100 100 111|M 101 111 111 101 101|N 110 101 101 101 101|O 010 101 101 101 010|P 110 101 110 100 100|Q 010 101 101 110 011|R 110 101 110 101 101|S 011 100 010 001 110|T 111 010 010 010 010|U 101 101 101 101 111|V 101 101 101 101 010|W 101 101 111 111 101|X 101 101 010 101 101|Y 101 101 010 010 010|Z 111 001 010 100 111|0 111 101 101 101 111|1 010 110 010 010 111|2 111 001 111 100 111|3 111 001 011 001 111|4 101 101 111 001 001|5 111 100 111 001 111|6 111 100 111 101 111|7 111 001 001 010 010|8 111 101 111 101 111|9 111 101 111 001 111|x 000 101 010 101 000|+ 000 010 111 010 000|- 000 000 111 000 000|: 0 1 0 1 0|. 0 0 0 0 1|, 0 0 0 1 1|! 1 1 1 0 1|/ 001 001 010 100 100|' 1 1 0 0 0|> 100 010 001 010 100|< 001 010 100 010 001|? 111 001 011 000 010|( 01 10 10 10 01|) 10 01 01 01 10|% 101 001 010 100 101|# 101 111 101 111 101|$ 011 110 010 011 110|^ 010 111 010 010 010|~ 010 010 010 111 010|[ 001 011 111 011 001|] 100 110 111 110 100|= 000 111 000 111 000|* 010 111 010 101 000|@ 010 111 111 010 101|" 101 101 000 000 000`, G5 = {};
   for (let ln of F5SRC.split("|")) {
@@ -5333,16 +5560,16 @@ void main(){
   function h11(p) {
     return p = f(p * f(0.1031)), p = f(p - Math.floor(p)), p = f(p * f(p + f(33.33))), p = f(p * f(p + p)), p - Math.floor(p);
   }
-  function buildCity(T2) {
-    let R2 = rng(20241), C2 = new Chunked(64), SKY3 = new Chunked(420), lights = [], steam = [], occupied = [], info = { xw: [], tunnel: null, el: null, lamps: 0 }, hw = T2.hw, wl = T2.wl, wr = T2.wr, SW = 3.5, BAR = 0.5, N2 = T2.N, ds = T2.ds, addLight = (L) => {
+  function buildCity(T) {
+    let R2 = rng(20241), C2 = new Chunked(64), SKY3 = new Chunked(420), lights = [], steam = [], occupied = [], info = { xw: [], tunnel: null, el: null, lamps: 0 }, hw = T.hw, wl = T.wl, wr = T.wr, SW = 3.5, BAR = 0.5, N2 = T.N, ds = T.ds, addLight = (L) => {
       lights.push(Object.assign({ type: 0, r: 12, col: [1, 1, 1], dir: [0, -1, 0], cosO: -1, cosI: -1, axis: [0, 0, 0], flick: 0, src: 0.05 }, L));
     }, trackDist = (x, y) => {
-      let i = T2.nearest(x, y, 1);
+      let i = T.nearest(x, y, 1);
       if (i < 0) return 99;
       let best = 1e9;
       for (let k2 = -3; k2 <= 3; k2++) {
-        let a = T2.idx(i + k2), b = T2.idx(i + k2 + 1), ex = T2.mx[b] - T2.mx[a], ey = T2.my[b] - T2.my[a], el = ex * ex + ey * ey || 1, t = ((x - T2.mx[a]) * ex + (y - T2.my[a]) * ey) / el;
-        t = Math.max(0, Math.min(1, t)), best = Math.min(best, Math.hypot(T2.mx[a] + ex * t - x, T2.my[a] + ey * t - y));
+        let a = T.idx(i + k2), b = T.idx(i + k2 + 1), ex = T.mx[b] - T.mx[a], ey = T.my[b] - T.my[a], el = ex * ex + ey * ey || 1, t = ((x - T.mx[a]) * ex + (y - T.my[a]) * ey) / el;
+        t = Math.max(0, Math.min(1, t)), best = Math.min(best, Math.hypot(T.mx[a] + ex * t - x, T.my[a] + ey * t - y));
       }
       return best;
     }, rectDist = (x0, y0, x1, y1) => {
@@ -5352,40 +5579,40 @@ void main(){
       return m;
     }, overlaps = (x0, y0, x1, y1) => occupied.some((o) => x0 < o[2] && x1 > o[0] && y0 < o[3] && y1 > o[1]), t0 = -1, t1 = -1;
     for (let i = 0; i < N2; i++) {
-      let x = T2.mx[i], y = T2.my[i];
+      let x = T.mx[i], y = T.my[i];
       Math.abs(x + 106) < 4 && y > 207 && y < 273 && (t0 < 0 && (t0 = i * ds), t1 = i * ds);
     }
     t0 >= 0 && (info.tunnel = [t0, t1], occupied.push([-130, 203, -82, 277]));
     let inTun = (s) => info.tunnel && s >= info.tunnel[0] - 0.5 && s <= info.tunnel[1] + 0.5, EL_X = 170;
     info.el = { x: EL_X, y0: -200, y1: 540, h: 9.2 };
     let flatP = (s, d, h) => {
-      let th = T2.headAt(s), x = T2.at(T2.mx, s), y = T2.at(T2.my, s);
-      return [x - Math.sin(th) * d, T2.yAt(s) + h, -(y + Math.cos(th) * d)];
-    }, q = (B, a, b, c, d, n, uv) => B.quadP(a, b, c, d, uv, n), at = (p) => C2.at(p[0], p[2]), curbHere = (i, left) => left ? T2.curb[i] & 1 : T2.curb[i] & 2, fenceAt = (s) => s > 12 && s < 175 || s > 285 && s < 395 || s > 735 && s < 860;
+      let th = T.headAt(s), x = T.at(T.mx, s), y = T.at(T.my, s);
+      return [x - Math.sin(th) * d, T.yAt(s) + h, -(y + Math.cos(th) * d)];
+    }, q = (B, a, b, c, d, n, uv) => B.quadP(a, b, c, d, uv, n), at = (p) => C2.at(p[0], p[2]), curbHere = (i, left) => left ? T.curb[i] & 1 : T.curb[i] & 2, fenceAt = (s) => s > 12 && s < 175 || s > 285 && s < 395 || s > 735 && s < 860;
     for (let i = 0; i < N2; i++) {
-      let s0 = i * ds, s1 = s0 + ds, sm = s0 + ds * 0.5, tun = inTun(sm), shel = tun ? 0 : 255, fr0 = T2.frame(s0), fr1 = T2.frame(s1), up = fr0.u, cen = T2.pos(sm, 0);
+      let s0 = i * ds, s1 = s0 + ds, sm = s0 + ds * 0.5, tun = inTun(sm), shel = tun ? 0 : 255, fr0 = T.frame(s0), fr1 = T.frame(s1), up = fr0.u, cen = T.pos(sm, 0);
       C2.mat(0).col(shel, 0, 0, 255);
       let B = at(cen);
       for (let k2 = 0; k2 < 4; k2++) {
         let d0 = -hw + k2 * hw / 2, d1 = d0 + hw / 2;
-        q(B, T2.pos(s0, d0), T2.pos(s1, d0), T2.pos(s1, d1), T2.pos(s0, d1), up, [[s0, d0], [s1, d0], [s1, d1], [s0, d1]]);
+        q(B, T.pos(s0, d0), T.pos(s1, d0), T.pos(s1, d1), T.pos(s0, d1), up, [[s0, d0], [s1, d0], [s1, d1], [s0, d1]]);
       }
       for (let left of [!0, !1]) {
         let sg = left ? 1 : -1, edge = left ? wl : wr, d = hw, strip = (da, db, mat) => {
           C2.mat(mat).col(shel, 0, 0, 255);
           let a0 = sg * da, a1 = sg * db, lo = Math.min(a0, a1), hi = Math.max(a0, a1);
-          q(at(cen), T2.pos(s0, lo), T2.pos(s1, lo), T2.pos(s1, hi), T2.pos(s0, hi), up, [[s0, lo], [s1, lo], [s1, hi], [s0, hi]]);
+          q(at(cen), T.pos(s0, lo), T.pos(s1, lo), T.pos(s1, hi), T.pos(s0, hi), up, [[s0, lo], [s1, lo], [s1, hi], [s0, hi]]);
         };
         curbHere(i, left) && (strip(hw, hw + 0.9, 1), d = hw + 0.9), strip(d, edge, 2);
       }
       if (tun) {
         C2.mat(4, 2).col(0, 0, 0, 255);
         let H = 6;
-        q(at(cen), T2.pos(s0, wl), T2.pos(s1, wl), T2.pos(s1, wl, H), T2.pos(s0, wl, H), [-fr0.l[0], 0, -fr0.l[2]], [[s0, 0], [s1, 0], [s1, H], [s0, H]]), q(at(cen), T2.pos(s1, -wr), T2.pos(s0, -wr), T2.pos(s0, -wr, H), T2.pos(s1, -wr, H), [fr0.l[0], 0, fr0.l[2]], [[s1, 0], [s0, 0], [s0, H], [s1, H]]), C2.mat(13, 200).col(40, 40, 42, 255), q(at(cen), T2.pos(s0, -wr, H), T2.pos(s0, wl, H), T2.pos(s1, wl, H), T2.pos(s1, -wr, H), [0, -1, 0], [[s0, 1], [s0, 0], [s1, 0], [s1, 1]]);
+        q(at(cen), T.pos(s0, wl), T.pos(s1, wl), T.pos(s1, wl, H), T.pos(s0, wl, H), [-fr0.l[0], 0, -fr0.l[2]], [[s0, 0], [s1, 0], [s1, H], [s0, H]]), q(at(cen), T.pos(s1, -wr), T.pos(s0, -wr), T.pos(s0, -wr, H), T.pos(s1, -wr, H), [fr0.l[0], 0, fr0.l[2]], [[s1, 0], [s0, 0], [s0, H], [s1, H]]), C2.mat(13, 200).col(40, 40, 42, 255), q(at(cen), T.pos(s0, -wr, H), T.pos(s0, wl, H), T.pos(s1, wl, H), T.pos(s1, -wr, H), [0, -1, 0], [[s0, 1], [s0, 0], [s1, 0], [s1, 1]]);
         continue;
       }
       for (let left of [!0, !1]) {
-        let sg = left ? 1 : -1, e = left ? wl : wr, P = (s, dd, h) => T2.pos(s, sg * (e + dd), h), nIn = left ? [-fr0.l[0], 0, -fr0.l[2]] : [fr0.l[0], 0, fr0.l[2]];
+        let sg = left ? 1 : -1, e = left ? wl : wr, P = (s, dd, h) => T.pos(s, sg * (e + dd), h), nIn = left ? [-fr0.l[0], 0, -fr0.l[2]] : [fr0.l[0], 0, fr0.l[2]];
         C2.mat(4, 1).col(255, 0, 0, 255);
         let B2 = at(P(sm, 0, 0)), prof = [[0, 0], [0, 0.92], [0.07, 1], [BAR - 0.07, 1], [BAR, 0.92], [BAR, -0.2]];
         for (let k2 = 0; k2 < prof.length - 1; k2++) {
@@ -5398,21 +5625,21 @@ void main(){
         left ? q(at(p00), p00, p10, p11, p01, [0, 1, 0], [uvw(p00), uvw(p10), uvw(p11), uvw(p01)]) : q(at(p00), p01, p11, p10, p00, [0, 1, 0], [uvw(p01), uvw(p11), uvw(p10), uvw(p00)]), C2.mat(4, 0).col(255, 0, 0, 255);
         let g0 = S(s0, dOut, -0.6), g1 = S(s1, dOut, -0.6);
         if (left ? q(at(p01), p01, p11, g1, g0, null, [[s0, 0.12], [s1, 0.12], [s1, -0.6], [s0, -0.6]]) : q(at(p01), p11, p01, g0, g1, null, [[s1, 0.12], [s0, 0.12], [s0, -0.6], [s1, -0.6]]), fenceAt(sm)) {
-          let fd = e + BAR * 0.5, f0 = T2.pos(s0, sg * fd, 1), f1 = T2.pos(s1, sg * fd, 1), f2 = T2.pos(s1, sg * fd, 4.2), f3 = T2.pos(s0, sg * fd, 4.2);
-          C2.mat(12).col(255, 255, 255, 255), q(at(f0), f0, f1, f2, f3, null, [[s0, 1], [s1, 1], [s1, 4.2], [s0, 4.2]]), q(at(f0), f1, f0, f3, f2, null, [[s1, 1], [s0, 1], [s0, 4.2], [s1, 4.2]]), i % 4 === 0 && (C2.mat(8, 120, 200).col(70, 72, 76), at(f0).tube(T2.pos(s0, sg * fd, 0.95), T2.pos(s0, sg * fd, 4.35), 0.045, 5, !0)), i % 2 === 0 && (C2.mat(8, 120, 200).col(70, 72, 76), at(f2).tube(T2.pos(s0, sg * fd, 4.2), T2.pos(s1 + 1, sg * fd, 4.2), 0.025, 4, !1));
+          let fd = e + BAR * 0.5, f0 = T.pos(s0, sg * fd, 1), f1 = T.pos(s1, sg * fd, 1), f2 = T.pos(s1, sg * fd, 4.2), f3 = T.pos(s0, sg * fd, 4.2);
+          C2.mat(12).col(255, 255, 255, 255), q(at(f0), f0, f1, f2, f3, null, [[s0, 1], [s1, 1], [s1, 4.2], [s0, 4.2]]), q(at(f0), f1, f0, f3, f2, null, [[s1, 1], [s0, 1], [s0, 4.2], [s1, 4.2]]), i % 4 === 0 && (C2.mat(8, 120, 200).col(70, 72, 76), at(f0).tube(T.pos(s0, sg * fd, 0.95), T.pos(s0, sg * fd, 4.35), 0.045, 5, !0)), i % 2 === 0 && (C2.mat(8, 120, 200).col(70, 72, 76), at(f2).tube(T.pos(s0, sg * fd, 4.2), T.pos(s1 + 1, sg * fd, 4.2), 0.025, 4, !1));
         }
       }
     }
     let XS = [-300, -230, -170, -106, -40, 30, 100, 170, 256, 330, 400, 470], YS = [-210, -140, -64, 0, 72, 144, 216, 278, 340, 410, 480, 550];
     for (let i = 0; i < N2 && info.xw.length < 8; i++) {
-      let a = i, b = T2.idx(i + 1);
+      let a = i, b = T.idx(i + 1);
       for (let X of XS)
-        if ((T2.mx[a] - X) * (T2.mx[b] - X) < 0 && Math.abs(Math.cos(T2.TH[a])) > 0.85) {
+        if ((T.mx[a] - X) * (T.mx[b] - X) < 0 && Math.abs(Math.cos(T.TH[a])) > 0.85) {
           let s = i * ds;
           !inTun(s) && info.xw.every((v) => Math.abs(v - s) > 30) && info.xw.push(s);
         }
       for (let Y of YS)
-        if ((T2.my[a] - Y) * (T2.my[b] - Y) < 0 && Math.abs(Math.sin(T2.TH[a])) > 0.85) {
+        if ((T.my[a] - Y) * (T.my[b] - Y) < 0 && Math.abs(Math.sin(T.TH[a])) > 0.85) {
           let s = i * ds;
           !inTun(s) && info.xw.every((v) => Math.abs(v - s) > 30) && info.xw.push(s);
         }
@@ -5634,7 +5861,7 @@ void main(){
       }
       fac([-82, 205], [-82, 275], [1, 0, 0], 0, 0, 30), fac([-130, 275], [-130, 205], [-1, 0, 0], 0, 0, 30), roof(-130, 205, -82, 275, 30, !0), neonText("NEON LOOP", W(-106 + (54 * 0.42 - 0.42) / 2, 275 + 0.5, oh + 2.4), [-1, 0, 0], [0, 1, 0], 0.42, [1, 0.2, 0.6], 0), addLight({ type: 2, pos: W(-106, 278, oh + 3.9), axis: [11, 0, 0], r: 30, col: [45, 9, 26], src: 0.6 });
       for (let s = info.tunnel[0] + 2; s < info.tunnel[1] - 1; s += 4.5) for (let d of [-4.2, 4.2]) {
-        let a = T2.pos(s - 0.75, d, 5.92), b = T2.pos(s + 0.75, d, 5.92);
+        let a = T.pos(s - 0.75, d, 5.92), b = T.pos(s + 0.75, d, 5.92);
         C2.mat(7, 80, 0).col(235, 240, 255), C2.at(a[0], a[2]).box([(a[0] + b[0]) / 2, a[1] - 0.04, (a[2] + b[2]) / 2], norm([b[0] - a[0], 0, b[2] - a[2]]), [0, 1, 0], norm(cross(norm([b[0] - a[0], 0, b[2] - a[2]]), [0, 1, 0])), [0.75, 0.05, 0.09]), addLight({ type: 2, pos: [(a[0] + b[0]) / 2, a[1] - 0.2, (a[2] + b[2]) / 2], axis: [(b[0] - a[0]) / 2, 0, (b[2] - a[2]) / 2], r: 9.5, col: [7, 7.4, 8], src: 0.1 });
       }
     }
@@ -5667,9 +5894,9 @@ void main(){
       });
     }
     let k = 0;
-    for (let s = 6; s < T2.len - 6; s += 31, k++) {
+    for (let s = 6; s < T.len - 6; s += 31, k++) {
       if (inTun(s) || inTun(s + 8) || inTun(s - 8)) continue;
-      let left = k % 2 === 0, sg = left ? 1 : -1, e = left ? wl : wr, pp = flatP(s, sg * (e + BAR + 0.55), 0.12), ap = T2.pos(s, sg * (e - 1.6), 8.4), p = [pp[0], pp[1], pp[2]], yb = -p[2];
+      let left = k % 2 === 0, sg = left ? 1 : -1, e = left ? wl : wr, pp = flatP(s, sg * (e + BAR + 0.55), 0.12), ap = T.pos(s, sg * (e - 1.6), 8.4), p = [pp[0], pp[1], pp[2]], yb = -p[2];
       if (Math.abs(p[0] - EL_X) < 7 && yb > info.el.y0 && yb < info.el.y1) continue;
       let led = Math.hypot(p[0] - 110, -p[2] - 150) < 170;
       C2.mat(8, 140, 230).col(58, 60, 64);
@@ -5716,7 +5943,7 @@ void main(){
       addLight({ type: 0, pos: W(px - 0.8, py - 0.8, 4.3), r: 9, col: [9, 5, 0.4], flick: 6, src: 0.1 });
     }
     {
-      let P = (d, h) => T2.pos(0, d, h), dl = wl + BAR * 0.5, dr = -(wr + BAR * 0.5);
+      let P = (d, h) => T.pos(0, d, h), dl = wl + BAR * 0.5, dr = -(wr + BAR * 0.5);
       C2.mat(8, 90, 240).col(40, 40, 46);
       let B = C2.at(P(0, 0)[0], P(0, 0)[2]);
       for (let d of [dl, dr]) {
@@ -5730,13 +5957,24 @@ void main(){
         let o = [cen[0] - ax[0] * len3 / 2 * (sg > 0 ? 1 : -1) - fw[0] * 0.42 * sg, cen[1] - 0.5, cen[2] - ax[2] * len3 / 2 * (sg > 0 ? 1 : -1) - fw[2] * 0.42 * sg];
         neonText(word, o, sg > 0 ? ax : ax.map((v) => -v), [0, 1, 0], px, [1, 0.25, 0.55], 0);
       }
+      {
+        let f0 = T.frame(0).f, bk = norm([-f0[0], 0, -f0[2]]), cy = cen[1] - 0.95;
+        for (let i = 0; i < 5; i++) {
+          let o = (i - 2) * 0.95, pc = [cen[0] + ax[0] * o + bk[0] * 0.5, cy, cen[2] + ax[2] * o + bk[2] * 0.5];
+          C2.mat(8, 60, 40).col(18, 18, 22), B.box(pc, ax, [0, 1, 0], bk, [0.36, 0.42, 0.14]);
+          for (let dy of [0.17, -0.08])
+            C2.mat(7, 170, 8 + i).col(255, 22, 14), B.sphere([pc[0] + bk[0] * 0.14, pc[1] + dy, pc[2] + bk[2] * 0.14], 0.11, 8, 4);
+          C2.mat(7, 150, 13).col(40, 255, 90), B.sphere([pc[0] + bk[0] * 0.14, pc[1] - 0.3, pc[2] + bk[2] * 0.14], 0.075, 8, 4), addLight({ type: 0, pos: [pc[0] + bk[0] * 0.9, pc[1], pc[2] + bk[2] * 0.9], r: 9, col: [4, 0.15, 0.08], flick: 8 + i, src: 0.1 });
+        }
+        addLight({ type: 0, pos: [cen[0] + bk[0] * 0.9, cy - 0.3, cen[2] + bk[2] * 0.9], r: 14, col: [0.6, 4, 1.2], flick: 13, src: 0.2 });
+      }
       addLight({ type: 2, pos: [cen[0] - fw[0] * 1.5, cen[1] - 1.2, cen[2] - fw[2] * 1.5], axis: ax.map((v) => v * len3 / 2), r: 22, col: [12, 3, 6.5], src: 0.4 }), addLight({ type: 2, pos: [cen[0] + fw[0] * 1.5, cen[1] - 1.2, cen[2] + fw[2] * 1.5], axis: ax.map((v) => v * len3 / 2), r: 22, col: [12, 3, 6.5], src: 0.4 });
     }
-    for (let ms = 0; ms * 41 < T2.len; ms++) {
+    for (let ms = 0; ms * 41 < T.len; ms++) {
       let mp = h11(ms * 1.9) * 41, s = ms * 41 + mp;
-      if (s >= T2.len || inTun(s)) continue;
+      if (s >= T.len || inTun(s)) continue;
       let md = (h11(ms * 8.3) > 0.5 ? 1 : -1) * (1.625 + (h11(ms * 6.1) - 0.5) * 1.2);
-      h11(ms * 4.7) < 0.45 && steam.push({ pos: T2.pos(s, md, 0.02), rate: 0.6 + h11(ms * 2.2) });
+      h11(ms * 4.7) < 0.45 && steam.push({ pos: T.pos(s, md, 0.02), rate: 0.6 + h11(ms * 2.2) });
     }
     for (let n = 0; n < 340; n++) {
       let a = R2() * Math.PI * 2, r = 560 + Math.pow(R2(), 0.7) * 950, cx = 110 + Math.cos(a) * r, cy = 170 + Math.sin(a) * r;
@@ -5754,15 +5992,15 @@ void main(){
   }
 
   // src/world/rainmask.js
-  function buildRainMask(T2, city, { x0 = -340, z0 = -600, size = 860, cell = 2 } = {}) {
+  function buildRainMask(T, city, { x0 = -340, z0 = -600, size = 860, cell = 2 } = {}) {
     let n = Math.ceil(size / cell), data = new Float32Array(n * n * 2), tun = city.info.tunnel, el = city.info.el, hint = -1;
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-      let X = x0 + (i + 0.5) * cell, Z = z0 + (j + 0.5) * cell, mx = X, my = -Z, h = 0.15, open = 1, k = T2.nearest(mx, my, 1);
-      if (k >= 0 && Math.hypot(T2.mx[k] - mx, T2.my[k] - my) < 16) {
-        let L = T2.locate(X, Z, k);
+      let X = x0 + (i + 0.5) * cell, Z = z0 + (j + 0.5) * cell, mx = X, my = -Z, h = 0.15, open = 1, k = T.nearest(mx, my, 1);
+      if (k >= 0 && Math.hypot(T.mx[k] - mx, T.my[k] - my) < 16) {
+        let L = T.locate(X, Z, k);
         if (L) {
           let ad = Math.abs(L.d);
-          ad < T2.wl + 4.5 && (h = ad <= T2.wl ? T2.surf(L.s, L.d).y : T2.yAt(L.s) + 0.12, tun && L.s > tun[0] - 1 && L.s < tun[1] + 1 && ad < T2.wl + 0.6 && (open = 0));
+          ad < T.wl + 4.5 && (h = ad <= T.wl ? T.surf(L.s, L.d).y : T.yAt(L.s) + 0.12, tun && L.s > tun[0] - 1 && L.s < tun[1] + 1 && ad < T.wl + 0.6 && (open = 0));
         }
       } else h = 0;
       el && Math.abs(mx - el.x) < 4.2 && my > el.y0 && my < el.y1 && (open = Math.min(open, 0.35)), tun && mx > -130 && mx < -82 && my > 205 && my < 275 && (open = 0), data[(j * n + i) * 2] = h, data[(j * n + i) * 2 + 1] = open;
@@ -5773,21 +6011,21 @@ void main(){
   // src/world/collision.js
   var UP = [0, 1, 0];
   var TrackWorld = class {
-    constructor(T2) {
-      this.T = T2;
+    constructor(T) {
+      this.T = T;
     }
     locate(p, hint = -1) {
       return this.T.locate(p[0], p[2], hint);
     }
     ground(x, z, hint = -1) {
-      let T2 = this.T, L = T2.locate(x, z, hint);
+      let T = this.T, L = T.locate(x, z, hint);
       if (!L) return { y: 0, n: UP, surf: "ground", i: -1 };
-      let ad = Math.abs(L.d), lim = (L.d > 0 ? T2.wl : T2.wr) + 0.5;
+      let ad = Math.abs(L.d), lim = (L.d > 0 ? T.wl : T.wr) + 0.5;
       if (ad <= lim) {
-        let S = T2.surf(L.s, L.d), surf = ad <= T2.hw ? "road" : ad < T2.hw + 0.9 && T2.curbAt(L.s, L.d) ? "curb" : "shoulder";
+        let S = T.surf(L.s, L.d), surf = ad <= T.hw ? "road" : ad < T.hw + 0.9 && T.curbAt(L.s, L.d) ? "curb" : "shoulder";
         return { y: S.y, n: S.n, surf, i: L.i, s: L.s, d: L.d };
       }
-      return { y: T2.yAt(L.s) + 0.12, n: UP, surf: "ground", i: L.i, s: L.s, d: L.d };
+      return { y: T.yAt(L.s) + 0.12, n: UP, surf: "ground", i: L.i, s: L.s, d: L.d };
     }
     /* march down the ray against the tangent plane of the surface below the current estimate */
     raycast(o, dir, maxT, hint = -1) {
@@ -5809,9 +6047,9 @@ void main(){
     /* the barriers stand at d = +wl (left) and d = -wr (right); their faces push back toward the road */
     wall(P, loc) {
       if (!loc) return null;
-      let T2 = this.T, pen = 0, side = 0;
-      if (loc.d > T2.wl ? (pen = loc.d - T2.wl, side = 1) : loc.d < -T2.wr && (pen = -T2.wr - loc.d, side = -1), !side) return null;
-      let th = T2.headAt(loc.s), lx = -Math.sin(th), lz = -Math.cos(th);
+      let T = this.T, pen = 0, side = 0;
+      if (loc.d > T.wl ? (pen = loc.d - T.wl, side = 1) : loc.d < -T.wr && (pen = -T.wr - loc.d, side = -1), !side) return null;
+      let th = T.headAt(loc.s), lx = -Math.sin(th), lz = -Math.cos(th);
       return { pen, n: [-lx * side, 0, -lz * side] };
     }
   };
@@ -6379,19 +6617,19 @@ void main(){
   };
 
   // src/game/bot.js
-  function makeBot(T2, prof, { pace = 0.95, look = 0.7 } = {}) {
+  function makeBot(T, prof, { pace = 0.95, look = 0.7 } = {}) {
     let st = { iv: 0 };
     return function(car2) {
       let loc = car2.loc;
       if (!loc) return { steer: 0, thr: 0, brk: 1, hb: 0 };
-      let M = qmat(car2.q), F = mcol(M, 0), Rt = mcol(M, 2), v = Math.max(car2.vf, 1), la = clamp(v * look, 7, 38), s2 = T2.wrapS(loc.s + la), tgt = T2.pos(s2, T2.lineAt(s2)), d = sub2(tgt, car2.p), xb = dot2(d, F), zb = dot2(d, Rt), L2 = xb * xb + zb * zb, latFrac = 2 * zb / Math.max(L2, 1) * v * v / (car2.tyre.mu * 9.81), steer = clamp(latFrac * 1.05 + zb * 0.02, -1, 1), i = T2.idx(Math.round(T2.wrapS(loc.s + v * 0.55) / T2.ds)), vt = prof[i] * pace, e = vt - car2.vf, thr = 0, brk = 0;
+      let M = qmat(car2.q), F = mcol(M, 0), Rt = mcol(M, 2), v = Math.max(car2.vf, 1), la = clamp(v * look, 7, 38), s2 = T.wrapS(loc.s + la), tgt = T.pos(s2, T.lineAt(s2)), d = sub2(tgt, car2.p), xb = dot2(d, F), zb = dot2(d, Rt), L2 = xb * xb + zb * zb, latFrac = 2 * zb / Math.max(L2, 1) * v * v / (car2.tyre.mu * 9.81), steer = clamp(latFrac * 1.05 + zb * 0.02, -1, 1), i = T.idx(Math.round(T.wrapS(loc.s + v * 0.55) / T.ds)), vt = prof[i] * pace, e = vt - car2.vf, thr = 0, brk = 0;
       return e > 0 ? thr = clamp(0.5 + e * 0.4, 0, 1) : e < -1 ? brk = clamp(-e * 0.2, 0, 1) : thr = 0.3, { steer, thr, brk, hb: 0 };
     };
   }
 
   // src/game/guide.js
-  function makeGuide2(T2, car2) {
-    let TC = Object.assign({}, T2, { lineK: T2.K }), prof = {}, get = (wet) => {
+  function makeGuide(T, car2) {
+    let TC = Object.assign({}, T, { lineK: T.K }), prof = {}, get = (wet) => {
       let k = wet > 0.5 ? "wet" : "dry";
       if (!prof[k]) {
         let mu = car2.tyre.mu * (car2.plus ? car2.plus.grip : 1) * (wet > 0.5 ? 0.93 : 1) * 0.86;
@@ -6402,10 +6640,10 @@ void main(){
       let out = Object.assign({}, inp);
       if (state2.brake = 0, state2.steer = 0, !car2.loc || car2.air || car2.rev || car2.vf < 5 || inp.hb > 0.3) return out;
       let L = car2.loc, v = car2.vf, P = get(car2.wet), aB = P.mu * 9.81 * 0.78;
-      if (Math.abs(L.d) > T2.hw + 2.5) return out;
+      if (Math.abs(L.d) > T.hw + 2.5) return out;
       let vmax = 1e9, reach = Math.min(180, v * v / (2 * aB) + v * 0.6 + 15);
       for (let k = 0; k <= reach; k += 2) {
-        let i = T2.idx(Math.round(T2.wrapS(L.s + k) / T2.ds)), va = Math.sqrt(P.v[i] * P.v[i] + 2 * aB * Math.max(0, k - v * 0.3));
+        let i = T.idx(Math.round(T.wrapS(L.s + k) / T.ds)), va = Math.sqrt(P.v[i] * P.v[i] + 2 * aB * Math.max(0, k - v * 0.3));
         va < vmax && (vmax = va);
       }
       if (v > vmax * 1.015) {
@@ -6413,7 +6651,7 @@ void main(){
         let b = clamp((v - vmax * 1.015) / 2.5, 0, 1);
         out.brk = Math.max(out.brk, b), state2.brake = b;
       } else v > vmax * 0.95 && (out.thr = Math.min(out.thr, clamp((vmax * 1.015 - v) / (vmax * 0.065), 0, 1)));
-      let fr = T2.frame(L.s), vl = dot2(car2.v, fr.l), tp = 0.5 + v * 6e-3, dp = L.d + vl * tp, lim = (dp > 0 ? T2.wl : T2.wr) - 1.8;
+      let fr = T.frame(L.s), vl = dot2(car2.v, fr.l), tp = 0.5 + v * 6e-3, dp = L.d + vl * tp, lim = (dp > 0 ? T.wl : T.wr) - 1.8;
       if (Math.abs(dp) > lim) {
         let over = Math.abs(dp) - lim, add3 = Math.sign(dp) * clamp(over * 0.32, 0, 0.9);
         (Math.sign(out.steer) !== Math.sign(add3) || Math.abs(out.steer) < Math.abs(add3)) && (out.steer = clamp(out.steer + add3, -1, 1)), state2.steer = add3;
@@ -6429,31 +6667,31 @@ void main(){
     return kind === "city" ? cityLevel() : loopLevel();
   }
   function loopLevel() {
-    let T2 = buildTrack("neon"), geo = buildCity(T2), world = new TrackWorld(T2), GRID_S = T2.len - 14, L = { kind: "loop", name: "Neon Loop", T: T2, geo, world, mask: buildRainMask(T2, geo), laps: !0, lightGrid: null };
+    let T = buildTrack("neon"), geo = buildCity(T), world = new TrackWorld(T), GRID_S = T.len - 14, L = { kind: "loop", name: "Neon Loop", T, geo, world, mask: buildRainMask(T, geo), laps: !0, lightGrid: null };
     return L.spawn = (car2) => {
-      car2.placeOnTrack(T2, GRID_S, -2.2);
+      car2.placeOnTrack(T, GRID_S, -2.2);
     }, L.resetAt = (car2) => {
       let s = car2.loc ? car2.loc.s : GRID_S;
-      car2.placeOnTrack(T2, s, T2.lineAt(s));
-    }, L.map = { paths: [{ pts: Array.from({ length: Math.ceil(T2.N / 4) }, (_, i) => [T2.mx[i * 4], T2.my[i * 4]]), closed: !0, w: 1 }], start: [T2.mx[0], T2.my[0]] }, L.place = () => "NEON LOOP", L.shelter = (car2) => {
+      car2.placeOnTrack(T, s, T.lineAt(s));
+    }, L.map = { paths: [{ pts: Array.from({ length: Math.ceil(T.N / 4) }, (_, i) => [T.mx[i * 4], T.my[i * 4]]), closed: !0, w: 1 }], start: [T.mx[0], T.my[0]] }, L.place = () => "NEON LOOP", L.shelter = (car2) => {
       let t = geo.info.tunnel;
-      return t && car2.loc && car2.loc.s > t[0] - 5 && car2.loc.s < t[1] + 5 && Math.abs(car2.loc.d) < T2.wl ? 1 : 0;
+      return t && car2.loc && car2.loc.s > t[0] - 5 && car2.loc.s < t[1] + 5 && Math.abs(car2.loc.d) < T.wl ? 1 : 0;
     }, L.camCollide = (p) => {
-      let Lc = T2.locate(p[0], p[2], -1);
+      let Lc = T.locate(p[0], p[2], -1);
       if (!Lc) return p;
-      let lim = (Lc.d > 0 ? T2.wl : T2.wr) - 0.4, q = p;
+      let lim = (Lc.d > 0 ? T.wl : T.wr) - 0.4, q = p;
       if (Math.abs(Lc.d) > lim) {
-        let fr = T2.frame(Lc.s);
+        let fr = T.frame(Lc.s);
         q = madd(q, fr.l, -(Math.abs(Lc.d) - lim) * Math.sign(Lc.d));
       }
-      return q[1] = Math.max(q[1], T2.yAt(Lc.s) + 0.5), q;
+      return q[1] = Math.max(q[1], T.yAt(Lc.s) + 0.5), q;
     }, L.tvSpot = (car2, idx) => {
-      let N2 = Math.max(8, Math.round(T2.len / 110)), seg = T2.len / N2, s = car2.loc ? car2.loc.s : 0, i = Math.floor(T2.wrapS(s + seg * 0.55) / seg) % N2;
-      return { id: i, pos: T2.pos(i * seg, (i % 2 ? 1 : -1) * (T2.wl + 1.6), 4.5 + i % 3 * 1.5) };
+      let N2 = Math.max(8, Math.round(T.len / 110)), seg = T.len / N2, s = car2.loc ? car2.loc.s : 0, i = Math.floor(T.wrapS(s + seg * 0.55) / seg) % N2;
+      return { id: i, pos: T.pos(i * seg, (i % 2 ? 1 : -1) * (T.wl + 1.6), 4.5 + i % 3 * 1.5) };
     }, L.bot = (car2) => {
-      let prof = speedProfile(T2, { mass: car2.m, clF: car2.c.clF, clR: car2.c.clR, cdA: car2.c.cdA, powerKw: car2.spec.peak.kw }, { mu: car2.tyre.mu * 0.84 });
-      return makeBot(T2, prof, { pace: 0.88 });
-    }, L.guide = (car2) => makeGuide2(T2, car2), L;
+      let prof = speedProfile(T, { mass: car2.m, clF: car2.c.clF, clR: car2.c.clR, cdA: car2.c.cdA, powerKw: car2.spec.peak.kw }, { mu: car2.tyre.mu * 0.84 });
+      return makeBot(T, prof, { pace: 0.88 });
+    }, L.guide = (car2) => makeGuide(T, car2), L;
   }
   function cityLevel() {
     let M = buildCityMap(), geo = buildShiftCity(M), world = new RoadWorld(M), L = { kind: "city", name: "Shift City", M, geo, world, mask: cityMask(M, world), laps: !1, lightGrid: { x0: -760, z0: -760, size: 1520 } };
@@ -6839,15 +7077,15 @@ void main(){
         this.p = p, p.jump && (this.dS = p.dist);
       }
       event(e) {
-        let T2 = this.t, sr = this.sr;
+        let T = this.t, sr = this.sr;
         if (e.type === "bov") {
           let k = clamp2((this.p.boost || 0) / 0.9, 0.35, 1.3);
           if (e.flutter) {
-            for (let i = 0; i < 10; i++) this._vox(T2 + (0.015 + i * 0.036 * (1 + i * 0.07)) * sr, 0.026, 0.3 * k * Math.pow(0.82, i), 1500 - i * 50, 1100 - i * 40, BP, 2.4);
-            this._vox(T2, 0.18, 0.16 * k, 700, 300, LP, 0.7);
+            for (let i = 0; i < 10; i++) this._vox(T + (0.015 + i * 0.036 * (1 + i * 0.07)) * sr, 0.026, 0.3 * k * Math.pow(0.82, i), 1500 - i * 50, 1100 - i * 40, BP, 2.4);
+            this._vox(T, 0.18, 0.16 * k, 700, 300, LP, 0.7);
           } else
-            this._vox(T2, 0.42, 0.26 * k, 5200, 1400, BP, 0.9), this._vox(T2, 0.12, 0.12 * k, 9e3, 6e3, HP, 0.7);
-        } else e.type === "pop" ? this._bang(Math.random() < 0.5 ? 0 : 1, e.k || 0.8) : e.type === "shift" ? this.cfg && this.cfg.ex >= 1 && this._bang(Math.random() < 0.5 ? 0 : 1, 0.5) : e.type === "purge" && (this._vox(T2, 1.1, 0.32, 7e3, 3e3, HP, 0.7), this._vox(T2, 0.9, 0.2, 2600, 900, BP, 0.8));
+            this._vox(T, 0.42, 0.26 * k, 5200, 1400, BP, 0.9), this._vox(T, 0.12, 0.12 * k, 9e3, 6e3, HP, 0.7);
+        } else e.type === "pop" ? this._bang(Math.random() < 0.5 ? 0 : 1, e.k || 0.8) : e.type === "shift" ? this.cfg && this.cfg.ex >= 1 && this._bang(Math.random() < 0.5 ? 0 : 1, 0.5) : e.type === "purge" && (this._vox(T, 1.1, 0.32, 7e3, 3e3, HP, 0.7), this._vox(T, 0.9, 0.2, 2600, 900, BP, 0.8));
       }
       takeStats() {
         let s = this.stats;
@@ -6926,7 +7164,7 @@ void main(){
           return;
         }
         this.pend && this.g.fade < 2e-3 && (this._apply(this.pend, !1), this.pend = null, this.T.fade = 1);
-        let c = this.cfg, p = this.p, sr = this.sr, bt = n / sr, T2 = this.T, g = this.g, f2 = this.f, k = this.k, r0 = this.rpm, rT = p.on || p.crank ? Math.max(0, p.rpm) : 0;
+        let c = this.cfg, p = this.p, sr = this.sr, bt = n / sr, T = this.T, g = this.g, f2 = this.f, k = this.k, r0 = this.rpm, rT = p.on || p.crank ? Math.max(0, p.rpm) : 0;
         this.rpm += (rT - this.rpm) * (1 - Math.exp(-bt / 0.01));
         let r1 = this.rpm, cut = p.cutFrac > 0.5;
         this.load += ((p.load || 0) - this.load) * (1 - Math.exp(-bt / (cut ? 3e-3 : 0.02)));
@@ -6935,16 +7173,16 @@ void main(){
         let kOn = this.kOn, lw = Math.max(L, this.idleW * 0.3, p.firing ? 0.3 * Math.min(1, x) : 0), ts = clamp2(Math.pow(3e3 / Math.max(rpm, 250), 0.6), 0.26, 2.8), tr = lerp3(22e-5, 1e-4, kOn) * ts * c.ch.tr, td = lerp3(11e-4, 15e-4, kOn) * ts * c.ch.td, td3 = 2.7 * td, dc = this.dc;
         dc.d1 = Math.exp(-1 / (td * sr)), dc.d2 = Math.exp(-1 / (sr / (1 / tr + 1 / td))), dc.d3 = Math.exp(-1 / (td3 * sr)), dc.d4 = Math.exp(-1 / (sr / (1 / td + 1 / td3))), dc.de = Math.exp(-1 / (2e-3 * ts * sr)), this.und = lerp3(0.16, 0.3, kOn);
         let view = p.view | 0, cab = view === 1, rear = p.rear === void 0 ? 1 : p.rear, vol = p.vol === void 0 ? 1 : p.vol;
-        T2.drive = k.drive * (0.5 + 0.9 * lw * Math.min(1, x * 1.2)) * (1 + 0.25 * Math.min(p.boost || 0, 2)), T2.post = 1 / (0.6 + 0.5 * k.drive), f2.lpL.set(LP, clamp2((700 + (1800 + 7e3 * lw) * x) * k.bright * (cab ? 0.45 : 1) * (0.75 + 0.35 * rear), 250, 17e3), 0.6, sr), f2.lpR.b0 = f2.lpL.b0, f2.lpR.b1 = f2.lpL.b1, f2.lpR.b2 = f2.lpL.b2, f2.lpR.a1 = f2.lpL.a1, f2.lpR.a2 = f2.lpL.a2, T2.exG = k.ex * (cab ? 0.6 : 1) * (0.75 + 0.35 * rear), T2.rasp = k.rasp * lw * Math.min(1.2, x * x * 1.4), T2.inG = k.inl * (0.12 + 0.88 * L) * (0.35 + 0.65 * x) * (cab ? 2 : 1) * (0.7 + 0.5 * (1 - rear)), f2.lpI.set(LP, 3500, 0.5, sr), f2.lpI2.set(LP, 3500 * (cab ? 0.7 : 1), 0.5, sr), T2.roar = k.inl * 0.09 * L * x * (cab ? 1.6 : 1), f2.roar.set(BP, 380 + rpm * 0.12, 0.8, sr);
+        T.drive = k.drive * (0.5 + 0.9 * lw * Math.min(1, x * 1.2)) * (1 + 0.25 * Math.min(p.boost || 0, 2)), T.post = 1 / (0.6 + 0.5 * k.drive), f2.lpL.set(LP, clamp2((700 + (1800 + 7e3 * lw) * x) * k.bright * (cab ? 0.45 : 1) * (0.75 + 0.35 * rear), 250, 17e3), 0.6, sr), f2.lpR.b0 = f2.lpL.b0, f2.lpR.b1 = f2.lpL.b1, f2.lpR.b2 = f2.lpL.b2, f2.lpR.a1 = f2.lpL.a1, f2.lpR.a2 = f2.lpL.a2, T.exG = k.ex * (cab ? 0.6 : 1) * (0.75 + 0.35 * rear), T.rasp = k.rasp * lw * Math.min(1.2, x * x * 1.4), T.inG = k.inl * (0.12 + 0.88 * L) * (0.35 + 0.65 * x) * (cab ? 2 : 1) * (0.7 + 0.5 * (1 - rear)), f2.lpI.set(LP, 3500, 0.5, sr), f2.lpI2.set(LP, 3500 * (cab ? 0.7 : 1), 0.5, sr), T.roar = k.inl * 0.09 * L * x * (cab ? 1.6 : 1), f2.roar.set(BP, 380 + rpm * 0.12, 0.8, sr);
         let b = c.fiBoost > 0 ? clamp2((p.boost || 0) / Math.max(0.3, c.fiBoost), 0, 1.3) : 0;
-        this.fw = 900 + b * 4200 + rpm * 0.05, T2.tw = c.turbo ? b * b * 0.04 * (0.35 + 0.65 * L) : 0, T2.rush = c.turbo ? b * 0.04 * L + (p.antilag ? b * 0.02 : 0) : 0, f2.rush.set(BP, 1300 + b * 2400, 1.1, sr), c.sup === "roots" ? (this.fs = rpm * 0.13, f2.sup.set(BP, rpm * 0.26, 1.1, sr), T2.sup = 0.07 * Math.pow(clamp2(x, 0, 1.1), 1.2) * (0.45 + 0.55 * L)) : c.sup === "screw" ? (this.fs = rpm * 0.24, f2.sup.set(BP, rpm * 0.245, 2.5, sr), T2.sup = 0.055 * Math.pow(clamp2(x, 0, 1.1), 1.3) * (0.45 + 0.55 * L)) : c.sup === "cent" ? (this.fs = 700 + 5200 * x * x, T2.sup = 0.05 * x * x * (0.3 + 0.7 * L)) : T2.sup = 0, this.fg = rpm / 60 * 23, T2.gw = k.whine * 0.026 * clamp2((p.speed || 0) / 30, 0, 1) * (0.4 + 0.6 * L) * (cab ? 1.8 : 1), T2.nos = p.nos ? 0.06 : 0, T2.st = p.crank ? 0.5 : 0, this.fSt = 90 + 60 * Math.min(1, (p.crankT || 0) / 0.8), this.fAm = 6 + 6 * Math.min(1, (p.crankT || 0) / 0.8), T2.og = 0.42 * vol * (0.32 + 0.22 * L + 0.75 * Math.pow(Math.min(1.05, x), 1.4)) * k.gain * (p.on || p.crank ? 1 : 0) + (p.crank ? 0.25 : 0);
+        this.fw = 900 + b * 4200 + rpm * 0.05, T.tw = c.turbo ? b * b * 0.04 * (0.35 + 0.65 * L) : 0, T.rush = c.turbo ? b * 0.04 * L + (p.antilag ? b * 0.02 : 0) : 0, f2.rush.set(BP, 1300 + b * 2400, 1.1, sr), c.sup === "roots" ? (this.fs = rpm * 0.13, f2.sup.set(BP, rpm * 0.26, 1.1, sr), T.sup = 0.07 * Math.pow(clamp2(x, 0, 1.1), 1.2) * (0.45 + 0.55 * L)) : c.sup === "screw" ? (this.fs = rpm * 0.24, f2.sup.set(BP, rpm * 0.245, 2.5, sr), T.sup = 0.055 * Math.pow(clamp2(x, 0, 1.1), 1.3) * (0.45 + 0.55 * L)) : c.sup === "cent" ? (this.fs = 700 + 5200 * x * x, T.sup = 0.05 * x * x * (0.3 + 0.7 * L)) : T.sup = 0, this.fg = rpm / 60 * 23, T.gw = k.whine * 0.026 * clamp2((p.speed || 0) / 30, 0, 1) * (0.4 + 0.6 * L) * (cab ? 1.8 : 1), T.nos = p.nos ? 0.06 : 0, T.st = p.crank ? 0.5 : 0, this.fSt = 90 + 60 * Math.min(1, (p.crankT || 0) / 0.8), this.fAm = 6 + 6 * Math.min(1, (p.crankT || 0) / 0.8), T.og = 0.42 * vol * (0.32 + 0.22 * L + 0.75 * Math.pow(Math.min(1.05, x), 1.4)) * k.gain * (p.on || p.crank ? 1 : 0) + (p.crank ? 0.25 : 0);
         let dT = Math.max(0.5, p.dist || 3);
-        this.aa = 1 - Math.exp(-TAU2 * clamp2(21e3 / (1 + this.dS / 28), 900, 2e4) / sr), T2.pan = clamp2(p.pan || 0, -1, 1), T2.gd = clamp2(3 / Math.max(this.dS, 0.6), 0, 2.4) * (view === 2 ? 1.5 : 1);
+        this.aa = 1 - Math.exp(-TAU2 * clamp2(21e3 / (1 + this.dS / 28), 900, 2e4) / sr), T.pan = clamp2(p.pan || 0, -1, 1), T.gd = clamp2(3 / Math.max(this.dS, 0.6), 0, 2.4) * (view === 2 ? 1.5 : 1);
         let width = clamp2(5 / Math.max(this.dS, 1), 0.15, 1);
         this.pl > 0.5 && L < 0.15 && x > 0.45 && k.crackle > 0 && (this.crk = Math.max(this.crk, 0.25 + Math.random() * 0.5 * k.crackle)), this.pl = L, L < 0.2 && this.crk > 0 ? (this.crk -= bt, this._burst((5 + 9 * k.crackle) * clamp2(x * 1.3, 0, 1.2) * (this.crk > 0.15 ? 1 : 0.45) * bt, 0.3 + 0.5 * Math.random(), n)) : L > 0.3 && (this.crk = 0), p.antilag && L < 0.2 && x > 0.3 && this._burst(14 * bt, 0.8 + 0.4 * Math.random(), n), p.twostep && this._burst(11 * bt, 0.7 + 0.3 * Math.random(), n);
         let ang = c.ang, nE = ang.length, A = this.bs[0], B = this.bs[1], GA = this.bg[0], GB = this.bg[1], ks = this.ks, kd = this.kd, xd = this.xd, dl = this.dlL, dr = this.dlR, dn = this.dn, dm = dn - 1, gEx = this.gEx, gIn = this.gIn, ftw = this.fw / sr, fsu = (this.fs || 0) / sr, fgw = this.fg / sr, fst = this.fSt / sr, fam = this.fAm / sr, twin = !!c.twin, cent = c.sup === "cent", d1 = dc.d1, d2 = dc.d2, d3 = dc.d3, d4 = dc.d4, de = dc.de;
         for (let i = 0; i < n; i++) {
-          g.og += (T2.og - g.og) * ks, g.exG += (T2.exG - g.exG) * ks, g.inG += (T2.inG - g.inG) * ks, g.drive += (T2.drive - g.drive) * ks, g.post += (T2.post - g.post) * ks, g.rasp += (T2.rasp - g.rasp) * ks, g.roar += (T2.roar - g.roar) * ks, g.tw += (T2.tw - g.tw) * ks, g.rush += (T2.rush - g.rush) * ks, g.sup += (T2.sup - g.sup) * ks, g.gw += (T2.gw - g.gw) * ks, g.nos += (T2.nos - g.nos) * ks, g.st += (T2.st - g.st) * ks, g.fade += (T2.fade - g.fade) * ks * 1.5, g.pan += (T2.pan - g.pan) * ks * 0.25, g.gd += (T2.gd - g.gd) * ks * 0.25;
+          g.og += (T.og - g.og) * ks, g.exG += (T.exG - g.exG) * ks, g.inG += (T.inG - g.inG) * ks, g.drive += (T.drive - g.drive) * ks, g.post += (T.post - g.post) * ks, g.rasp += (T.rasp - g.rasp) * ks, g.roar += (T.roar - g.roar) * ks, g.tw += (T.tw - g.tw) * ks, g.rush += (T.rush - g.rush) * ks, g.sup += (T.sup - g.sup) * ks, g.gw += (T.gw - g.gw) * ks, g.nos += (T.nos - g.nos) * ks, g.st += (T.st - g.st) * ks, g.fade += (T.fade - g.fade) * ks * 1.5, g.pan += (T.pan - g.pan) * ks * 0.25, g.gd += (T.gd - g.gd) * ks * 0.25;
           let rpmI = r0 + (r1 - r0) * (i / n);
           if (rpmI > 25 && (p.on || p.crank)) {
             for (this.ph += rpmI * 6 / sr; this.ei < nE && this.ph >= ang[this.ei]; ) this._fire(this.ei++);
@@ -7020,13 +7258,13 @@ void main(){
     }
     class FX {
       constructor(sr) {
-        this.sr = sr, this.p = { lat: [0, 0, 0, 0], lon: [0, 0, 0, 0], load: [0, 0, 0, 0], wet: 0, speed: 0, cabin: 0, curb: 0, scrape: 0, vol: 1 }, this.g = { sq: [0, 0, 0, 0], rd: 0, hiss: 0, wind: 0, curb: 0, scr: 0 }, this.sq = [0, 1, 2, 3].map((i) => ({ bp: new BP(), bp2: new BP(), drift: 0, f: 0 })), this.road = new BP(), this.road.set(260, 0.7, sr), this.road2 = new BP(), this.road2.set(700, 0.9, sr), this.hissF = new BP(), this.hissF.set(2200, 0.9, sr), this.windF = new BP(), this.windF.set(520, 0.6, sr), this.grit = new BP(), this.grit.set(900, 2.2, sr), this.gritLo = new BP(), this.gritLo.set(180, 1.2, sr), this.seed = 22222, this.b = [0, 0, 0], this.curbPh = 0, this.thumpE = 0, this.thumpLp = 0, this.hits = [], this.grainE = 0, this.grainA = 0, this.hitLp = 0, this.k = 0, this.tv = [0, 1, 2, 3].map(() => ({ g: 0, f: 30, pan: 0, ph: 0, lp: 0, rd: 0, bp: new BP() })), this.horns = [];
+        this.sr = sr, this.p = { lat: [0, 0, 0, 0], lon: [0, 0, 0, 0], load: [0, 0, 0, 0], wet: 0, speed: 0, cabin: 0, curb: 0, scrape: 0, vol: 1 }, this.g = { sq: [0, 0, 0, 0], rd: 0, hiss: 0, wind: 0, curb: 0, scr: 0 }, this.sq = [0, 1, 2, 3].map((i) => ({ bp: new BP(), bp2: new BP(), drift: 0, f: 0 })), this.road = new BP(), this.road.set(260, 0.7, sr), this.road2 = new BP(), this.road2.set(700, 0.9, sr), this.hissF = new BP(), this.hissF.set(2200, 0.9, sr), this.windF = new BP(), this.windF.set(520, 0.6, sr), this.grit = new BP(), this.grit.set(900, 2.2, sr), this.gritLo = new BP(), this.gritLo.set(180, 1.2, sr), this.seed = 22222, this.b = [0, 0, 0], this.curbPh = 0, this.thumpE = 0, this.thumpLp = 0, this.hits = [], this.grainE = 0, this.grainA = 0, this.hitLp = 0, this.k = 0, this.tv = [0, 1, 2, 3].map(() => ({ g: 0, f: 30, pan: 0, ph: 0, lp: 0, rd: 0, bp: new BP() })), this.horns = [], this.beeps = [];
       }
       set(p) {
         this.p = p;
       }
       event(e) {
-        e.type === "hit" ? this.hits.push({ t: 0, a: Math.min(1.4, e.a), f: 58 + Math.random() * 24 }) : e.type === "horn" && this.horns.length < 4 && this.horns.push({ t: 0, a: Math.min(1, e.a), len: e.len || 0.4, f: e.f || 420, pan: e.pan || 0, ph1: 0, ph2: 0 });
+        e.type === "hit" ? this.hits.push({ t: 0, a: Math.min(1.4, e.a), f: 58 + Math.random() * 24 }) : e.type === "beep" ? this.beeps.push({ t: 0, f: e.f || 880, len: e.len || 0.18, a: e.a || 0.5, ph: 0 }) : e.type === "horn" && this.horns.length < 4 && this.horns.push({ t: 0, a: Math.min(1, e.a), len: e.len || 0.4, f: e.f || 420, pan: e.pan || 0, ph1: 0, ph2: 0 });
       }
       rnd() {
         let s = this.seed;
@@ -7078,9 +7316,9 @@ void main(){
           }
           let TV = p.traffic;
           if (TV) for (let j = 0; j < 4; j++) {
-            let T2 = TV[j], V = this.tv[j], tg = T2 ? T2.g : 0;
+            let T = TV[j], V = this.tv[j], tg = T ? T.g : 0;
             if (V.g += (tg - V.g) * k * 0.5, V.g < 1e-4) continue;
-            T2 && (V.f += (T2.f - V.f) * k, V.pan += (T2.pan - V.pan) * k, V.rd += ((T2.rd || 0) - V.rd) * k), V.ph += V.f / sr, V.ph > 1 && (V.ph -= 1);
+            T && (V.f += (T.f - V.f) * k, V.pan += (T.pan - V.pan) * k, V.rd += ((T.rd || 0) - V.rd) * k), V.ph += V.f / sr, V.ph > 1 && (V.ph -= 1);
             let ph = TAU2 * V.ph, e = Math.sin(ph) * 0.6 + Math.sin(2 * ph + 0.4) * 0.32 + Math.sin(3 * ph + 1.1) * 0.14 + Math.sin(0.5 * ph) * 0.18;
             V.lp += (e - V.lp) * 0.25, i === 0 && V.bp.set(380 + V.rd * 900, 0.8, sr);
             let tyre = V.bp.run(pink) * V.rd * 1.4, x = (V.lp * 0.7 + tyre) * V.g, pl = Math.min(1, 1 - V.pan), pr = Math.min(1, 1 + V.pan);
@@ -7093,6 +7331,12 @@ void main(){
             H.ph1 += H.f / sr, H.ph2 += H.f * 1.26 / sr;
             let sq = (x) => (x -= Math.floor(x), (x < 0.5 ? 1 : -1) * 0.7 + Math.sin(TAU2 * x) * 0.3), hs = (sq(H.ph1) + sq(H.ph2)) * 0.5 * env2 * H.a * 0.32, pl = Math.min(1, 1 - H.pan), pr = Math.min(1, 1 + H.pan);
             l += hs * pl, r += hs * pr, H.t > H.len + 0.2 && this.horns.splice(h, 1);
+          }
+          for (let h = this.beeps.length - 1; h >= 0; h--) {
+            let B = this.beeps[h];
+            B.t += 1 / sr, B.ph += B.f / sr;
+            let env2 = Math.min(1, B.t / 4e-3) * (B.t > B.len ? Math.exp(-(B.t - B.len) * 60) : 1), x = (Math.sin(TAU2 * B.ph) * 0.8 + Math.sin(TAU2 * B.ph * 2) * 0.15) * env2 * B.a * 0.35;
+            l += x, r += x, B.t > B.len + 0.1 && this.beeps.splice(h, 1);
           }
           let v = (p.vol ?? 1) * 0.55;
           L[i] = l * v, R2[i] = r * v;
@@ -7176,7 +7420,10 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
             await ctx.audioWorklet.addModule("data:application/javascript;charset=utf-8," + encodeURIComponent(src));
           }
           let eng = new AudioWorkletNode(ctx, "shiftlight-engine", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] }), fx = new AudioWorkletNode(ctx, "shiftlight-fx", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
-          eng.connect(bus), fx.connect(bus), this.eng = { post: (m) => eng.port.postMessage(m) }, this.fx = { post: (m) => fx.port.postMessage(m) }, this.kind = "worklet";
+          eng.connect(bus), fx.connect(bus), this.eng = { post: (m) => eng.port.postMessage(m) }, this.fx = { post: (m) => fx.port.postMessage(m) }, this.kind = "worklet", this.mkEngine = () => {
+            let n = new AudioWorkletNode(ctx, "shiftlight-engine", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+            return n.connect(bus), { post: (m) => n.port.postMessage(m), cfgId: null };
+          };
         } catch {
           let D = makeDSP(), F = makeFX(), d = new D(ctx.sampleRate), f2 = new F(ctx.sampleRate), node = ctx.createScriptProcessor(1024, 1, 2), tmpL = new Float32Array(1024), tmpR = new Float32Array(1024), src = ctx.createConstantSource ? ctx.createConstantSource() : null;
           src && (src.offset.value = 0, src.connect(node), src.start()), node.onaudioprocess = (ev) => {
@@ -7195,6 +7442,22 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }
     configure(cfg) {
       this.cfg = cfg, this.ready && this.eng.post({ t: "cfg", cfg });
+    }
+    /* the nearest rivals' engines: [{id, cfg, p, ev}], up to max voices; missing ones fall silent */
+    rivals(list, max = 2) {
+      if (!(!this.ready || !this.mkEngine)) {
+        this.rv = this.rv || [];
+        for (let i = 0; i < max; i++) {
+          let r = list[i], v = this.rv[i];
+          if (!r) {
+            v && v.on && (v.post({ t: "p", p: Object.assign({}, v.last, { vol: 0, on: 0 }) }), v.on = !1);
+            continue;
+          }
+          v || (v = this.rv[i] = this.mkEngine()), v.cfgId !== r.id && (v.post({ t: "cfg", cfg: r.cfg }), v.cfgId = r.id);
+          for (let e of r.ev || []) v.post({ t: "ev", ev: e });
+          v.post({ t: "p", p: r.p }), v.last = r.p, v.on = !0;
+        }
+      }
     }
     setVolume(v) {
       this.vol = v, this.master && this.master.gain.setTargetAtTime(this.muted ? 0 : v, this.ctx.currentTime, 0.05);
@@ -7317,7 +7580,23 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         ctx.fillStyle = "rgba(200,190,230,.12)", ctx.fillRect(cx - 70 * s, by, bw, 12 * s), ctx.fillStyle = S.nosOn ? C.white : C.cyan, ctx.fillRect(cx - 70 * s, by, bw * S.nos, 12 * s);
       }
       let lx = pad, ly = pad;
-      if (this.small(ctx, S.levelName || "NEON LOOP", lx, ly, 4 * s, C.pink), S.laps !== !1) {
+      if (this.small(ctx, S.levelName || "NEON LOOP", lx, ly, 4 * s, C.pink), S.race) {
+        this.dots(ctx, "P" + S.pos, W3 / 2 - 40 * s, pad, 11 * s, S.pos === 1 ? C.green : C.white, { align: "c" }), this.small(ctx, "/" + S.n, W3 / 2 + 60 * s, pad + 46 * s, 4 * s, C.faint), this.small(ctx, "LAP " + S.lap + "/" + S.laps, lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, fmtT(S.lapT), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "BEST", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.best), lx + 70 * s, ly + 118 * s, 3 * s, S.best > 0 ? C.green : C.faint), this.small(ctx, "LAST", lx, ly + 140 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.last), lx + 70 * s, ly + 140 * s, 3 * s, C.ink);
+        let ty = ly + 190 * s;
+        for (let [i, r] of S.tower.entries()) {
+          let col = r.you ? C.pink : C.ink;
+          ctx.fillStyle = r.you ? "rgba(255,79,160,.16)" : "rgba(10,8,20,.35)", ctx.fillRect(lx - 8 * s, ty - 6 * s, 300 * s, 26 * s), this.small(ctx, String(i + 1), lx, ty, 3 * s, C.faint), this.small(ctx, r.name, lx + 34 * s, ty, 3 * s, col);
+          let g = r.dnf ? "DNF" : r.gap === null ? r.finished ? "FIN" : "" : (r.gap >= 0 ? "+" : "-") + Math.abs(r.gap).toFixed(1);
+          this.small(ctx, g, lx + 200 * s, ty, 3 * s, C.faint), ty += 30 * s;
+        }
+        if (S.lights > 0 || S.go) {
+          let r = 20 * s, y0 = pad + 140 * s;
+          for (let i = 0; i < 5; i++) {
+            let x = W3 / 2 + (i - 2) * 58 * s, on = S.go ? 1 : i < S.lights;
+            ctx.fillStyle = "rgba(10,8,20,.7)", ctx.beginPath(), ctx.arc(x, y0, r + 6 * s, 0, 6.283), ctx.fill(), ctx.fillStyle = S.go ? C.green : on ? C.red : "rgba(200,190,230,.08)", on && (ctx.globalAlpha = 0.35, ctx.beginPath(), ctx.arc(x, y0, r * 1.7, 0, 6.283), ctx.fill(), ctx.globalAlpha = 1), ctx.beginPath(), ctx.arc(x, y0, r, 0, 6.283), ctx.fill();
+          }
+        }
+      } else if (S.laps !== !1) {
         if (this.small(ctx, "LAP " + Math.max(1, S.lap), lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, fmtT(S.lapT), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "BEST", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.best), lx + 70 * s, ly + 118 * s, 3 * s, S.best > 0 ? C.green : C.faint), this.small(ctx, "LAST", lx, ly + 140 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.last), lx + 70 * s, ly + 140 * s, 3 * s, C.ink), S.delta !== null && S.delta !== void 0 && S.best > 0) {
           let d = S.delta;
           this.small(ctx, (d >= 0 ? "+" : "-") + Math.abs(d).toFixed(2), lx + 250 * s, ly + 74 * s, 4 * s, d > 0 ? C.red : C.green);
@@ -7457,7 +7736,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   };
 
   // game/main.js
-  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { level: "city", assist: "easy", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", volume: 0.8, units: "kmh" }, settings = loadSettings(DEFAULTS);
+  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { event: "race", laps: 3, rivals: "racing", level: "city", assist: "easy", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", volume: 0.8, units: "kmh" }, settings = loadSettings(DEFAULTS);
   for (let k of Object.keys(DEFAULTS)) Q.has(k) && (settings[k] = isNaN(+Q.get(k)) || k === "scale" && Q.get(k) === "auto" ? Q.get(k) : +Q.get(k));
   var save = () => {
     Q.has("manual") || saveSettings(settings);
@@ -7486,9 +7765,30 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }), c.hint = keep.hint, c.pt.st = "run", c.pt.we = Math.max(c.pt.we, spec.idle * 6.283 / 60 * 1.5), c.pt.gear = Math.min(keep.pt.gear, spec.nG), c.pt.rpm = keep.pt.rpm) : level.spawn(c), car = c, audio.configure(SIM.dspCfg(spec)), guide = level.guide(car), botFn = level.bot(car), c;
   }
   function loadLevel(kind) {
-    settings.level = kind, save(), level = makeLevel(kind), R.loadWorld(level.geo, level.T), PS.setMask(level.mask), hud.setMap(level.map), ledHudView.setMap(level.map), cam.setLevel(level), car.world = level.world, level.spawn(car), car.pt.start(), guide = level.guide(car), botFn = level.bot(car), lap.n = 0, lap.t0 = -1, lap.lastS = null, lap.best = 0, lap.bestTrace = null, loadBest(), makeTraffic(), state === "title" && (level.botStart && level.botStart(car), $("titleSub").textContent = titleSub());
+    settings.level = kind, save(), level = makeLevel(kind), R.loadWorld(level.geo, level.T), PS.setMask(level.mask), hud.setMap(level.map), ledHudView.setMap(level.map), cam.setLevel(level), car.world = level.world, level.spawn(car), car.pt.start(), guide = level.guide(car), botFn = level.bot(car), lap.n = 0, lap.t0 = -1, lap.lastS = null, lap.best = 0, lap.bestTrace = null, loadBest(), makeTraffic(), race = null, state !== "title" && startEvent(), state === "title" && (level.botStart && level.botStart(car), $("titleSub").textContent = titleSub());
   }
-  var titleSub = () => `◀  ${level.name} · ${LEVELS[level.kind].mode}  ▶`, botFn = null, guide = null, TRAFFIC_N = { low: 28, medium: 42, high: 56, ultra: 76 }, SL3_BOX = carBox({ xF: 2.25, xR: -2.3, hw: 0.966, H: 1.28 }, CHASSIS.sl3.hcg), traffic = null, trafficInit = !1, camLast = { pos: [0, 0, 0], fwd: [1, 0, 0] };
+  var titleSub = () => `◀  ${level.name} · ${level.kind === "loop" ? settings.event === "race" ? "Race" : "Practice" : LEVELS[level.kind].mode}  ▶`, botFn = null, guide = null, TRAFFIC_N = { low: 28, medium: 42, high: 56, ultra: 76 }, SL3_BOX = carBox({ xF: 2.25, xR: -2.3, hw: 0.966, H: 1.28 }, CHASSIS.sl3.hcg), traffic = null, trafficInit = !1, camLast = { pos: [0, 0, 0], fwd: [1, 0, 0] }, race = null, resultsShown = !1, pendingFx = [];
+  function startEvent() {
+    race = null, resultsShown = !1, level.kind === "loop" && settings.event === "race" ? (race = new Race(level, car, { rivals: 5, laps: +settings.laps || 3, difficulty: settings.rivals, wet: env.wet, slot: 3 }), hud.message("GET READY", "#ffb040", 1.6)) : level.spawn(car), lap.n = 0, lap.t0 = -1, lap.lastS = null;
+  }
+  function raceEvents() {
+    for (let e of race.takeEvents())
+      e.type === "light" ? pendingFx.push({ type: "beep", f: 660, len: 0.16, a: 0.5 }) : e.type === "go" ? (pendingFx.push({ type: "beep", f: 1320, len: 0.5, a: 0.6 }), hud.message("GO", "#5dff7a", 1.2)) : e.type === "finish" && e.e.you ? hud.message("FINISHED  P" + e.e.pos, e.e.pos === 1 ? "#5dff7a" : "#f4f2ff", 4) : e.type === "crash" && pendingFx.push({ type: "hit", a: Math.min(1, e.speed / 12) * 0.5 });
+    let you = race.entrants.find((e) => e.you);
+    !resultsShown && you.finished && (race.phase === "done" || time - race.finishT > 6) && (resultsShown = !0, showResults());
+  }
+  function showResults() {
+    state = "pause", audio.suspend(!0);
+    let fmtR = (t) => t ? fmt(t) : "—", rows = [{ type: "head", label: "Neon Loop · " + race.laps + " laps · " + DIFFICULTY[settings.rivals].name }];
+    for (let r of race.results()) rows.push({ type: "head", label: `${r.pos}.  ${r.name.padEnd(8, " ")}  ${r.dnf ? "DNF" : r.pos === 1 ? fmtR(r.time) : "+" + (r.gap !== null ? r.gap.toFixed(3) : "—")}   best ${fmtR(r.best)}`, you: r.you });
+    rows.push({ type: "action", label: "Race again", act: () => {
+      menu.hide(), state = "drive", audio.suspend(!1), startEvent();
+    } }), rows.push({ type: "action", label: "Practice", act: () => {
+      settings.event = "practice", save(), menu.hide(), state = "drive", audio.suspend(!1), startEvent();
+    } }), rows.push({ type: "action", label: "Settings", act: () => {
+      menu.show(menuRows(), "PAUSED");
+    } }), menu.show(rows, "RESULTS");
+  }
   function makeTraffic() {
     traffic = level.kind === "city" && !Q.has("notraffic") ? new Traffic(level, { count: +(Q.get("traffic") || TRAFFIC_N[settings.quality] || 56) }) : null, trafficInit = !0;
   }
@@ -7507,9 +7807,9 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   loadBest();
   function lapUpdate() {
     if (!level.laps || !car.loc) return;
-    let s = car.loc.s, T2 = level.T;
+    let s = car.loc.s, T = level.T;
     if (lap.lastS !== null)
-      if (lap.lastS > T2.len - 40 && s < 40) {
+      if (lap.lastS > T.len - 40 && s < 40) {
         if (lap.t0 >= 0 && lap.armed) {
           let t = time - lap.t0;
           if (lap.last = t, !lap.best || t < lap.best) {
@@ -7520,8 +7820,8 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
             }
           } else hud.message(fmt(t), "#f4f2ff", 1.6);
         }
-        lap.t0 = time, lap.n++, lap.trace = new Float32Array(Math.ceil(T2.len) + 1), lap.armed = !0;
-      } else lap.lastS < 40 && s > T2.len - 40 && (lap.armed = !1);
+        lap.t0 = time, lap.n++, lap.trace = new Float32Array(Math.ceil(T.len) + 1), lap.armed = !0;
+      } else lap.lastS < 40 && s > T.len - 40 && (lap.armed = !1);
     lap.trace && lap.t0 >= 0 && (lap.trace[Math.floor(s)] = time - lap.t0), lap.lastS = s;
   }
   var fmt = (t) => {
@@ -7532,7 +7832,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     $("boot").hidden = !0, state = Q.has("manual") ? "drive" : "title", state === "title" && ($("title").hidden = !1, cam.orbit = { yaw: 2.5, pitch: 0.1, dist: 7.6, fov: 0.72, y: 0.2 }, $("titleSub").textContent = titleSub(), level.botStart && level.botStart(car));
   }
   function begin() {
-    state === "title" && (state = "drive", $("title").hidden = !0, cam.orbit = null, cam.mode = Math.max(0, CAM_MODES.indexOf(settings.cam)), cam.cut = !0, level.spawn(car), car.pt.stop && car.pt.stop(), car.pt.start(), lap.n = 0, lap.t0 = -1, lap.lastS = null, audio.start());
+    state === "title" && (state = "drive", $("title").hidden = !0, cam.orbit = null, cam.mode = Math.max(0, CAM_MODES.indexOf(settings.cam)), cam.cut = !0, car.pt.stop && car.pt.stop(), car.pt.start(), startEvent(), audio.start());
   }
   var anyKey = (e) => {
     if (state === "title") {
@@ -7568,9 +7868,20 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     };
     return [
       { type: "action", label: "Resume", act: () => pause(!1) },
+      ...level.kind === "loop" ? [
+        { type: "head", label: "Race" },
+        { type: "choice", label: "Event", chips: 1, get: () => settings.event, set: set("event"), options: [opt("race", "Race", "Five rivals, a standing start, the start lights."), opt("practice", "Practice", "Just you and the clock.")] },
+        { type: "choice", label: "Rivals", chips: 1, get: () => settings.rivals, set: set("rivals"), options: Object.entries(DIFFICULTY).map(([id, d]) => opt(id, d.name)) },
+        { type: "choice", label: "Laps", chips: 1, get: () => String(settings.laps), set: set("laps", (v) => {
+          settings.laps = +v;
+        }), options: ["3", "5", "8"].map((n) => opt(n, n)) },
+        { type: "action", label: settings.event === "race" ? "Start the race" : "Start practice", act: () => {
+          pause(!1), startEvent();
+        } }
+      ] : [],
       { type: "head", label: "Driving" },
       { type: "choice", label: "Assists", chips: 1, get: () => settings.assist, set: set("assist", (v) => {
-        car.setAssists(v), car.pt.auto = settings.gearbox === "auto", guide = makeGuide(T, car);
+        car.setAssists(v), car.pt.auto = settings.gearbox === "auto", guide = level.guide(car);
       }), options: [
         opt("easy", "Arcade Easy", "The car slows for corners and steers off the walls for you, grips harder in the wet, and stays on its wheels. Handbrake drifts still work."),
         opt("arcade", "Arcade", "Steering, stability and drift help. Handbrake into a corner and hold the angle with the stick."),
@@ -7619,7 +7930,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         settings.volume = v, save(), audio.setVolume(v);
       }, fmt: (v) => Math.round(v * 100) + "%" },
       { type: "action", label: level.laps ? "Back to the grid" : "Back to the start", act: () => {
-        level.spawn(car), car.pt.start(), lap.t0 = -1, lap.lastS = null, pause(!1);
+        car.pt.start(), pause(!1), startEvent();
       } }
     ];
   }
@@ -7650,7 +7961,25 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     return { dyn, headlights: on ? { on: 1, high: highBeam ? 1 : 0, posL: at(2.12, 0.6, -0.62), posR: at(2.12, 0.6, 0.62), dir: norm2(madd(F, U, -0.035)), right: Rt, up: U, col: [1050, 1090, 1140], range: 95 } : null };
   }
   function flicker(t) {
-    return [1, 0.9 + 0.1 * Math.sin(t * 37), Math.random() < 0.04 ? 0.15 : 1, Math.sin(t * 3.1) > 0.96 ? 0.25 : 1, 0.88 + 0.12 * Math.sin(t * 61), 0.6 + 0.4 * Math.sin(t * 1.3), Math.sin(t * 5.6) > 0 ? 1 : 0, Math.sin(t * 3) > 0.9 ? 1 : 0.03];
+    let held = race && (race.phase === "grid" || race.phase === "countdown"), n = race && race.phase === "countdown" ? race.lights : 0;
+    return [
+      1,
+      0.9 + 0.1 * Math.sin(t * 37),
+      Math.random() < 0.04 ? 0.15 : 1,
+      Math.sin(t * 3.1) > 0.96 ? 0.25 : 1,
+      0.88 + 0.12 * Math.sin(t * 61),
+      0.6 + 0.4 * Math.sin(t * 1.3),
+      Math.sin(t * 5.6) > 0 ? 1 : 0,
+      Math.sin(t * 3) > 0.9 ? 1 : 0.03,
+      n > 0 ? 1 : 0,
+      n > 1 ? 1 : 0,
+      n > 2 ? 1 : 0,
+      n > 3 ? 1 : 0,
+      n > 4 ? 1 : 0,
+      held ? 0 : 1,
+      1,
+      1
+    ];
   }
   function effects(dt) {
     let M = qmat(car.q), F = mcol(M, 0), U = mcol(M, 1), Rt = mcol(M, 2), wet = env.wet, sp = len(car.v);
@@ -7685,7 +8014,16 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       vol: 1,
       tunnel
     }, fev = [];
-    if (ev.wall > 1.2 && fev.push({ type: "hit", a: ev.wall / 9 }), traffic) {
+    if (ev.wall > 1.2 && fev.push({ type: "hit", a: ev.wall / 9 }), fev.push(...pendingFx.splice(0)), race) {
+      let cv = camLast.pos, list = [], near = race.entrants.filter((e) => !e.you).map((e) => ({ e, d: Math.hypot(e.car.p[0] - cv[0], e.car.p[1] - cv[1], e.car.p[2] - cv[2]) })).sort((a, b) => a.d - b.d);
+      for (let { e, d } of near.slice(0, 2)) {
+        let u = norm2(sub2(e.car.p, cv)), Mr = qmat(e.car.q), Fr = mcol(Mr, 0), p = e.car.pt.soundParams(2, len(e.car.v), { dist: Math.max(2, d), pan: clamp(dot2(u, right), -1, 1) * 0.85, rear: clamp(0.5 + 0.5 * dot2(u, Fr), 0, 1) * 0.6 + 0.4 });
+        p.vol = listener === 1 ? 0.45 : 0.8, list.push({ id: e.P.engine, cfg: SIM.dspCfg(e.car.spec), p, ev: e.car.pt.takeEvents() });
+      }
+      for (let { e } of near.slice(2)) e.car.pt.takeEvents();
+      audio.rivals(list, { low: 1, medium: 1, high: 2, ultra: 2 }[settings.quality] ?? 2);
+    } else audio.rivals([]);
+    if (traffic) {
       let cv = camLast.pos, rt = right, near = [];
       for (let t of traffic.cars) {
         if (!t.view || !t.view.p || t.dist > 100) continue;
@@ -7743,7 +8081,8 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         let p = t.view && t.view.p || traffic.worldPos(t);
         return [p[0], -p[2]];
       }) : null,
-      hint: state === "drive" && time < 6 && lap.n === 0 ? "ESC FOR THE MENU · C CAMERA · L LED MATRIX" : null
+      hint: state === "drive" && time < 6 && lap.n === 0 && !race ? "ESC FOR THE MENU · C CAMERA · L LED MATRIX" : null,
+      ...race ? race.hud(time) : {}
     };
   }
   var camPrev = null;
@@ -7756,16 +8095,23 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     let drive = state === "title" || Q.has("auto") ? Object.assign({}, inp, botFn(car)) : inp;
     state === "drive" && car.aid.guide && guide && (drive = guide(drive));
     let pb = playerBody();
-    acc += dt;
+    race && state === "drive" && (drive = race.gate(drive)), acc += dt;
     let n = 0;
     for (; acc >= DT && n < 24; )
-      car.step(DT, drive), traffic && traffic.stepPhysics(DT, pb), acc -= DT, n++, time += DT;
-    return acc > DT && (acc = 0), traffic && (traffic.wet = env.wet, traffic.update(dt, { time, player: pb, cam: camLast, night: env.night, init: trafficInit }), trafficInit = !1), lapUpdate(), effects(dt), { ev: car.takeEvents() };
+      car.step(DT, drive), race && race.stepPhysics(DT), traffic && traffic.stepPhysics(DT, pb), acc -= DT, n++, time += DT;
+    return acc > DT && (acc = 0), traffic && (traffic.wet = env.wet, traffic.update(dt, { time, player: pb, cam: camLast, night: env.night, init: trafficInit }), trafficInit = !1), race && (race.wet = env.wet, race.update(dt, time), raceEvents()), lapUpdate(), effects(dt), { ev: car.takeEvents() };
   }
   function render(dt, ev) {
     let c = cam.update(dt, car, { look: !!lastInp.look, impact: Math.max(ev.wall || 0, ev.land || 0) * 0.25 }), L = carLights(), M = qmat(car.q), F = mcol(M, 0), fw = norm2([F[0], 0, F[2]]);
     camLast = { pos: c.pos, fwd: c.fwd };
-    let tv = traffic ? traffic.views({ night: env.night }) : [];
+    let tv = traffic ? traffic.views({ night: env.night }) : race ? race.views(env.night > 0.3) : [];
+    if (race && env.night > 0.3) {
+      let near = race.entrants.filter((e) => !e.you).map((e) => ({ e, d: Math.hypot(e.car.p[0] - c.pos[0], e.car.p[2] - c.pos[2]) })).sort((a, b) => a.d - b.d).slice(0, { low: 0, medium: 2, high: 3, ultra: 4 }[settings.quality] ?? 3);
+      for (let { e } of near) {
+        let Mr = qmat(e.car.q), Fr = mcol(Mr, 0), Ur = mcol(Mr, 1), hr = e.car.c.hcg, pos = add(e.car.p, mvec(Mr, [2.1, 0.62 - hr, 0]));
+        L.dyn.push({ pos, r: 30, col: [150, 145, 130], type: 1, dir: [Fr[0] - Ur[0] * 0.08, Fr[1] - Ur[1] * 0.08 - 0.04, Fr[2] - Ur[2] * 0.08], cosO: Math.cos(0.6) });
+      }
+    }
     traffic && L.dyn.push(...traffic.lights({ night: env.night, cam: c }, Math.min(16 - L.dyn.length, { low: 0, medium: 2, high: 4, ultra: 6 }[settings.quality] ?? 4)));
     let camVel = camPrev && !c.cut ? sub2(c.pos, camPrev).map((x) => x / Math.max(dt, 1e-3)) : [0, 0, 0];
     camPrev = c.pos.slice(), PS.rain.on = env.rain, PS.rain.camVel = camVel, PS.update(dt, c.pos);

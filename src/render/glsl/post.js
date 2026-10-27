@@ -70,7 +70,7 @@ vec3 scatterLights(vec3 X,vec3 rd){
     vec3 Lp=A.xyz;if(type==2){vec3 ax=C.xyz;float tt=clamp(dot(X-Lp,ax)/max(dot(ax,ax),1e-4),-1.,1.);Lp+=ax*tt;}
     vec3 Lv=Lp-X;float d2=dot(Lv,Lv);if(d2>A.w*A.w)continue;vec3 L=Lv*inversesqrt(d2);
     float att=falloff(d2,A.w);if(type==1)att*=smoothstep(C.w,D.x,dot(-L,C.xyz));
-    c+=B.rgb*(fl>0?uFlick[fl&7]:1.0)*att*hg(dot(rd,L),.35);}
+    c+=B.rgb*(fl>0?uFlick[fl&15]:1.0)*att*hg(dot(rd,L),.35);}
   return c*uLightsOn;
 }
 float csmVis(vec3 X){if(uCSMOn<=0.0)return 1.0;

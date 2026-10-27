@@ -48,7 +48,7 @@ export class Renderer{
     this.probeFB=[0,1,2,3,4,5].map(f=>G.target([{tex:this.probe,face:f}],this.probeDepth));
     this.probeFace=0;this.probeFilled=0;
     this.expo=[0,1].map(()=>G.texture(1,1,'rgba16f',{filter:'nearest'}));this.expoFB=this.expo.map(t=>G.target([t]));this.expoI=0;
-    this.U={uFlick:new Float32Array(8).fill(1),uDyn:new Float32Array(192),uNDyn:0,uHL:new Float32Array(20),uOcc:new Float32Array(64),uNOcc:0,
+    this.U={uFlick:new Float32Array(16).fill(1),uDyn:new Float32Array(192),uNDyn:0,uHL:new Float32Array(20),uOcc:new Float32Array(64),uNOcc:0,
       uCSMM:new Float32Array(48),uXw:new Float32Array(8).fill(-1),uLightsOn:1,uCSMOn:0,uHLShOn:0};
     this.timer=G.timer();this.gpuMs=-1;
     this.W=0;this.H=0;this.iw=0;this.ih=0;
@@ -185,7 +185,7 @@ export class Renderer{
       uWet:E.wet,uRain:E.rain,uNight:E.night,uSkyZen:E.skyZen,uSkyHor:E.skyHor,uSkyGlow:E.skyGlow,uCloud:E.cloud,uStars:E.stars,uSunSize:E.sunSize,
       uLightsOn:E.lightsOn,uLit:E.lit,uSignal:S.time*.9,uFogAmb:E.fogAmb,uFogSteps:Q.fogSteps,uFogLights:Q.fogLights,uProbeLod:Math.log2(Q.probe)-1});
     U.uRoad[3]=E.puddles;
-    U.uFlick.set(S.flicker||[1,1,1,1,1,1,1,1]);
+    U.uFlick.fill(1);U.uFlick.set((S.flicker||[]).slice(0,16));
     /* dynamic lights and headlights */
     const dyn=S.dyn||[];U.uNDyn=Math.min(16,dyn.length);U.uDyn.fill(0);
     dyn.slice(0,16).forEach((L,i)=>{U.uDyn.set([L.pos[0],L.pos[1],L.pos[2],L.r,L.col[0],L.col[1],L.col[2],L.type||0,L.dir?L.dir[0]:0,L.dir?L.dir[1]:-1,L.dir?L.dir[2]:0,L.cosO??-1],i*12);});

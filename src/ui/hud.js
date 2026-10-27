@@ -76,7 +76,26 @@ export class HUD{
     /* ---- laps, or where you are ---- */
     const lx=pad,ly=pad;
     this.small(ctx,S.levelName||'NEON LOOP',lx,ly,4*s,C.pink);
-    if(S.laps!==false){
+    if(S.race){
+      /* the race: position big at the top, laps, the order down the left */
+      this.dots(ctx,'P'+S.pos,W/2-40*s,pad,11*s,S.pos===1?C.green:C.white,{align:'c'});
+      this.small(ctx,'/'+S.n,W/2+60*s,pad+46*s,4*s,C.faint);
+      this.small(ctx,'LAP '+S.lap+'/'+S.laps,lx,ly+34*s,4*s,C.faint);
+      this.dots(ctx,fmtT(S.lapT),lx,ly+60*s,6*s,C.white,{unlit:false});
+      this.small(ctx,'BEST',lx,ly+118*s,3*s,C.faint);this.small(ctx,fmtT(S.best),lx+70*s,ly+118*s,3*s,S.best>0?C.green:C.faint);
+      this.small(ctx,'LAST',lx,ly+140*s,3*s,C.faint);this.small(ctx,fmtT(S.last),lx+70*s,ly+140*s,3*s,C.ink);
+      let ty=ly+190*s;
+      for(const [i,r] of S.tower.entries()){const col=r.you?C.pink:C.ink;
+        ctx.fillStyle=r.you?'rgba(255,79,160,.16)':'rgba(10,8,20,.35)';ctx.fillRect(lx-8*s,ty-6*s,300*s,26*s);
+        this.small(ctx,String(i+1),lx,ty,3*s,C.faint);this.small(ctx,r.name,lx+34*s,ty,3*s,col);
+        const g=r.dnf?'DNF':r.gap===null?(r.finished?'FIN':''):(r.gap>=0?'+':'-')+Math.abs(r.gap).toFixed(1);this.small(ctx,g,lx+200*s,ty,3*s,C.faint);ty+=30*s;}
+      /* the start lights */
+      if(S.lights>0||S.go){const r=20*s,y0=pad+140*s;for(let i=0;i<5;i++){const x=W/2+(i-2)*58*s,on=S.go?1:i<S.lights;
+        ctx.fillStyle='rgba(10,8,20,.7)';ctx.beginPath();ctx.arc(x,y0,r+6*s,0,6.283);ctx.fill();
+        ctx.fillStyle=S.go?C.green:on?C.red:'rgba(200,190,230,.08)';if(on){ctx.globalAlpha=.35;ctx.beginPath();ctx.arc(x,y0,r*1.7,0,6.283);ctx.fill();ctx.globalAlpha=1;}
+        ctx.beginPath();ctx.arc(x,y0,r,0,6.283);ctx.fill();}}
+    }
+    else if(S.laps!==false){
       this.small(ctx,'LAP '+Math.max(1,S.lap),lx,ly+34*s,4*s,C.faint);
       this.dots(ctx,fmtT(S.lapT),lx,ly+60*s,6*s,C.white,{unlit:false});
       this.small(ctx,'BEST',lx,ly+118*s,3*s,C.faint);this.small(ctx,fmtT(S.best),lx+70*s,ly+118*s,3*s,S.best>0?C.green:C.faint);

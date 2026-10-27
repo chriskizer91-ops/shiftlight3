@@ -58,6 +58,8 @@ export class GameAudio{
         const fx=new AudioWorkletNode(ctx,'shiftlight-fx',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2]});
         eng.connect(bus);fx.connect(bus);
         this.eng={post:m=>eng.port.postMessage(m)};this.fx={post:m=>fx.port.postMessage(m)};this.kind='worklet';
+        /* rivals' engines: more instances of the same synth, made when a race needs them */
+        this.mkEngine=()=>{const n=new AudioWorkletNode(ctx,'shiftlight-engine',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2]});n.connect(bus);return {post:m=>n.port.postMessage(m),cfgId:null};};
       }catch(err){
         const D=makeDSP(),F=makeFX(),d=new D(ctx.sampleRate),f=new F(ctx.sampleRate);
         const node=ctx.createScriptProcessor(1024,1,2),tmpL=new Float32Array(1024),tmpR=new Float32Array(1024);
@@ -74,6 +76,15 @@ export class GameAudio{
     return this.starting;
   }
   configure(cfg){this.cfg=cfg;if(this.ready)this.eng.post({t:'cfg',cfg});}
+  /* the nearest rivals' engines: [{id, cfg, p, ev}], up to max voices; missing ones fall silent */
+  rivals(list,max=2){
+    if(!this.ready||!this.mkEngine)return;this.rv=this.rv||[];
+    for(let i=0;i<max;i++){const r=list[i];let v=this.rv[i];
+      if(!r){if(v&&v.on){v.post({t:'p',p:Object.assign({},v.last,{vol:0,on:0})});v.on=false;}continue;}
+      if(!v)v=this.rv[i]=this.mkEngine();
+      if(v.cfgId!==r.id){v.post({t:'cfg',cfg:r.cfg});v.cfgId=r.id;}
+      for(const e of r.ev||[])v.post({t:'ev',ev:e});v.post({t:'p',p:r.p});v.last=r.p;v.on=true;}
+  }
   setVolume(v){this.vol=v;if(this.master)this.master.gain.setTargetAtTime(this.muted?0:v,this.ctx.currentTime,.05);}
   setMuted(m){this.muted=m;this.setVolume(this.vol);}
   suspend(on){if(!this.ctx)return;if(on)this.ctx.suspend();else this.ctx.resume();}
