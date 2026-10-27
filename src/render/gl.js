@@ -22,8 +22,9 @@ export function createGL(canvas){
   const header=defs=>'#version 300 es\nprecision highp float;precision highp int;precision highp sampler2DArray;precision highp sampler2DShadow;precision highp sampler2DArrayShadow;precision highp usampler2D;precision highp samplerCube;\n'+
     Object.entries(defs||{}).map(([k,v])=>`#define ${k} ${v===true?'':v}`).join('\n')+'\n';
   /* compile now, link lazily so the browser can compile many programs in parallel */
+  G.programs=[];
   G.program=(name,vs,fs,defs={})=>{
-    const P={name,p:gl.createProgram(),u:{},samplers:{},ready:false};
+    const P={name,p:gl.createProgram(),u:{},samplers:{},ready:false};G.programs.push(P);
     const mk=(t,src)=>{const s=gl.createShader(t);gl.shaderSource(s,header(defs)+src);gl.compileShader(s);gl.attachShader(P.p,s);return s;};
     P.vs=mk(gl.VERTEX_SHADER,vs);P.fs=mk(gl.FRAGMENT_SHADER,fs);P.srcV=vs;P.srcF=fs;P.defs=defs;
     gl.linkProgram(P.p);
@@ -45,6 +46,13 @@ export function createGL(canvas){
       if(SAMPLER_TYPES.has(inf.type)){P.samplers[nm]=unit;gl.uniform1i(loc,unit);unit++;}
       else P.u[nm]={loc,type:inf.type,size:inf.size};}
     P.ready=true;return P;
+  };
+  /* wait for every program to finish compiling without blocking the page (KHR_parallel_shader_compile) */
+  G.warmup=async(onProgress)=>{
+    const par=ext.par,list=G.programs.filter(P=>!P.ready);const t0=performance.now();
+    if(par){while(true){const done=list.filter(P=>gl.getProgramParameter(P.p,par.COMPLETION_STATUS_KHR)).length;onProgress&&onProgress(done,list.length);
+      if(done===list.length||performance.now()-t0>60000)break;await new Promise(r=>setTimeout(r,30));}}
+    for(let i=0;i<list.length;i++){G.finish(list[i]);if(!par){onProgress&&onProgress(i+1,list.length);await new Promise(r=>setTimeout(r,0));}}
   };
   let cur=null;
   G.use=P=>{if(!P.ready)G.finish(P);if(cur!==P){gl.useProgram(P.p);cur=P;}return P;};

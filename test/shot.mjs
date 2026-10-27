@@ -13,7 +13,7 @@ const url='file://'+resolve('dist/shiftlight.html');
 for(const s of shots){
   const t0=Date.now();await fresh();
   await page.goto(url+'?'+(s.title?'':'manual&')+(s.q||''));
-  await page.waitForFunction(()=>window.__game||document.querySelector('#boot b'),null,{timeout:120000});
+  await page.waitForFunction(()=>window.__game&&window.__game.ready,null,{timeout:300000});
   const ok=await page.evaluate(()=>!!window.__game);
   if(!ok){console.log('no game object');break;}
   if(s.click){await page.mouse.click(W/2,H/2);await page.waitForTimeout(1500);}

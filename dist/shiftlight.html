@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Shiftlight</title>
 <style>
-:root{--pink:#ff4fa0;--cyan:#4fe3ff;--ink:#ece8f6;--dim:#9a94b2;--panel:rgba(10,8,18,.82);--edge:rgba(255,255,255,.09)}
+:root{color-scheme:dark;--pink:#ff4fa0;--cyan:#4fe3ff;--ink:#ece8f6;--dim:#9a94b2;--panel:rgba(10,8,18,.82);--edge:rgba(255,255,255,.09)}
 html,body{margin:0;height:100%;background:#000;overflow:hidden;color:var(--ink);font:14px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 #view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:none}
 #hud{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
@@ -87,8 +87,10 @@ precision highp float;precision highp int;precision highp sampler2DArray;precisi
 ` + Object.entries(defs || {}).map(([k, v]) => `#define ${k} ${v === !0 ? "" : v}`).join(`
 `) + `
 `;
-    G2.program = (name, vs, fs, defs = {}) => {
-      let P = { name, p: gl.createProgram(), u: {}, samplers: {}, ready: !1 }, mk = (t, src) => {
+    G2.programs = [], G2.program = (name, vs, fs, defs = {}) => {
+      let P = { name, p: gl.createProgram(), u: {}, samplers: {}, ready: !1 };
+      G2.programs.push(P);
+      let mk = (t, src) => {
         let s = gl.createShader(t);
         return gl.shaderSource(s, header(defs) + src), gl.compileShader(s), gl.attachShader(P.p, s), s;
       };
@@ -113,6 +115,16 @@ precision highp float;precision highp int;precision highp sampler2DArray;precisi
         SAMPLER_TYPES.has(inf.type) ? (P.samplers[nm] = unit, gl.uniform1i(loc, unit), unit++) : P.u[nm] = { loc, type: inf.type, size: inf.size };
       }
       return P.ready = !0, P;
+    }, G2.warmup = async (onProgress) => {
+      let par = ext.par, list = G2.programs.filter((P) => !P.ready), t0 = performance.now();
+      if (par)
+        for (; ; ) {
+          let done = list.filter((P) => gl.getProgramParameter(P.p, par.COMPLETION_STATUS_KHR)).length;
+          if (onProgress && onProgress(done, list.length), done === list.length || performance.now() - t0 > 6e4) break;
+          await new Promise((r) => setTimeout(r, 30));
+        }
+      for (let i = 0; i < list.length; i++)
+        G2.finish(list[i]), par || (onProgress && onProgress(i + 1, list.length), await new Promise((r) => setTimeout(r, 0)));
     };
     let cur = null;
     G2.use = (P) => (P.ready || G2.finish(P), cur !== P && (gl.useProgram(P.p), cur = P), P), G2.set = (P, vals) => {
@@ -5065,9 +5077,10 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   var fmt = (t) => {
     let m = Math.floor(t / 60), s = t - m * 60;
     return m + ":" + (s < 10 ? "0" : "") + s.toFixed(3);
-  }, slowT = 0, slowHinted = !1, state = Q.has("manual") ? "drive" : "title", time = 0, acc = 0, frameN = 0, highBeam = !1, lastInp = {}, DT = 1 / 240;
-  state === "title" && ($("title").hidden = !1, cam.orbit = { yaw: 2.5, pitch: 0.1, dist: 7.6, fov: 0.72, y: 0.2 }, $("titleSub").textContent = "Neon Loop · " + env.name);
-  $("boot").hidden = !0;
+  }, slowT = 0, slowHinted = !1, state = "boot", time = 0, acc = 0, frameN = 0, highBeam = !1, lastInp = {}, DT = 1 / 240;
+  function enterTitle() {
+    $("boot").hidden = !0, state = Q.has("manual") ? "drive" : "title", state === "title" && ($("title").hidden = !1, cam.orbit = { yaw: 2.5, pitch: 0.1, dist: 7.6, fov: 0.72, y: 0.2 }, $("titleSub").textContent = "Neon Loop · " + env.name);
+  }
   function begin() {
     state === "title" && (state = "drive", $("title").hidden = !0, cam.orbit = null, cam.mode = Math.max(0, CAM_MODES.indexOf(settings.cam)), cam.cut = !0, car.placeOnTrack(T, GRID_S, -2.2), car.pt.stop && car.pt.stop(), car.pt.start(), lap.n = 0, lap.t0 = -1, lap.lastS = null, audio.start());
   }
@@ -5328,7 +5341,14 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     },
     stats: () => ({ iw: R.iw, ih: R.ih, gpu: R.gpuMs, drawn: R.drawn, speed: car.vf, gear: car.pt.gear, rpm: car.pt.rpm, s: car.loc && car.loc.s, d: car.loc && car.loc.d, lap: lap.n, state })
   };
-  Q.has("manual") || requestAnimationFrame(loop);
+  var bootMsg = $("boot").querySelector("div");
+  R.G.warmup((d, n) => {
+    bootMsg.innerHTML = `<b>SHIFTLIGHT</b> &nbsp;warming up the shaders ${d}/${n}`;
+  }).then(() => {
+    enterTitle(), window.__game.ready = !0, Q.has("manual") || requestAnimationFrame(loop);
+  }).catch((e) => {
+    bootMsg.textContent = "Could not start the renderer: " + e.message, console.error(e);
+  });
 })();
 </script>
 </body>

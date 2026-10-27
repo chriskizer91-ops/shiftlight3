@@ -85,10 +85,12 @@ const fmt=t=>{const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toF
 
 /* ---------- state ---------- */
 let slowT=0,slowHinted=false;
-let state=Q.has('manual')?'drive':'title',time=0,acc=0,frameN=0,highBeam=false,lastInp={};
+let state='boot',time=0,acc=0,frameN=0,highBeam=false,lastInp={};
 const DT=1/240;
-if(state==='title'){$('title').hidden=false;cam.orbit={yaw:2.5,pitch:.1,dist:7.6,fov:.72,y:.2};$('titleSub').textContent='Neon Loop · '+env.name;}
-$('boot').hidden=true;
+function enterTitle(){
+  $('boot').hidden=true;state=Q.has('manual')?'drive':'title';
+  if(state==='title'){$('title').hidden=false;cam.orbit={yaw:2.5,pitch:.1,dist:7.6,fov:.72,y:.2};$('titleSub').textContent='Neon Loop · '+env.name;}
+}
 function begin(){
   if(state!=='title')return;
   state='drive';$('title').hidden=true;cam.orbit=null;cam.mode=Math.max(0,CAM_MODES.indexOf(settings.cam));cam.cut=true;
@@ -241,4 +243,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='d
 window.__game={R,T,city,get car(){return car;},cam,input,frame,audio,menu,settings,begin,pause,swapEngine,
   sim:sec=>{for(let t=0;t<sec;t+=1/60)step(1/60);},setEnv:id=>{settings.env=id;env=ENVS[id];},setPaint:id=>{settings.paint=id;},
   stats:()=>({iw:R.iw,ih:R.ih,gpu:R.gpuMs,drawn:R.drawn,speed:car.vf,gear:car.pt.gear,rpm:car.pt.rpm,s:car.loc&&car.loc.s,d:car.loc&&car.loc.d,lap:lap.n,state})};
-if(!Q.has('manual'))requestAnimationFrame(loop);
+/* compile every shader behind the boot screen, then show the title */
+const bootMsg=$('boot').querySelector('div');
+R.G.warmup((d,n)=>{bootMsg.innerHTML=`<b>SHIFTLIGHT</b> &nbsp;warming up the shaders ${d}/${n}`;}).then(()=>{enterTitle();window.__game.ready=true;if(!Q.has('manual'))requestAnimationFrame(loop);})
+  .catch(e=>{bootMsg.textContent='Could not start the renderer: '+e.message;console.error(e);});
