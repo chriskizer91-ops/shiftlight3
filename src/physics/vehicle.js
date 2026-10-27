@@ -226,7 +226,7 @@ export class Vehicle{
     for(const hp of this.hull){
       const P=add(p,mvec(M,hp)),loc=world.locate(P,this.hint);
       const wc=world.wall(P,loc);if(wc&&wc.pen>0)this._impulse(M,P,wc.n,wc.pen,this.plus?.04:.18,this.plus?.05:.28,'wall'),push=madd(push,wc.n,wc.pen),pushN++;
-      const g=world.ground(P[0],P[2],loc?loc.i:this.hint);
+      const g=world.ground(P[0],P[2],loc?loc.i:this.hint,P[1]);
       const pen=(g.y-P[1])*g.n[1];
       if(pen>0){this._impulse(M,P,g.n,pen,.05,.55,'ground');push=madd(push,g.n,pen);pushN++;}
     }
