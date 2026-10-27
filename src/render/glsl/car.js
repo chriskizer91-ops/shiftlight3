@@ -26,9 +26,10 @@ void main(){vec4 p=vec4(aPos,1.0);vec3 w=vec3(dot(iM0,p),dot(iM1,p),dot(iM2,p)),
 export const CAR_DEPTH_VS=`
 layout(location=0) in vec3 aPos;
 ${INST}
-uniform mat4 uVP;
-void main(){vec4 p=vec4(aPos,1.0);gl_Position=uVP*vec4(dot(iM0,p),dot(iM1,p),dot(iM2,p),1.0);}`;
-export const CAR_DEPTH_FS=`out vec4 o;void main(){o=vec4(0);}`;
+uniform mat4 uVP;flat out float vG;
+void main(){vec4 p=vec4(aPos,1.0);vG=iPaint2.w;gl_Position=uVP*vec4(dot(iM0,p),dot(iM1,p),dot(iM2,p),1.0);}`;
+/* ghosts cast no shadow */
+export const CAR_DEPTH_FS=`flat in float vG;out vec4 o;void main(){if(vG>.5)discard;o=vec4(0);}`;
 
 export const CAR_FS=FRAME+NOISE+PACK+LIGHTING+SHADE+`
 in vec3 vP;in vec3 vL;in vec3 vN;in vec3 vNL;in vec2 vUV;flat in uvec4 vMat;in vec4 vCur;in vec4 vPrev;
@@ -184,6 +185,13 @@ void main(){
   uPaint=vPaint.rgb;uMetal=vPaint.a;uPaintR=vPaint2.x;uFlake=vPaint2.y;uDisc=vPaint2.z;uRoof=vRoof.rgb;uLamps=vLamps;uHcg=uMisc.x;
   {float pk=vRoof.w;uCaliper=vec3(floor(pk/65536.),mod(floor(pk/256.),256.),mod(pk,256.))/255.;
    int f=int(vLamps.w+.5);revL=float(f&1);indL=float((f>>1)&1);indR=float((f>>2)&1);}
+  /* a ghost: every other pixel (TAA blends it into a see-through car) and a cold glow */
+  float ghost=vPaint2.w;
+#ifdef GLASS
+  if(ghost>.5)discard;
+#else
+  if(ghost>.5&&ign(gl_FragCoord.xy,uFrame)>.45)discard;
+#endif
   vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;vec3 NL=normalize(vNL);
   vec3 V=normalize(uCam-vP);uint id=vMat.x;float yg=vL.y+uHcg;
   M m;m.alb=vec3(.5);m.metal=0.;m.rough=.5;m.clear=0.;m.clearR=.05;m.em=vec3(0);m.flake=0.;m.g=vec2(0);m.spec=1.0;
@@ -286,6 +294,7 @@ void main(){
   vec3 base=env(Rb,s.rough)*eb*occ;
   if(s.clear>0.0){float Fc=F_Sch(vec3(.04),NoV).x*s.clear;vec3 Rc=reflect(-V,N);col=col*(1.0-Fc)+base*(1.0-Fc)+env(Rc,s.clearR)*Fc;}
   else col+=base;
+  if(ghost>.5){float rim=pow(1.0-NoV,2.5);col=col*.25+vec3(.25,.8,1.)*(.18+1.6*rim)*(.75+.25*sin(vP.y*48.-uTime*5.));}
   oCol=vec4(col,1.0);
   oNrm=vec4(octEnc(N),s.rough,0.0);
   oVel=(vCur.xy/vCur.w-vPrev.xy/vPrev.w)*.5;

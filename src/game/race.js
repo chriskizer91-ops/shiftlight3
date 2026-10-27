@@ -36,13 +36,15 @@ function rngf(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
 
 export class Race{
   /* level: Neon Loop. you: the player's Vehicle. opts: {rivals, laps, difficulty, wet, seed, assists} */
-  constructor(level,you,{rivals=5,laps=3,difficulty='racing',wet=0,seed=Date.now()&0xffff,slot=3}={}){
+  /* ref: the car the field is built to ({chassis, spec}); by default yours */
+  constructor(level,you,{rivals=5,laps=3,difficulty='racing',wet=0,seed=Date.now()&0xffff,slot=3,ref=null}={}){
     this.level=level;const T=level.T;this.T=T;this.laps=laps;this.diff=DIFFICULTY[difficulty]||DIFFICULTY.racing;this.R=rngf(seed);this.wet=wet;
     const pool=RIVALS.slice();for(let i=pool.length-1;i>0;i--){const j=Math.floor(this.R()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
     const picks=pool.slice(0,rivals),n=rivals+1;slot=Math.min(slot,n-1);
     this.entrants=[];let ri=0;
     for(let g=0;g<n;g++){const isYou=g===slot,P=isYou?null:picks[ri++];
-      const car=isYou?you:new Vehicle(CHASSIS.sl3,this.rivalSpec(P,you.spec),level.world);
+      const R0=ref||{chassis:you.c,spec:you.spec};
+      const car=isYou?you:new Vehicle(JSON.parse(JSON.stringify(R0.chassis)),this.rivalSpec(P,R0.spec),level.world);
       const e={id:isYou?1:200+g,you:isYou,name:isYou?'YOU':P.name,P,car,grid:g,cross:0,s:0,prog:0,finished:false,time:0,best:0,lapT0:0,lastLap:0,box:BOX,
         paint:isYou?null:(PAINTS[P.paint]||EXTRA_PAINTS[P.paint]),caliper:P?P.caliper:null,state:{off:0,offT:0,err:0,errKind:null,errT:0,go:0,hint:-1}};
       if(!isYou){car.setAssists('arcade');car.pt.auto=true;e.prof=this.profile(car,P);}
@@ -50,9 +52,10 @@ export class Race{
     /* engines differ a lot; the field is matched to the car you brought: each rival's pace is set
        so their ideal lap compares with yours the way the difficulty says */
     const lapT=prof=>{let t=0;for(let i=0;i<T.N;i++)t+=T.ds/Math.max(prof[i],1);return t;};
-    const refP=this.profile(you,{brake:1}),ref=lapT(refP);
-    for(const e of this.entrants)if(!e.you)e.adj=lapT(e.prof)/ref;
-    this.refLap=ref;
+    const refCar=ref?{m:ref.chassis.mass,c:ref.chassis,spec:ref.spec,tyre:ref.chassis.tyre}:you;
+    const refP=this.profile(refCar,{brake:1}),refT=lapT(refP);
+    for(const e of this.entrants)if(!e.you)e.adj=lapT(e.prof)/refT;
+    this.refLap=refT;
     /* and kept there: eight sectors, each with the time it should take; a rival who runs a sector
        slower or faster than that (in clean air) nudges their pace (engines' torque curves differ
        in ways a power figure doesn't capture) */
@@ -62,6 +65,7 @@ export class Race{
   }
   /* a rival's engine keeps its character (and its sound) but makes about the power yours does */
   rivalSpec(P,yours){const base=SIM.PRESETS.find(q=>q.id===P.engine),mass=CHASSIS.sl3.mass,kw0=SIM.makeSpec(Object.assign({},base,{mass})).peak.kw;
+    /* (their own gearbox and drivetrain, your power) */
     const k=yours.peak.kw/kw0;return SIM.makeSpec(Object.assign({},base,{mass,tq:base.tq*k}));}
   profile(car,P){const mu=car.tyre.mu*this.diff.mu*(1-.14*this.wet);
     return speedProfile(this.T,{mass:car.m,clF:car.c.clF,clR:car.c.clR,cdA:car.c.cdA,powerKw:car.spec.peak.kw},{mu,brake:mu*9.81*.92*P.brake});}
@@ -121,11 +125,18 @@ export class Race{
     for(let i=0;i<E.length;i++)for(let j=i+1;j<E.length;j++){const hit=carContact({veh:E[i].car,box:BOX},{veh:E[j].car,box:BOX});
       if(hit>0){const y=E[i].you?E[i]:E[j].you?E[j]:null;if(y&&hit>.8)y.car.ev.wall=Math.max(y.car.ev.wall,hit);else if(hit>2)this.events.push({type:'crash',speed:hit,p:E[i].car.p});}}
   }
+  get kind(){return 'race';}
+  get held(){return this.phase==='grid'||this.phase==='countdown';}
+  get done(){const y=this.entrants.find(e=>e.you);return y.finished&&(this.phase==='done'||this.lastT-this.finishT>6);}
+  others(){return this.entrants.filter(e=>!e.you).map(e=>({car:e.car,id:e.P.engine,name:e.name}));}
+  result(){const R=this.results(),y=R.find(r=>r.you),pos=y.pos,fmt=t=>{if(!(t>0))return '—';const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(3);};
+    return {rank:pos<=3?pos:0,medal:['','1ST','2ND','3RD'][pos]||'P'+pos,stat:{best:y.best||null},title:'RACE',summary:`P${pos} of ${R.length} · best lap ${fmt(y.best)}`,
+      rows:R.map(r=>({you:r.you,text:`${String(r.pos).padStart(2,' ')}  ${r.name.padEnd(9,' ')}${r.dnf?'DNF':r.pos===1?fmt(r.time):'+'+(r.gap!==null?r.gap.toFixed(3):'—')}   best ${fmt(r.best)}`}))};}
   /* what the player's car may do right now */
   gate(inp){return this.phase==='grid'||this.phase==='countdown'?this.hold(inp):inp;}
   /* ---------- each frame: the lights, laps, the order ---------- */
   update(dt,time){
-    this.t+=dt;const T=this.T;
+    this.t+=dt;this.lastT=time;const T=this.T;
     if(this.phase==='grid'&&this.t>1.2){this.phase='countdown';this.t=0;}
     if(this.phase==='countdown'){const n=Math.min(5,Math.floor(this.t/.9));if(n>this.lights){this.lights=n;this.events.push({type:'light',n});}
       if(this.t>this.outAt){this.phase='racing';this.lights=0;this.goT=time;this.events.push({type:'go'});for(const e of this.entrants){e.lapT0=time;e.state.go=0;}}}

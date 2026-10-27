@@ -23,7 +23,10 @@ export class CameraRig{
     if(this.orbit){/* a turntable view of the car (garage, screenshots) */
       const o=this.orbit,c=add(car.p,mvec(M,[o.x||0,o.y||0,0]));const yaw=Math.atan2(-F[2],F[0])+o.yaw;
       const dir=[Math.cos(o.pitch)*Math.cos(yaw),Math.sin(o.pitch),-Math.cos(o.pitch)*Math.sin(yaw)];
-      out.pos=madd(c,dir,o.dist);out.fwd=scale(dir,-1);out.up=[0,1,0];out.fov=o.fov||.7;out.cut=true;return out;}
+      out.pos=madd(c,dir,o.dist);out.fwd=scale(dir,-1);out.up=[0,1,0];out.fov=o.fov||.7;out.cut=true;
+      /* slide the camera sideways (the car sits left of centre, beside a panel) */
+      if(o.shift){const r=norm(cross(out.fwd,[0,1,0]));out.pos=madd(out.pos,r,o.shift);}
+      return out;}
     this.shake=Math.max(this.shake*Math.exp(-dt*6),impact*.6);
     const body=(x,y,z)=>add(car.p,mvec(M,[x,y-hcg,z]));
     if(mode==='chase'||mode==='far'||look){

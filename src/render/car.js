@@ -99,17 +99,17 @@ export class CarRenderer{
       const pt=c.paint||PAINTS.magenta,L4=c.lamps||[0,0,0,0],ind=c.ind||[0,0];
       const paint=[pt.col[0],pt.col[1],pt.col[2],pt.metal],cal=c.caliper||[.7,.02,.02],roof=[pt.roof[0],pt.roof[1],pt.roof[2],pack8(cal)];
       const lamps=[L4[0],L4[1],L4[2],(L4[3]>.5?1:0)+(ind[0]?2:0)+(ind[1]?4:0)];
-      const dist=Math.max(0,d);
-      L.body.push(M,prevM,paint,[pt.rough,pt.flake,0,0],roof,lamps,dist);if(c.self)L.body.self=true;
-      if(c.driver!==false)L.driver.push(M,prevM,paint,[pt.rough,pt.flake,0,0],roof,lamps,dist);
+      const dist=Math.max(0,d),gh=c.ghost?1:0;
+      L.body.push(M,prevM,paint,[pt.rough,pt.flake,0,gh],roof,lamps,dist);if(c.self)L.body.self=true;
+      if(c.driver!==false&&!gh)L.driver.push(M,prevM,paint,[pt.rough,pt.flake,0,0],roof,lamps,dist);
       const pw=pv?pv.wheels:null,wl=[];
       c.wheels.forEach((w,i)=>{
         const base=M4.mul(M,M4.mul(T4(w.hp[0],w.hp[1]-w.len,w.hp[2]),RY(-w.steer)));
         const p=pw?pw[i]:null,dAng=p?Math.max(-.35,Math.min(.35,w.ang-p.ang)):0;
         const WM=M4.mul(base,RZ(-w.ang)),WP=p?M4.mul(p.base,RZ(-(w.ang-dAng))):WM;
-        const left=w.hp[2]<0,p2=[pt.rough,pt.flake,w.disc||0,0];
+        const left=w.hp[2]<0,p2=[pt.rough,pt.flake,w.disc||0,gh];
         (left?L.wL:L.wR).push(WM,WP,paint,p2,roof,lamps,dist);if(c.self)(left?L.wL:L.wR).self=true;
-        if(L.cR)(left?L.cL:L.cR).push(base,p?p.base:base,paint,p2,roof,lamps,dist);
+        if(L.cR&&!gh)(left?L.cL:L.cR).push(base,p?p.base:base,paint,p2,roof,lamps,dist);
         wl.push({ang:w.ang,base});});
       this.prev.set(key,{M,wheels:wl});
     }

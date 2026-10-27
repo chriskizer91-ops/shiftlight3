@@ -108,7 +108,7 @@ export class Vehicle{
       if(W[l].contact)W[l].Fz=Math.max(0,W[l].Fz+f);if(W[r].contact)W[r].Fz=Math.max(0,W[r].Fz-f);}
     const wasAir=this.air;this.air=nContact===0;if(this.air)this.airT+=dt;else{if(wasAir&&this.airT>.15)this.ev.land=Math.max(this.ev.land,-vb[1]);this.airT=0;}
     /* ---- tyres ---- */
-    const P=this.plus,TY=this.TY,wetMu=lerp(1,P?.93:.84,this.wet)*(P?P.grip:1);
+    const P=this.plus,TY=this.TY,wetMu=lerp(1,(P?.93:.84)*(this.tyre.wet||1),this.wet)*(P?P.grip:1);
     for(const wh of W){
       if(!wh.contact){wh.Fx=wh.Fy=wh.Kd=wh.kap=wh.sg=wh.slipV=0;wh.tanA=0;continue;}
       const st=wh.front?this.steer:0,fw=mvec(M,[Math.cos(st),0,Math.sin(st)]),n=wh.n;

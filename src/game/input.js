@@ -6,7 +6,7 @@
 const KEYS={
   thr:['ArrowUp','KeyW'],brk:['ArrowDown','KeyS'],left:['ArrowLeft','KeyA'],right:['ArrowRight','KeyD'],
   hb:['Space'],nos:['ShiftLeft','ShiftRight','KeyN'],up:['KeyE','KeyX'],down:['KeyQ','KeyZ'],
-  cam:['KeyC'],reset:['KeyR'],pause:['Escape','KeyP'],led:['KeyL'],high:['KeyH'],look:['KeyB'],env:['KeyT'],hud:['KeyU']
+  cam:['KeyC'],reset:['KeyR'],pause:[],led:['KeyL'],high:['KeyH'],look:['KeyB'],env:['KeyT'],hud:['KeyU']
 };
 export class Input{
   constructor(target=window){
