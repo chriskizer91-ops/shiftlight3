@@ -19,6 +19,7 @@ import {SIM} from '../src/engine/engine-sim.js';
 import {Input} from '../src/game/input.js';
 import {CameraRig,CAM_MODES} from '../src/game/camera.js';
 import {makeBot} from '../src/game/bot.js';
+import {makeGuide} from '../src/game/guide.js';
 import {GameAudio} from '../src/audio/game-audio.js';
 import {HUD} from '../src/ui/hud.js';
 import {Menu,loadSettings,saveSettings} from '../src/ui/menu.js';
@@ -26,7 +27,7 @@ import {qmat,mcol,mvec,add,norm,clamp,madd,sub,len,dot} from '../src/physics/mat
 
 const $=id=>document.getElementById(id);
 const Q=new URLSearchParams(location.search);
-const DEFAULTS={assist:'arcade',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',volume:.8,units:'kmh'};
+const DEFAULTS={assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',volume:.8,units:'kmh'};
 const settings=loadSettings(DEFAULTS);
 for(const k of Object.keys(DEFAULTS))if(Q.has(k))settings[k]=isNaN(+Q.get(k))||k==='scale'&&Q.get(k)==='auto'?Q.get(k):+Q.get(k);
 const save=()=>{if(!Q.has('manual'))saveSettings(settings);};
@@ -56,12 +57,12 @@ function makeCar(engineId,keep){
   if(keep){c.p=keep.p.slice();c.q=keep.q.slice();c.v=keep.v.slice();c.w=keep.w.slice();c.wheels.forEach((w,i)=>{w.w=keep.wheels[i].w;w.ang=keep.wheels[i].ang;});c.hint=keep.hint;
     c.pt.st='run';c.pt.we=Math.max(c.pt.we,spec.idle*6.283/60*1.5);c.pt.gear=Math.min(keep.pt.gear,spec.nG);c.pt.rpm=keep.pt.rpm;}
   else{c.placeOnTrack(T,GRID_S,-2.2);}
-  car=c;audio.configure(SIM.dspCfg(spec));
+  car=c;audio.configure(SIM.dspCfg(spec));guide=makeGuide(T,car);
   const prof=speedProfile(T,{mass:car.m,clF:car.c.clF,clR:car.c.clR,cdA:car.c.cdA,powerKw:car.spec.peak.kw},{mu:car.tyre.mu*.84});
   botFn=makeBot(T,prof,{pace:.88});
   return c;
 }
-let botFn=null;
+let botFn=null,guide=null;
 makeCar(settings.engine);car.pt.start();
 
 /* ---------- laps ---------- */
@@ -113,7 +114,8 @@ function menuRows(){
   return [
     {type:'action',label:'Resume',act:()=>pause(false)},
     {type:'head',label:'Driving'},
-    {type:'choice',label:'Assists',chips:1,get:()=>settings.assist,set:set('assist',v=>car.setAssists(v)),options:[
+    {type:'choice',label:'Assists',chips:1,get:()=>settings.assist,set:set('assist',v=>{car.setAssists(v);car.pt.auto=settings.gearbox==='auto';guide=makeGuide(T,car);}),options:[
+      opt('easy','Arcade Easy','The car slows for corners and steers off the walls for you, grips harder in the wet, and stays on its wheels. Handbrake drifts still work.'),
       opt('arcade','Arcade','Steering, stability and drift help. Handbrake into a corner and hold the angle with the stick.'),
       opt('sport','Sport','Less steering help, a looser stability net. The car moves around more.'),
       opt('sim','Simulation','Just the car: no steering or stability help. ABS stays on.')]},
@@ -177,7 +179,8 @@ function soundUpdate(c,ev){
   else geo.rear=clamp(.5-.5*dot(dirToCam,F),0,1)*.6+.4;
   const ep=car.pt.soundParams(listener,len(car.v),geo);
   const tunnel=city.info.tunnel&&car.loc&&car.loc.s>city.info.tunnel[0]-5&&car.loc.s<city.info.tunnel[1]+5&&Math.abs(car.loc.d)<T.wl?1:0;
-  const fx={slip:car.wheels.map(w=>w.contact?w.sg:0),load:car.wheels.map(w=>w.Fz),wet:env.wet,rain:tunnel?0:env.rain,speed:len(car.v),cabin:listener===1?1:0,
+  const tA=Math.tan(car.tyre.aPk),kP=car.tyre.kPk;
+  const fx={lat:car.wheels.map(w=>w.contact?Math.abs(w.tanA)/tA:0),lon:car.wheels.map(w=>w.contact?Math.abs(w.kap)/kP:0),load:car.wheels.map(w=>w.Fz),wet:env.wet,speed:len(car.v),cabin:listener===1?1:0,
     curb:car.wheels.some(w=>w.contact&&w.surf==='curb')?1:0,scrape:ev.scrape||0,vol:1,tunnel};
   const fev=[];if(ev.wall>1.2)fev.push({type:'hit',a:ev.wall/9});if(ev.land>2.2)fev.push({type:'hit',a:ev.land/10});if(ev.ground>2)fev.push({type:'hit',a:ev.ground/8});
   audio.update(ep,car.pt.takeEvents(),fx,fev,{tunnel,cabin:listener===1});
@@ -191,7 +194,7 @@ function hudState(){
     lap:lap.n,lapT:lap.t0>=0?time-lap.t0:0,best:lap.best,last:lap.last,
     delta:lap.bestTrace&&lap.t0>=0&&car.loc?(time-lap.t0)-(lap.bestTrace[Math.floor(car.loc.s)]||0):null,
     assistName:ASSISTS[settings.assist].name.toUpperCase()+' · '+(pt.auto?'AUTO':'MANUAL'),
-    tc:pt.tcOn,abs:car.absOn,esc:car.escOn,drift:car.drift.on,mapCar:[car.p[0],-car.p[2]],
+    tc:pt.tcOn,abs:car.absOn,esc:car.escOn,drift:car.drift.on,guide:car.aid.guide?(guide&&(guide.state.brake>.05||Math.abs(guide.state.steer)>.05)?1:.5):0,mapCar:[car.p[0],-car.p[2]],
     hint:state==='drive'&&time<6&&lap.n===0?'ESC FOR THE MENU · C CAMERA · L LED MATRIX':null};
 }
 
@@ -214,7 +217,8 @@ function step(dt){
     if(inp.up)car.pt.shift(1);if(inp.down)car.pt.shift(-1);
   }
   car.wet=env.wet;
-  const drive=state==='title'||Q.has('auto')?Object.assign({},inp,botFn(car)):inp;
+  let drive=state==='title'||Q.has('auto')?Object.assign({},inp,botFn(car)):inp;
+  if(state==='drive'&&car.aid.guide&&guide)drive=guide(drive);
   acc+=dt;let n=0;while(acc>=DT&&n<24){car.step(DT,drive);acc-=DT;n++;time+=DT;}
   if(acc>DT)acc=0;
   lapUpdate();effects(dt);

@@ -2935,25 +2935,25 @@ void main(){
       if (near > 45 || Wd < 7) return;
       let r = R2();
       if (r < 0.62) {
-        let word = WORDS[Math.floor(R2() * WORDS.length)], px = 0.13 + R2() * 0.05, len2 = word.length * 6 * px - px;
-        if (len2 > Wd - 1.5) return;
-        let u0 = 1 + R2() * (Wd - 1.5 - len2), col = NEON[Math.floor(R2() * NEON.length)], h0 = 5.15 + R2() * 0.6, o = [bl[0] + rt[0] * u0 + nm[0] * 0.32, bl[1] + rt[1] * u0 + nm[1] * 0.32];
-        C2.mat(13, 140).col(30, 30, 34), C2.at(mx, -my).box(W(o[0] + rt[0] * len2 / 2 - nm[0] * 0.12, o[1] + rt[1] * len2 / 2 - nm[1] * 0.12, h0 + 3 * px), [rt[0], 0, -rt[1]], [0, 1, 0], [nm[0], 0, -nm[1]], [len2 / 2 + 0.25, 3.5 * px + 0.2, 0.08]);
+        let word = WORDS[Math.floor(R2() * WORDS.length)], px = 0.13 + R2() * 0.05, len3 = word.length * 6 * px - px;
+        if (len3 > Wd - 1.5) return;
+        let u0 = 1 + R2() * (Wd - 1.5 - len3), col = NEON[Math.floor(R2() * NEON.length)], h0 = 5.15 + R2() * 0.6, o = [bl[0] + rt[0] * u0 + nm[0] * 0.32, bl[1] + rt[1] * u0 + nm[1] * 0.32];
+        C2.mat(13, 140).col(30, 30, 34), C2.at(mx, -my).box(W(o[0] + rt[0] * len3 / 2 - nm[0] * 0.12, o[1] + rt[1] * len3 / 2 - nm[1] * 0.12, h0 + 3 * px), [rt[0], 0, -rt[1]], [0, 1, 0], [nm[0], 0, -nm[1]], [len3 / 2 + 0.25, 3.5 * px + 0.2, 0.08]);
         let fl = R2() < 0.18 ? 1 + Math.floor(R2() * 5) : 0;
-        neonText(word, W(o[0], o[1], h0), [rt[0], 0, -rt[1]], [0, 1, 0], px, col, fl), addLight({ type: 2, pos: W(o[0] + rt[0] * len2 / 2 + nm[0] * 0.5, o[1] + rt[1] * len2 / 2 + nm[1] * 0.5, h0 + 3 * px), axis: [rt[0] * len2 / 2, 0, -rt[1] * len2 / 2], r: 13, col: col.map((v) => v * 2.6), flick: fl, src: 0.15 });
+        neonText(word, W(o[0], o[1], h0), [rt[0], 0, -rt[1]], [0, 1, 0], px, col, fl), addLight({ type: 2, pos: W(o[0] + rt[0] * len3 / 2 + nm[0] * 0.5, o[1] + rt[1] * len3 / 2 + nm[1] * 0.5, h0 + 3 * px), axis: [rt[0] * len3 / 2, 0, -rt[1] * len3 / 2], r: 13, col: col.map((v) => v * 2.6), flick: fl, src: 0.15 });
       } else if (r < 0.9) {
-        let word = WORDS[Math.floor(R2() * WORDS.length)].slice(0, 7), px = 0.15, lh = 9 * px, len2 = word.length * lh, u0 = R2() < 0.5 ? 1.2 : Wd - 1.2, col = NEON[Math.floor(R2() * NEON.length)], h0 = 7 + R2() * 3, base = [bl[0] + rt[0] * u0, bl[1] + rt[1] * u0], out = 1.9, thick = 0.18;
+        let word = WORDS[Math.floor(R2() * WORDS.length)].slice(0, 7), px = 0.15, lh = 9 * px, len3 = word.length * lh, u0 = R2() < 0.5 ? 1.2 : Wd - 1.2, col = NEON[Math.floor(R2() * NEON.length)], h0 = 7 + R2() * 3, base = [bl[0] + rt[0] * u0, bl[1] + rt[1] * u0], out = 1.9, thick = 0.18;
         C2.mat(13, 120).col(25, 25, 30);
         let c0 = [base[0] + nm[0] * (out / 2 + 0.3), base[1] + nm[1] * (out / 2 + 0.3)];
-        C2.at(mx, -my).box(W(c0[0], c0[1], h0 + len2 / 2), [nm[0], 0, -nm[1]], [0, 1, 0], [rt[0], 0, -rt[1]], [out / 2, len2 / 2 + 0.2, thick / 2]), C2.mat(8, 90, 230).col(60, 60, 64);
-        for (let hh of [h0 + 0.3, h0 + len2 - 0.3]) C2.at(mx, -my).tube(W(base[0], base[1], hh), W(base[0] + nm[0] * 0.4, base[1] + nm[1] * 0.4, hh), 0.04, 4, !1);
+        C2.at(mx, -my).box(W(c0[0], c0[1], h0 + len3 / 2), [nm[0], 0, -nm[1]], [0, 1, 0], [rt[0], 0, -rt[1]], [out / 2, len3 / 2 + 0.2, thick / 2]), C2.mat(8, 90, 230).col(60, 60, 64);
+        for (let hh of [h0 + 0.3, h0 + len3 - 0.3]) C2.at(mx, -my).tube(W(base[0], base[1], hh), W(base[0] + nm[0] * 0.4, base[1] + nm[1] * 0.4, hh), 0.04, 4, !1);
         let fl = R2() < 0.2 ? 1 + Math.floor(R2() * 5) : 0;
         for (let sgn2 of [1, -1])
           for (let k2 = 0; k2 < word.length; k2++) {
-            let ch = word[k2], hh = h0 + len2 - (k2 + 1) * lh + px, rs = sgn2 > 0 ? -1 : 1, facePos = [c0[0] + rt[0] * sgn2 * (thick / 2 + 0.04) - nm[0] * rs * 2.5 * px, c0[1] + rt[1] * sgn2 * (thick / 2 + 0.04) - nm[1] * rs * 2.5 * px], right = [nm[0] * rs, 0, -nm[1] * rs];
+            let ch = word[k2], hh = h0 + len3 - (k2 + 1) * lh + px, rs = sgn2 > 0 ? -1 : 1, facePos = [c0[0] + rt[0] * sgn2 * (thick / 2 + 0.04) - nm[0] * rs * 2.5 * px, c0[1] + rt[1] * sgn2 * (thick / 2 + 0.04) - nm[1] * rs * 2.5 * px], right = [nm[0] * rs, 0, -nm[1] * rs];
             neonText(ch, W(facePos[0], facePos[1], hh), right, [0, 1, 0], px, col, fl);
           }
-        addLight({ type: 2, pos: W(c0[0], c0[1], h0 + len2 / 2), axis: [0, len2 / 2, 0], r: 14, col: col.map((v) => v * 3), flick: fl, src: 0.2 });
+        addLight({ type: 2, pos: W(c0[0], c0[1], h0 + len3 / 2), axis: [0, len3 / 2, 0], r: 14, col: col.map((v) => v * 3), flick: fl, src: 0.2 });
       } else {
         let col = NEON[Math.floor(R2() * NEON.length)];
         C2.mat(7, 70, 0).col(col[0] * 255, col[1] * 255, col[2] * 255);
@@ -2971,8 +2971,8 @@ void main(){
       C2.mat(10, 28).col(col[0] * 255, col[1] * 255, col[2] * 255);
       let fa = W(cx + rt[0] * -w / 2 + F.nx * 0.2, cy + rt[1] * -w / 2 + F.ny * 0.2, y0), fb = W(cx + rt[0] * w / 2 + F.nx * 0.2, cy + rt[1] * w / 2 + F.ny * 0.2, y0);
       C2.at(cx, -cy).quadP(fa, fb, [fb[0], y0 + h, fb[2]], [fa[0], y0 + h, fa[2]], [[0, 0], [1, 0], [1, 1], [0, 1]], [F.nx, 0, -F.ny]), C2.mat(13, 150).col(30, 30, 30), C2.at(cx, -cy).box(W(cx, cy, y0 + h / 2), [rt[0], 0, -rt[1]], [0, 1, 0], [F.nx, 0, -F.ny], [w / 2 + 0.15, h / 2 + 0.15, 0.15]);
-      let word = WORDS[Math.floor(R2() * WORDS.length)], px = Math.min(h * 0.7 / 7, (w - 1) / (word.length * 6)), len2 = word.length * 6 * px - px, ncol = NEON[Math.floor(R2() * NEON.length)];
-      neonText(word, W(cx - rt[0] * len2 / 2 + F.nx * 0.35, cy - rt[1] * len2 / 2 + F.ny * 0.35, y0 + (h - 7 * px) / 2), [rt[0], 0, -rt[1]], [0, 1, 0], px, ncol, 0), addLight({ type: 2, pos: W(cx + F.nx * 3, cy + F.ny * 3, y0 + h / 2), axis: [rt[0] * w / 2, 0, -rt[1] * w / 2], r: 26, col: col.map((v) => v * 7), src: 0.5 });
+      let word = WORDS[Math.floor(R2() * WORDS.length)], px = Math.min(h * 0.7 / 7, (w - 1) / (word.length * 6)), len3 = word.length * 6 * px - px, ncol = NEON[Math.floor(R2() * NEON.length)];
+      neonText(word, W(cx - rt[0] * len3 / 2 + F.nx * 0.35, cy - rt[1] * len3 / 2 + F.ny * 0.35, y0 + (h - 7 * px) / 2), [rt[0], 0, -rt[1]], [0, 1, 0], px, ncol, 0), addLight({ type: 2, pos: W(cx + F.nx * 3, cy + F.ny * 3, y0 + h / 2), axis: [rt[0] * w / 2, 0, -rt[1] * w / 2], r: 26, col: col.map((v) => v * 7), src: 0.5 });
     }
     function neonText(text, origin, right, up, px, col, fl) {
       C2.mat(7, Math.round(52 + R2() * 16), fl, 0).col(col[0] * 255, col[1] * 255, col[2] * 255);
@@ -3112,12 +3112,12 @@ void main(){
       }
       let a = P(dl, 7.2), b = P(dr, 7.2), cen = [(a[0] + b[0]) / 2, a[1], (a[2] + b[2]) / 2], ax = norm([a[0] - b[0], 0, a[2] - b[2]]), fw = norm(cross([0, 1, 0], ax));
       B.box(cen, ax, [0, 1, 0], fw, [Math.hypot(a[0] - b[0], a[2] - b[2]) / 2, 0.7, 0.4]);
-      let word = "SHIFTLIGHT", px = 0.21, len2 = word.length * 6 * px - px;
+      let word = "SHIFTLIGHT", px = 0.21, len3 = word.length * 6 * px - px;
       for (let sg of [-1, 1]) {
-        let o = [cen[0] - ax[0] * len2 / 2 * (sg > 0 ? 1 : -1) - fw[0] * 0.42 * sg, cen[1] - 0.5, cen[2] - ax[2] * len2 / 2 * (sg > 0 ? 1 : -1) - fw[2] * 0.42 * sg];
+        let o = [cen[0] - ax[0] * len3 / 2 * (sg > 0 ? 1 : -1) - fw[0] * 0.42 * sg, cen[1] - 0.5, cen[2] - ax[2] * len3 / 2 * (sg > 0 ? 1 : -1) - fw[2] * 0.42 * sg];
         neonText(word, o, sg > 0 ? ax : ax.map((v) => -v), [0, 1, 0], px, [1, 0.25, 0.55], 0);
       }
-      addLight({ type: 2, pos: [cen[0] - fw[0] * 1.5, cen[1] - 1.2, cen[2] - fw[2] * 1.5], axis: ax.map((v) => v * len2 / 2), r: 22, col: [12, 3, 6.5], src: 0.4 }), addLight({ type: 2, pos: [cen[0] + fw[0] * 1.5, cen[1] - 1.2, cen[2] + fw[2] * 1.5], axis: ax.map((v) => v * len2 / 2), r: 22, col: [12, 3, 6.5], src: 0.4 });
+      addLight({ type: 2, pos: [cen[0] - fw[0] * 1.5, cen[1] - 1.2, cen[2] - fw[2] * 1.5], axis: ax.map((v) => v * len3 / 2), r: 22, col: [12, 3, 6.5], src: 0.4 }), addLight({ type: 2, pos: [cen[0] + fw[0] * 1.5, cen[1] - 1.2, cen[2] + fw[2] * 1.5], axis: ax.map((v) => v * len3 / 2), r: 22, col: [12, 3, 6.5], src: 0.4 });
     }
     for (let ms = 0; ms * 41 < T2.len; ms++) {
       let mp = h11(ms * 1.9) * 41, s = ms * 41 + mp;
@@ -3867,6 +3867,9 @@ void main(){
 
   // src/physics/vehicle.js
   var G = 9.81, RHO = 1.2, ASSISTS = {
+    /* Arcade Easy: everything Arcade has, plus the assist layer in the car (grip, spin catch,
+       keep-upright, slide-off walls) and the guide in the game (corner speed, wall avoidance) */
+    easy: { id: "easy", name: "Arcade Easy", steer: 1, esc: 1, tc: 1, abs: 1, drift: 1, auto: 1, catchSpin: 1, plus: { grip: 1.15, upright: !0 }, guide: !0 },
     arcade: { id: "arcade", name: "Arcade", steer: 1, esc: 1, tc: 1, abs: 1, drift: 1, auto: 1, catchSpin: 1 },
     sport: { id: "sport", name: "Sport", steer: 0.75, esc: 0.65, tc: 1, abs: 1, drift: 0, auto: 1, catchSpin: 0 },
     sim: { id: "sim", name: "Simulation", steer: 0, esc: 0, tc: 0, abs: 1, drift: 0, auto: 1, catchSpin: 0 }
@@ -3918,7 +3921,7 @@ void main(){
       this.hull = [];
       for (let x of [hx, hx * 0.45, -hx * 0.45, -hx]) for (let z of [-hz, hz]) this.hull.push([x, yb, z * (Math.abs(x) > hx * 0.9 ? 0.9 : 1)], [x, ym, z]);
       for (let x of [hx * 0.45, -hx * 0.6]) for (let z of [-hz * 0.78, hz * 0.78]) this.hull.push([x, yt, z]);
-      this.hull.push([hx + 0.04, ym - 0.05, 0], [-hx - 0.04, ym, 0]), this.p = [0, 0, 0], this.q = [0, 0, 0, 1], this.v = [0, 0, 0], this.w = [0, 0, 0], this.steer = 0, this.hint = -1, this.loc = null, this.air = !0, this.airT = 0, this.speed = 0, this.vf = 0, this.beta = 0, this.aid = ASSISTS.arcade, this.wet = 0, this.drift = { on: !1, dir: 0, t: 0, low: 0 }, this.ev = { wall: 0, land: 0, scrape: 0, ground: 0 }, this.rev = !1, this.revT = 0, this.escOn = !1, this.absOn = !1, this.assistTorque = 0, this.TY = { fx: 0, fy: 0, dk: 0, sg: 0 }, this.acc = [0, 0, 0], this.accB = [0, 0, 0], this.setAssists("arcade");
+      this.hull.push([hx + 0.04, ym - 0.05, 0], [-hx - 0.04, ym, 0]), this.p = [0, 0, 0], this.q = [0, 0, 0, 1], this.v = [0, 0, 0], this.w = [0, 0, 0], this.steer = 0, this.hint = -1, this.loc = null, this.air = !0, this.airT = 0, this.speed = 0, this.vf = 0, this.beta = 0, this.aid = ASSISTS.arcade, this.wet = 0, this.drift = { on: !1, dir: 0, t: 0, low: 0 }, this.ev = { wall: 0, land: 0, scrape: 0, ground: 0 }, this.rev = !1, this.revT = 0, this.escOn = !1, this.absOn = !1, this.assistTorque = 0, this.plus = null, this.TY = { fx: 0, fy: 0, dk: 0, sg: 0 }, this.acc = [0, 0, 0], this.accB = [0, 0, 0], this.setAssists("arcade");
     }
     /* put the car at rest on the track at (s, d), facing along it */
     placeOnTrack(T2, s, d = 0) {
@@ -3934,7 +3937,7 @@ void main(){
         wh.w = 0;
     }
     setAssists(id) {
-      this.aid = ASSISTS[id] || ASSISTS.arcade, this.pt.auto = !!this.aid.auto;
+      this.aid = ASSISTS[id] || ASSISTS.arcade, this.pt.auto = !!this.aid.auto, this.plus = this.aid.plus || null;
     }
     /* invert the world-space inertia: I_w^-1 * x */
     invI(M, x) {
@@ -3974,7 +3977,7 @@ void main(){
       }
       let wasAir = this.air;
       this.air = nContact === 0, this.air ? this.airT += dt : (wasAir && this.airT > 0.15 && (this.ev.land = Math.max(this.ev.land, -vb[1])), this.airT = 0);
-      let TY = this.TY, wetMu = lerp(1, 0.84, this.wet);
+      let P = this.plus, TY = this.TY, wetMu = lerp(1, P ? 0.93 : 0.84, this.wet) * (P ? P.grip : 1);
       for (let wh of W2) {
         if (!wh.contact) {
           wh.Fx = wh.Fy = wh.Kd = wh.kap = wh.sg = wh.slipV = 0, wh.tanA = 0;
@@ -4014,7 +4017,10 @@ void main(){
       let sp = this.speed, dr = 0.5 * RHO * c.cdA * sp;
       apply([-v[0] * dr, -v[1] * dr, -v[2] * dr], p);
       let q2 = 0.5 * RHO * vb[0] * vb[0];
-      apply(scale(U, -q2 * c.clF), add(p, mvec(M, [this.a, 0, 0]))), apply(scale(U, -q2 * c.clR), add(p, mvec(M, [-this.b, 0, 0]))), this.assistTorque && (torque[0] += U[0] * this.assistTorque, torque[1] += U[1] * this.assistTorque, torque[2] += U[2] * this.assistTorque);
+      if (apply(scale(U, -q2 * c.clF), add(p, mvec(M, [this.a, 0, 0]))), apply(scale(U, -q2 * c.clR), add(p, mvec(M, [-this.b, 0, 0]))), this.assistTorque && (torque[0] += U[0] * this.assistTorque, torque[1] += U[1] * this.assistTorque, torque[2] += U[2] * this.assistTorque), P && P.upright) {
+        let F = mcol(M, 0), Rt = mcol(M, 2), ax = cross2(U, [0, 1, 0]), roll = dot2(ax, F), pitch = dot2(ax, Rt), wr = dot2(w, F), wp = dot2(w, Rt), ex = Math.sign(roll) * Math.max(0, Math.abs(roll) - 0.2), tr = (ex * 28 - wr * (Math.abs(roll) > 0.2 ? 5 : 0)) * this.I[0], tp = this.air ? (pitch * 10 - wp * 3) * this.I[2] : 0;
+        for (let k = 0; k < 3; k++) torque[k] += F[k] * tr + Rt[k] * tp;
+      }
       for (let k = 0; k < 3; k++)
         this.acc[k] = force[k] / m, v[k] += this.acc[k] * dt;
       let tb = mtvec(M, torque), I = this.I, Iwb = [I[0] * wb[0], I[1] * wb[1], I[2] * wb[2]], gy = cross2(wb, Iwb);
@@ -4044,7 +4050,7 @@ void main(){
       for (let wh of W2) wh.escBrake = 0;
       this.escOn = !1, this.assistTorque = 0;
       let mult = 1, Iyaw = this.I[1], D = this.drift;
-      if (aid.drift ? (!D.on && v > 9 && (inp.hb > 0.5 && Math.abs(sIn) > 0.15 || Math.abs(beta) > 0.22 && thr > 0.6 && Math.abs(sIn) > 0.3) && (D.on = !0, D.dir = -sgn(sIn) || sgn(beta), D.t = 0, D.low = 0, D.bPrev = void 0, D.bd = 0), D.on && (D.t += dt, Math.abs(beta) < 0.1 || sIn * D.dir > 0.35 ? D.low += dt : D.low = 0, (D.low > 0.35 || v < 6 || this.air && this.airT > 0.5) && (D.on = !1))) : D.on = !1, D.on) {
+      if (aid.drift ? (!D.on && v > 9 && (inp.hb > 0.5 && Math.abs(sIn) > 0.15 || !this.plus && Math.abs(beta) > 0.22 && thr > 0.6 && Math.abs(sIn) > 0.3) && (D.on = !0, D.dir = -sgn(sIn) || sgn(beta), D.t = 0, D.low = 0, D.bPrev = void 0, D.bd = 0), D.on && (D.t += dt, Math.abs(beta) < 0.1 || sIn * D.dir > 0.35 ? D.low += dt : D.low = 0, (D.low > 0.35 || v < 6 || this.air && this.airT > 0.5) && (D.on = !1))) : D.on = !1, D.on) {
         let into = Math.max(0, -sIn * D.dir), bT = (0.3 + 0.3 * into) * D.dir, err = bT - beta, raw = D.bPrev === void 0 ? 0 : (beta - D.bPrev) / dt;
         return D.bPrev = beta, D.bd = (D.bd || 0) + (raw - (D.bd || 0)) * 0.25, this.assistTorque = clamp((6 * err - 2.5 * D.bd) * Iyaw, -5 * Iyaw, 5 * Iyaw) * Math.min(1, 0.3 + D.t * 3), clamp(0.55 + 2.5 * err * D.dir, 0.1, 1);
       }
@@ -4063,6 +4069,10 @@ void main(){
         let k = clamp((Math.abs(beta) - 0.6) * 2.5, 0, 1);
         this.assistTorque = -r * Iyaw * 6 * k;
       }
+      if (this.plus && Math.abs(beta) > 0.3 && v > 5 && Math.sign(r) === Math.sign(beta)) {
+        let k = clamp((Math.abs(beta) - 0.3) * 3, 0, 1);
+        this.assistTorque = -r * Iyaw * 7 * k, mult = Math.min(mult, 1 - 0.5 * k);
+      }
       return mult;
     }
     /* barrier and ground contacts on the hull: impulses with restitution and friction */
@@ -4070,7 +4080,7 @@ void main(){
       let M = qmat(this.q), p = this.p, world2 = this.world, push = [0, 0, 0], pushN = 0;
       for (let hp of this.hull) {
         let P = add(p, mvec(M, hp)), loc = world2.locate(P, this.hint), wc = world2.wall(P, loc);
-        wc && wc.pen > 0 && (this._impulse(M, P, wc.n, wc.pen, 0.18, 0.28, "wall"), push = madd(push, wc.n, wc.pen), pushN++);
+        wc && wc.pen > 0 && (this._impulse(M, P, wc.n, wc.pen, this.plus ? 0.04 : 0.18, this.plus ? 0.05 : 0.28, "wall"), push = madd(push, wc.n, wc.pen), pushN++);
         let g = world2.ground(P[0], P[2], loc ? loc.i : this.hint), pen = (g.y - P[1]) * g.n[1];
         pen > 0 && (this._impulse(M, P, g.n, pen, 0.05, 0.55, "ground"), push = madd(push, g.n, pen), pushN++);
       }
@@ -4285,6 +4295,40 @@ void main(){
       let M = qmat(car2.q), F = mcol(M, 0), Rt = mcol(M, 2), v = Math.max(car2.vf, 1), la = clamp(v * look, 7, 38), s2 = T2.wrapS(loc.s + la), tgt = T2.pos(s2, T2.lineAt(s2)), d = sub2(tgt, car2.p), xb = dot2(d, F), zb = dot2(d, Rt), L2 = xb * xb + zb * zb, latFrac = 2 * zb / Math.max(L2, 1) * v * v / (car2.tyre.mu * 9.81), steer = clamp(latFrac * 1.05 + zb * 0.02, -1, 1), i = T2.idx(Math.round(T2.wrapS(loc.s + v * 0.55) / T2.ds)), vt = prof[i] * pace, e = vt - car2.vf, thr = 0, brk = 0;
       return e > 0 ? thr = clamp(0.5 + e * 0.4, 0, 1) : e < -1 ? brk = clamp(-e * 0.2, 0, 1) : thr = 0.3, { steer, thr, brk, hb: 0 };
     };
+  }
+
+  // src/game/guide.js
+  function makeGuide(T2, car2) {
+    let TC = Object.assign({}, T2, { lineK: T2.K }), prof = {}, get = (wet) => {
+      let k = wet > 0.5 ? "wet" : "dry";
+      if (!prof[k]) {
+        let mu = car2.tyre.mu * (car2.plus ? car2.plus.grip : 1) * (wet > 0.5 ? 0.93 : 1) * 0.86;
+        prof[k] = { v: speedProfile(TC, { mass: car2.m, clF: car2.c.clF, clR: car2.c.clR, cdA: car2.c.cdA, powerKw: car2.spec.peak.kw }, { mu }), mu };
+      }
+      return prof[k];
+    }, state2 = { brake: 0, steer: 0 }, guide2 = function(inp) {
+      let out = Object.assign({}, inp);
+      if (state2.brake = 0, state2.steer = 0, !car2.loc || car2.air || car2.rev || car2.vf < 5 || inp.hb > 0.3) return out;
+      let L = car2.loc, v = car2.vf, P = get(car2.wet), aB = P.mu * 9.81 * 0.78;
+      if (Math.abs(L.d) > T2.hw + 2.5) return out;
+      let vmax = 1e9, reach = Math.min(180, v * v / (2 * aB) + v * 0.6 + 15);
+      for (let k = 0; k <= reach; k += 2) {
+        let i = T2.idx(Math.round(T2.wrapS(L.s + k) / T2.ds)), va = Math.sqrt(P.v[i] * P.v[i] + 2 * aB * Math.max(0, k - v * 0.3));
+        va < vmax && (vmax = va);
+      }
+      if (v > vmax * 1.015) {
+        out.thr = 0;
+        let b = clamp((v - vmax * 1.015) / 2.5, 0, 1);
+        out.brk = Math.max(out.brk, b), state2.brake = b;
+      } else v > vmax * 0.95 && (out.thr = Math.min(out.thr, clamp((vmax * 1.015 - v) / (vmax * 0.065), 0, 1)));
+      let fr = T2.frame(L.s), vl = dot2(car2.v, fr.l), tp = 0.5 + v * 6e-3, dp = L.d + vl * tp, lim = (dp > 0 ? T2.wl : T2.wr) - 1.8;
+      if (Math.abs(dp) > lim) {
+        let over = Math.abs(dp) - lim, add2 = Math.sign(dp) * clamp(over * 0.32, 0, 0.9);
+        (Math.sign(out.steer) !== Math.sign(add2) || Math.abs(out.steer) < Math.abs(add2)) && (out.steer = clamp(out.steer + add2, -1, 1)), state2.steer = add2;
+      }
+      return out;
+    };
+    return guide2.state = state2, guide2;
   }
 
   // src/audio/engine-dsp.js
@@ -4597,78 +4641,79 @@ void main(){
 
   // src/audio/fx-dsp.js
   function makeFX() {
-    let TAU2 = Math.PI * 2;
+    let TAU2 = Math.PI * 2, ss = (a, b, x) => {
+      let t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    };
+    class BP {
+      constructor() {
+        this.x1 = 0, this.x2 = 0, this.y1 = 0, this.y2 = 0, this.set(500, 1, 44100);
+      }
+      set(f2, q, sr) {
+        let w = TAU2 * Math.min(f2, sr * 0.45) / sr, al = Math.sin(w) / (2 * q), a0 = 1 + al;
+        this.b0 = al / a0, this.a1 = -2 * Math.cos(w) / a0, this.a2 = (1 - al) / a0;
+      }
+      run(x) {
+        let y = this.b0 * x - this.b0 * this.x2 - this.a1 * this.y1 - this.a2 * this.y2;
+        return this.x2 = this.x1, this.x1 = x, this.y2 = this.y1, this.y1 = y, y;
+      }
+    }
     class FX {
       constructor(sr) {
-        this.sr = sr, this.p = { slip: [0, 0, 0, 0], load: [0, 0, 0, 0], wet: 0, rain: 0, speed: 0, cabin: 0, curb: 0, scrape: 0, air: 0, vol: 1, tunnel: 0 }, this.g = { sq: [0, 0, 0, 0], rd: 0, hiss: 0, wind: 0, rain: 0, curb: 0, scr: 0, cab: 0 }, this.sq = [0, 1, 2, 3].map((i) => ({ f: 700 + i * 37, y1: 0, y2: 0, ph: Math.random(), drift: 0 })), this.seed = 22222, this.b = [0, 0, 0, 0, 0, 0, 0], this.lp = [0, 0, 0, 0, 0, 0, 0, 0], this.curbPh = 0, this.thumpE = 0, this.hits = [], this.dropT = 0, this.drops = [];
+        this.sr = sr, this.p = { lat: [0, 0, 0, 0], lon: [0, 0, 0, 0], load: [0, 0, 0, 0], wet: 0, speed: 0, cabin: 0, curb: 0, scrape: 0, vol: 1 }, this.g = { sq: [0, 0, 0, 0], rd: 0, hiss: 0, wind: 0, curb: 0, scr: 0 }, this.sq = [0, 1, 2, 3].map((i) => ({ bp: new BP(), bp2: new BP(), drift: 0, f: 0 })), this.road = new BP(), this.road.set(260, 0.7, sr), this.road2 = new BP(), this.road2.set(700, 0.9, sr), this.hissF = new BP(), this.hissF.set(2200, 0.9, sr), this.windF = new BP(), this.windF.set(520, 0.6, sr), this.grit = new BP(), this.grit.set(900, 2.2, sr), this.gritLo = new BP(), this.gritLo.set(180, 1.2, sr), this.seed = 22222, this.b = [0, 0, 0], this.curbPh = 0, this.thumpE = 0, this.thumpLp = 0, this.hits = [], this.grainE = 0, this.grainA = 0, this.hitLp = 0, this.k = 0;
       }
       set(p) {
         this.p = p;
       }
       event(e) {
-        e.type === "hit" && this.hits.push({ t: 0, a: Math.min(1.5, e.a), f: 60 + Math.random() * 25 });
+        e.type === "hit" && this.hits.push({ t: 0, a: Math.min(1.4, e.a), f: 58 + Math.random() * 24 });
       }
       rnd() {
         let s = this.seed;
         return s ^= s << 13, s ^= s >>> 17, s ^= s << 5, this.seed = s, (s >>> 0) / 4294967296 * 2 - 1;
       }
       process(L, R2, n) {
-        let p = this.p, g = this.g, sr = this.sr, k = 1 - Math.exp(-1 / (sr * 0.04)), sp = p.speed || 0, cab = p.cabin ? 1 : 0, sqT = p.slip.map((s, i) => {
-          let sl = Math.max(0, s);
-          return Math.max(0, Math.min(1, (sl - 0.8) / 0.55)) * (1 - Math.max(0, Math.min(1, (sl - 4) / 3))) * Math.min(1.2, (p.load[i] || 0) / 3600) * (1 - 0.75 * p.wet) * Math.min(1, sp / 3);
-        }), rdT = Math.min(1, sp / 45) * 0.5, hissT = p.wet * Math.min(1, sp / 30) * 0.7, windT = Math.min(1.2, (sp / 55) ** 2) * 0.6, rainT = p.rain * 0.35 * (1 - 0.6 * p.tunnel), curbT = p.curb ? Math.min(1, sp / 20) : 0, scrT = Math.min(1, p.scrape / 10), wcab = cab ? 0.35 : 1;
+        let p = this.p, g = this.g, sr = this.sr, k = 1 - Math.exp(-1 / (sr * 0.05)), sp = p.speed || 0, cab = p.cabin ? 1 : 0, wet = p.wet || 0, lat = p.lat || [0, 0, 0, 0], lon = p.lon || [0, 0, 0, 0], sqT = [0, 1, 2, 3].map((i) => {
+          let side = ss(1.25, 2.1, lat[i]), spin = ss(2.8, 5.5, lon[i]);
+          return Math.max(side * ss(2, 6, sp), spin * 0.8 * ss(0.5, 3, sp + lon[i])) * Math.min(1.2, (p.load[i] || 0) / 3600) * (1 - 0.95 * wet);
+        }), rdT = ss(1, 45, sp) * 0.22, hissT = wet * ss(4, 30, sp) * 0.07, windT = Math.min(1.2, (sp / 55) ** 2) * 0.35, curbT = p.curb ? ss(3, 15, sp) : 0, scrT = ss(1, 12, p.scrape || 0);
+        for (let w = 0; w < 4; w++) {
+          let v = this.sq[w];
+          v.drift += (this.rnd() * 0.4 - v.drift * 0.05) * 0.15;
+          let f2 = (720 + w * 31) * (1 + 0.08 * v.drift) * (1 + 0.12 * Math.min(1, Math.max(0, lat[w] - 1.25)));
+          v.bp.set(f2, 16, sr), v.bp2.set(f2 * 2.02, 14, sr);
+        }
         for (let i = 0; i < n; i++) {
           for (let w = 0; w < 4; w++) g.sq[w] += (sqT[w] - g.sq[w]) * k;
-          g.rd += (rdT - g.rd) * k, g.hiss += (hissT - g.hiss) * k, g.wind += (windT - g.wind) * k, g.rain += (rainT - g.rain) * k, g.curb += (curbT - g.curb) * k, g.scr += (scrT - g.scr) * k * 3, g.cab += (cab - g.cab) * k;
+          g.rd += (rdT - g.rd) * k, g.hiss += (hissT - g.hiss) * k, g.wind += (windT - g.wind) * k, g.curb += (curbT - g.curb) * k, g.scr += (scrT - g.scr) * k * 2;
           let wn = this.rnd(), b = this.b;
           b[0] = 0.99765 * b[0] + wn * 0.099046, b[1] = 0.963 * b[1] + wn * 0.2965164, b[2] = 0.57 * b[2] + wn * 1.0526913;
-          let pink = (b[0] + b[1] + b[2] + wn * 0.1848) * 0.12;
-          b[3] = (b[3] + 0.02 * wn) / 1.02;
-          let brown = b[3] * 3.5, l = 0, r = 0;
+          let pink = (b[0] + b[1] + b[2] + wn * 0.1848) * 0.12, l = 0, r = 0;
           for (let w = 0; w < 4; w++) {
             let a = g.sq[w];
             if (a < 1e-4) continue;
-            let v2 = this.sq[w];
-            v2.drift += (this.rnd() * 0.5 - v2.drift * 2e-3) * 0.02;
-            let f2 = (640 + v2.drift * 90 + w * 23 + 60 * a) * (1 + 0.04 * Math.sin(v2.ph));
-            v2.ph += TAU2 * 27 / sr;
-            let q = 0.012, w0 = TAU2 * f2 / sr, rr = 1 - q * w0, c = 2 * rr * Math.cos(w0), y = wn * (1 - rr) * 2.2 + c * v2.y1 - rr * rr * v2.y2;
-            v2.y2 = v2.y1, v2.y1 = y;
-            let out = y * a * 0.9 * (0.7 + 0.3 * Math.sin(v2.ph * 0.37));
-            w % 2 === 0 ? (l += out * 1.15, r += out * 0.75) : (l += out * 0.75, r += out * 1.15);
+            let v2 = this.sq[w], s = (v2.bp.run(wn) * 1 + v2.bp2.run(wn) * 0.35) * a * 0.55;
+            w % 2 === 0 ? (l += s * 1.1, r += s * 0.7) : (l += s * 0.7, r += s * 1.1);
           }
-          let lp = this.lp;
-          lp[0] += (brown - lp[0]) * (0.02 + g.rd * 0.05), lp[1] += (pink - lp[1]) * 0.25;
-          let hissS = pink - lp[1], road = lp[0] * g.rd * 1.4 + hissS * g.hiss * (cab ? 0.25 : 0.9) * 1.6;
-          l += road, r += road, lp[2] += (pink - lp[2]) * (0.04 + g.wind * 0.04);
-          let wind = (lp[2] - lp[3]) * g.wind * (cab ? 0.5 : 1.1);
-          if (lp[3] += (lp[2] - lp[3]) * 5e-3, l += wind * 1.1, r += wind * 0.9, g.rain > 1e-4) {
-            lp[4] += (pink - lp[4]) * 0.35;
-            let rh = (pink - lp[4]) * g.rain * (cab ? 0.25 : 1.8);
-            l += rh, r += rh, cab && Math.random() < g.rain * 0.02 && this.drops.push({ t: 0, a: 0.15 + Math.random() * 0.25, f: 900 + Math.random() * 1600, pan: Math.random() }), !cab && Math.random() < g.rain * 4e-3 && this.drops.push({ t: 0, a: 0.05 + Math.random() * 0.08, f: 2500 + Math.random() * 3e3, pan: Math.random() });
-          }
-          for (let d = this.drops.length - 1; d >= 0; d--) {
-            let D = this.drops[d];
-            D.t += 1 / sr;
-            let e = Math.exp(-D.t * 300) * D.a, s = Math.sin(TAU2 * D.f * D.t) * e * (1 + this.rnd() * 0.3);
-            l += s * (1 - D.pan), r += s * D.pan, D.t > 0.03 && this.drops.splice(d, 1);
-          }
-          if (g.curb > 1e-3) {
-            this.curbPh += Math.max(sp, 1) / 1 / sr, this.curbPh >= 1 && (this.curbPh -= 1, this.thumpE = 1), this.thumpE *= Math.exp(-1 / (sr * 0.018)), lp[5] += (brown * 4 - lp[5]) * 0.06;
-            let t = (Math.sin(TAU2 * 55 * this.thumpE) * 0.6 + lp[5]) * this.thumpE * g.curb * 0.35;
-            l += t, r += t;
+          let road = (this.road.run(pink) * 1.6 + this.road2.run(pink) * 0.6) * g.rd * (cab ? 0.7 : 1) + this.hissF.run(pink * 3) * g.hiss * (cab ? 0.3 : 1);
+          l += road, r += road;
+          let wind = this.windF.run(pink) * g.wind * (cab ? 0.45 : 1);
+          if (l += wind * 1.05, r += wind * 0.95, g.curb > 1e-3) {
+            this.curbPh += Math.max(sp, 1) / 2 / sr, this.curbPh >= 1 && (this.curbPh -= 1, this.thumpE = 1), this.thumpE *= Math.exp(-1 / (sr * 0.03)), this.thumpPh = (this.thumpPh || 0) + 46 / sr, this.thumpLp += (wn - this.thumpLp) * 0.01;
+            let th = (Math.sin(TAU2 * this.thumpPh) * 0.5 + this.thumpLp * 3) * this.thumpE * g.curb * 0.18;
+            l += th, r += th;
           }
           if (g.scr > 1e-3) {
-            lp[6] += (wn - lp[6]) * 0.5;
-            let sc = (wn - lp[6]) * g.scr * (0.5 + 0.5 * Math.sin(TAU2 * this.curbPh * 7)) * 0.5;
+            Math.random() < (30 + p.scrape * 6) / sr && (this.grainE = 1, this.grainA = 0.4 + Math.random() * 0.6), this.grainE *= Math.exp(-1 / (sr * 6e-3));
+            let sc = (this.grit.run(wn) * this.grainE * this.grainA * 0.9 + this.gritLo.run(pink) * 0.9) * g.scr * 0.45;
             l += sc, r += sc;
           }
           for (let h = this.hits.length - 1; h >= 0; h--) {
             let H = this.hits[h];
             H.t += 1 / sr;
             let e = Math.exp(-H.t * 14) * H.a;
-            lp[7] += (wn - lp[7]) * 0.15;
-            let s = (Math.sin(TAU2 * H.f * H.t * (1 - H.t * 1.5)) * 0.9 + lp[7] * 1.5 * Math.exp(-H.t * 30) + wn * 0.3 * Math.exp(-H.t * 60)) * e;
+            this.hitLp += (wn - this.hitLp) * 0.15;
+            let s = (Math.sin(TAU2 * H.f * H.t * (1 - H.t * 1.5)) * 0.9 + this.hitLp * 1.5 * Math.exp(-H.t * 30) + wn * 0.25 * Math.exp(-H.t * 80)) * e;
             l += s, r += s, H.t > 0.6 && this.hits.splice(h, 1);
           }
           let v = (p.vol ?? 1) * 0.55;
@@ -4916,7 +4961,9 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         }
       }
       let ax = pad, ay = H - pad - 30 * s;
-      this.small(ctx, S.assistName || "", ax, ay - 40 * s, 3 * s, C.faint), [["TC", S.tc], ["ABS", S.abs], ["ESC", S.esc], ["DRIFT", S.drift]].forEach(([t, on], i) => {
+      this.small(ctx, S.assistName || "", ax, ay - 40 * s, 3 * s, C.faint);
+      let lamps = [["TC", S.tc], ["ABS", S.abs], ["ESC", S.esc], ["DRIFT", S.drift]];
+      S.guide && lamps.push(["GUIDE", S.guide > 0.9]), lamps.forEach(([t, on], i) => {
         let x = ax + i * 86 * s;
         ctx.strokeStyle = on ? C.amber : "rgba(200,190,230,.18)", ctx.lineWidth = 2 * s, ctx.strokeRect(x, ay, 74 * s, 26 * s), on && (ctx.fillStyle = "rgba(255,176,64,.22)", ctx.fillRect(x, ay, 74 * s, 26 * s)), this.small(ctx, t, x + 37 * s, ay + 7 * s, 3 * s, on ? C.amber : "rgba(200,190,230,.35)", "c");
       }), S.driftScore > 0 && (this.small(ctx, "DRIFT", W2 / 2, H * 0.2, 5 * s, C.pink, "c"), this.dots(ctx, Math.round(S.driftScore), W2 / 2, H * 0.2 + 36 * s, 7 * s, C.white, { align: "c", unlit: !1 })), this.msg && this.msgT > 0 && (ctx.globalAlpha = Math.min(1, this.msgT * 2), this.dots(ctx, this.msg.text, W2 / 2, H * 0.32, 9 * s, this.msg.col, { align: "c", unlit: !1 }), ctx.globalAlpha = 1), S.hint && (ctx.globalAlpha = 0.85, this.small(ctx, S.hint, W2 / 2, H - pad - 20 * s, 4 * s, C.faint, "c"), ctx.globalAlpha = 1), ctx.restore();
@@ -5016,7 +5063,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   };
 
   // game/main.js
-  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { assist: "arcade", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", volume: 0.8, units: "kmh" }, settings = loadSettings(DEFAULTS);
+  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { assist: "easy", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", volume: 0.8, units: "kmh" }, settings = loadSettings(DEFAULTS);
   for (let k of Object.keys(DEFAULTS)) Q.has(k) && (settings[k] = isNaN(+Q.get(k)) || k === "scale" && Q.get(k) === "auto" ? Q.get(k) : +Q.get(k));
   var save = () => {
     Q.has("manual") || saveSettings(settings);
@@ -5042,11 +5089,11 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     let c = new Vehicle(CHASSIS.sl3, spec, world);
     c.setAssists(settings.assist), c.pt.auto = settings.gearbox === "auto", keep ? (c.p = keep.p.slice(), c.q = keep.q.slice(), c.v = keep.v.slice(), c.w = keep.w.slice(), c.wheels.forEach((w, i) => {
       w.w = keep.wheels[i].w, w.ang = keep.wheels[i].ang;
-    }), c.hint = keep.hint, c.pt.st = "run", c.pt.we = Math.max(c.pt.we, spec.idle * 6.283 / 60 * 1.5), c.pt.gear = Math.min(keep.pt.gear, spec.nG), c.pt.rpm = keep.pt.rpm) : c.placeOnTrack(T, GRID_S, -2.2), car = c, audio.configure(SIM.dspCfg(spec));
+    }), c.hint = keep.hint, c.pt.st = "run", c.pt.we = Math.max(c.pt.we, spec.idle * 6.283 / 60 * 1.5), c.pt.gear = Math.min(keep.pt.gear, spec.nG), c.pt.rpm = keep.pt.rpm) : c.placeOnTrack(T, GRID_S, -2.2), car = c, audio.configure(SIM.dspCfg(spec)), guide = makeGuide(T, car);
     let prof = speedProfile(T, { mass: car.m, clF: car.c.clF, clR: car.c.clR, cdA: car.c.cdA, powerKw: car.spec.peak.kw }, { mu: car.tyre.mu * 0.84 });
     return botFn = makeBot(T, prof, { pace: 0.88 }), c;
   }
-  var botFn = null;
+  var botFn = null, guide = null;
   makeCar(settings.engine);
   car.pt.start();
   var BEST_KEY = "shiftlight.best.neon", lap = { n: 0, t0: -1, lastS: null, last: 0, best: 0, trace: null, bestTrace: null, armed: !1 };
@@ -5109,7 +5156,10 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     return [
       { type: "action", label: "Resume", act: () => pause(!1) },
       { type: "head", label: "Driving" },
-      { type: "choice", label: "Assists", chips: 1, get: () => settings.assist, set: set("assist", (v) => car.setAssists(v)), options: [
+      { type: "choice", label: "Assists", chips: 1, get: () => settings.assist, set: set("assist", (v) => {
+        car.setAssists(v), car.pt.auto = settings.gearbox === "auto", guide = makeGuide(T, car);
+      }), options: [
+        opt("easy", "Arcade Easy", "The car slows for corners and steers off the walls for you, grips harder in the wet, and stays on its wheels. Handbrake drifts still work."),
         opt("arcade", "Arcade", "Steering, stability and drift help. Handbrake into a corner and hold the angle with the stick."),
         opt("sport", "Sport", "Less steering help, a looser stability net. The car moves around more."),
         opt("sim", "Simulation", "Just the car: no steering or stability help. ABS stays on.")
@@ -5205,11 +5255,11 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   function soundUpdate(c, ev) {
     let M = qmat(car.q), F = mcol(M, 0), h = car.c.hcg, mode = CAM_MODES[cam.mode], exhaust = add(car.p, mvec(M, [-2.3, 0.25 - h, 0])), rel = sub2(c.pos, exhaust), dist = len(rel), right = norm2([-c.fwd[2], 0, c.fwd[0]]), dirToCam = norm2(sub2(c.pos, car.p)), listener = 0, geo = { dist: Math.max(1.5, dist), pan: clamp(-dot2(norm2(sub2(car.p, c.pos)), right) * 0.9, -1, 1), rear: 1 };
     mode === "cockpit" ? (listener = 1, geo = { dist: 1.4, pan: 0, rear: 0.35 }) : mode === "hood" || mode === "bumper" ? geo = { dist: mode === "hood" ? 3.2 : 4.6, pan: 0, rear: mode === "hood" ? 0.3 : 0.15 } : mode === "tv" ? (listener = 2, geo.rear = 0.5 - 0.5 * dot2(dirToCam, F), geo.jump = c.cut) : geo.rear = clamp(0.5 - 0.5 * dot2(dirToCam, F), 0, 1) * 0.6 + 0.4;
-    let ep = car.pt.soundParams(listener, len(car.v), geo), tunnel = city.info.tunnel && car.loc && car.loc.s > city.info.tunnel[0] - 5 && car.loc.s < city.info.tunnel[1] + 5 && Math.abs(car.loc.d) < T.wl ? 1 : 0, fx = {
-      slip: car.wheels.map((w) => w.contact ? w.sg : 0),
+    let ep = car.pt.soundParams(listener, len(car.v), geo), tunnel = city.info.tunnel && car.loc && car.loc.s > city.info.tunnel[0] - 5 && car.loc.s < city.info.tunnel[1] + 5 && Math.abs(car.loc.d) < T.wl ? 1 : 0, tA = Math.tan(car.tyre.aPk), kP = car.tyre.kPk, fx = {
+      lat: car.wheels.map((w) => w.contact ? Math.abs(w.tanA) / tA : 0),
+      lon: car.wheels.map((w) => w.contact ? Math.abs(w.kap) / kP : 0),
       load: car.wheels.map((w) => w.Fz),
       wet: env.wet,
-      rain: tunnel ? 0 : env.rain,
       speed: len(car.v),
       cabin: listener === 1 ? 1 : 0,
       curb: car.wheels.some((w) => w.contact && w.surf === "curb") ? 1 : 0,
@@ -5246,6 +5296,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       abs: car.absOn,
       esc: car.escOn,
       drift: car.drift.on,
+      guide: car.aid.guide ? guide && (guide.state.brake > 0.05 || Math.abs(guide.state.steer) > 0.05) ? 1 : 0.5 : 0,
       mapCar: [car.p[0], -car.p[2]],
       hint: state === "drive" && time < 6 && lap.n === 0 ? "ESC FOR THE MENU · C CAMERA · L LED MATRIX" : null
     };
@@ -5265,7 +5316,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }
     car.wet = env.wet;
     let drive = state === "title" || Q.has("auto") ? Object.assign({}, inp, botFn(car)) : inp;
-    acc += dt;
+    state === "drive" && car.aid.guide && guide && (drive = guide(drive)), acc += dt;
     let n = 0;
     for (; acc >= DT && n < 24; )
       car.step(DT, drive), acc -= DT, n++, time += DT;

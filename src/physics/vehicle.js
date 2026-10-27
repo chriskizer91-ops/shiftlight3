@@ -20,6 +20,9 @@ import {Powertrain} from './powertrain.js';
 const G=9.81,RHO=1.2;
 
 export const ASSISTS={
+  /* Arcade Easy: everything Arcade has, plus the assist layer in the car (grip, spin catch,
+     keep-upright, slide-off walls) and the guide in the game (corner speed, wall avoidance) */
+  easy:{id:'easy',name:'Arcade Easy',steer:1,esc:1,tc:1,abs:1,drift:1,auto:1,catchSpin:1,plus:{grip:1.15,upright:true},guide:true},
   arcade:{id:'arcade',name:'Arcade',steer:1,esc:1,tc:1,abs:1,drift:1,auto:1,catchSpin:1},
   sport:{id:'sport',name:'Sport',steer:.75,esc:.65,tc:1,abs:1,drift:0,auto:1,catchSpin:0},
   sim:{id:'sim',name:'Simulation',steer:0,esc:0,tc:0,abs:1,drift:0,auto:1,catchSpin:0}
@@ -53,6 +56,9 @@ export class Vehicle{
     this.drift={on:false,dir:0,t:0,low:0};
     this.ev={wall:0,land:0,scrape:0,ground:0};
     this.rev=false;this.revT=0;this.escOn=false;this.absOn=false;this.assistTorque=0;
+    /* the arcade assist layer (null = off): more grip, no throttle-drift entry, an earlier spin
+       catch, a keep-upright force, and walls that let you slide off them */
+    this.plus=null;
     this.TY={fx:0,fy:0,dk:0,sg:0};this.acc=[0,0,0];this.accB=[0,0,0];
     this.setAssists('arcade');
   }
@@ -64,7 +70,7 @@ export class Vehicle{
     this.pt.gear=1;this.pt.shiftT=0;this.pt.engage=0;this.pt.locked=false;this.rev=false;this.pt.rev=false;this.drift.on=false;
   }
   place(p,yaw){this.q=qaxis([0,1,0],yaw);this.p=[p[0],p[1]+this.c.hcg,p[2]];this.v=[0,0,0];this.w=[0,0,0];for(const wh of this.wheels){wh.w=0;}}
-  setAssists(id){this.aid=ASSISTS[id]||ASSISTS.arcade;this.pt.auto=!!this.aid.auto;}
+  setAssists(id){this.aid=ASSISTS[id]||ASSISTS.arcade;this.pt.auto=!!this.aid.auto;this.plus=this.aid.plus||null;}
   /* invert the world-space inertia: I_w^-1 * x */
   invI(M,x){const b=mtvec(M,x);return mvec(M,[b[0]/this.I[0],b[1]/this.I[1],b[2]/this.I[2]]);}
 
@@ -100,7 +106,7 @@ export class Vehicle{
       if(W[l].contact)W[l].Fz=Math.max(0,W[l].Fz+f);if(W[r].contact)W[r].Fz=Math.max(0,W[r].Fz-f);}
     const wasAir=this.air;this.air=nContact===0;if(this.air)this.airT+=dt;else{if(wasAir&&this.airT>.15)this.ev.land=Math.max(this.ev.land,-vb[1]);this.airT=0;}
     /* ---- tyres ---- */
-    const TY=this.TY,wetMu=lerp(1,.84,this.wet);
+    const P=this.plus,TY=this.TY,wetMu=lerp(1,P?.93:.84,this.wet)*(P?P.grip:1);
     for(const wh of W){
       if(!wh.contact){wh.Fx=wh.Fy=wh.Kd=wh.kap=wh.sg=wh.slipV=0;wh.tanA=0;continue;}
       const st=wh.front?this.steer:0,fw=mvec(M,[Math.cos(st),0,Math.sin(st)]),n=wh.n;
@@ -142,6 +148,11 @@ export class Vehicle{
     const sp=this.speed,dr=.5*RHO*c.cdA*sp;apply([-v[0]*dr,-v[1]*dr,-v[2]*dr],p);
     const q2=.5*RHO*vb[0]*vb[0];apply(scale(U,-q2*c.clF),add(p,mvec(M,[this.a,0,0])));apply(scale(U,-q2*c.clR),add(p,mvec(M,[-this.b,0,0])));
     if(this.assistTorque){torque[0]+=U[0]*this.assistTorque;torque[1]+=U[1]*this.assistTorque;torque[2]+=U[2]*this.assistTorque;}
+    if(P&&P.upright){/* keep the wheels down: past 12 degrees of roll a hand turns the car back; in the air it also levels the pitch */
+      const F=mcol(M,0),Rt=mcol(M,2),ax=cross(U,[0,1,0]),roll=dot(ax,F),pitch=dot(ax,Rt),wr=dot(w,F),wp=dot(w,Rt);
+      const ex=Math.sign(roll)*Math.max(0,Math.abs(roll)-.2),tr=(ex*28-wr*(Math.abs(roll)>.2?5:0))*this.I[0];
+      const tp=this.air?(pitch*10-wp*3)*this.I[2]:0;
+      for(let k=0;k<3;k++)torque[k]+=F[k]*tr+Rt[k]*tp;}
     /* ---- integrate ---- */
     for(let k=0;k<3;k++){this.acc[k]=force[k]/m;v[k]+=this.acc[k]*dt;}
     const tb=mtvec(M,torque),I=this.I,Iwb=[I[0]*wb[0],I[1]*wb[1],I[2]*wb[2]],gy=cross(wb,Iwb);
@@ -176,7 +187,7 @@ export class Vehicle{
     /* ---- drift mode (arcade): the handbrake starts it, holding the stick keeps it, straightening ends it ---- */
     const D=this.drift;
     if(aid.drift){
-      if(!D.on&&v>9&&((inp.hb>.5&&Math.abs(sIn)>.15)||(Math.abs(beta)>.22&&thr>.6&&Math.abs(sIn)>.3))){D.on=true;D.dir=-sgn(sIn)||sgn(beta);D.t=0;D.low=0;D.bPrev=undefined;D.bd=0;}
+      if(!D.on&&v>9&&((inp.hb>.5&&Math.abs(sIn)>.15)||(!this.plus&&Math.abs(beta)>.22&&thr>.6&&Math.abs(sIn)>.3))){D.on=true;D.dir=-sgn(sIn)||sgn(beta);D.t=0;D.low=0;D.bPrev=undefined;D.bd=0;}
       if(D.on){D.t+=dt;if(Math.abs(beta)<.1||sIn*D.dir>.35)D.low+=dt;else D.low=0;
         if(D.low>.35||v<6||this.air&&this.airT>.5)D.on=false;}
     }else D.on=false;
@@ -205,6 +216,7 @@ export class Vehicle{
     }
     /* ---- the spin catcher (arcade): past ~45 degrees a hidden hand stops the rotation ---- */
     if(aid.catchSpin&&Math.abs(beta)>.6&&v>6){const k=clamp((Math.abs(beta)-.6)*2.5,0,1);this.assistTorque=-r*Iyaw*6*k;}
+    if(this.plus&&Math.abs(beta)>.3&&v>5&&Math.sign(r)===Math.sign(beta)){const k=clamp((Math.abs(beta)-.3)*3,0,1);this.assistTorque=-r*Iyaw*7*k;mult=Math.min(mult,1-.5*k);}
     return mult;
   }
 
@@ -213,7 +225,7 @@ export class Vehicle{
     const M=qmat(this.q),p=this.p,world=this.world;let push=[0,0,0],pushN=0;
     for(const hp of this.hull){
       const P=add(p,mvec(M,hp)),loc=world.locate(P,this.hint);
-      const wc=world.wall(P,loc);if(wc&&wc.pen>0)this._impulse(M,P,wc.n,wc.pen,.18,.28,'wall'),push=madd(push,wc.n,wc.pen),pushN++;
+      const wc=world.wall(P,loc);if(wc&&wc.pen>0)this._impulse(M,P,wc.n,wc.pen,this.plus?.04:.18,this.plus?.05:.28,'wall'),push=madd(push,wc.n,wc.pen),pushN++;
       const g=world.ground(P[0],P[2],loc?loc.i:this.hint);
       const pen=(g.y-P[1])*g.n[1];
       if(pen>0){this._impulse(M,P,g.n,pen,.05,.55,'ground');push=madd(push,g.n,pen);pushN++;}

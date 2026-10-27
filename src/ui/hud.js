@@ -89,7 +89,8 @@ export class HUD{
     /* ---- assists ---- */
     const ax=pad,ay=H-pad-30*s;
     this.small(ctx,S.assistName||'',ax,ay-40*s,3*s,C.faint);
-    [['TC',S.tc],['ABS',S.abs],['ESC',S.esc],['DRIFT',S.drift]].forEach(([t,on],i)=>{const x=ax+i*86*s;
+    const lamps=[['TC',S.tc],['ABS',S.abs],['ESC',S.esc],['DRIFT',S.drift]];if(S.guide)lamps.push(['GUIDE',S.guide>.9]);
+    lamps.forEach(([t,on],i)=>{const x=ax+i*86*s;
       ctx.strokeStyle=on?C.amber:'rgba(200,190,230,.18)';ctx.lineWidth=2*s;ctx.strokeRect(x,ay,74*s,26*s);
       if(on){ctx.fillStyle='rgba(255,176,64,.22)';ctx.fillRect(x,ay,74*s,26*s);}
       this.small(ctx,t,x+37*s,ay+7*s,3*s,on?C.amber:'rgba(200,190,230,.35)','c');});

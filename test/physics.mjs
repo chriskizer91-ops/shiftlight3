@@ -4,6 +4,7 @@ import {PlaneWorld,TrackWorld} from '../src/world/collision.js';
 import {buildTrack,speedProfile} from '../src/world/track.js';
 import {CHASSIS,carSpec} from '../src/game/cars.js';
 import {makeBot} from '../src/game/bot.js';
+import {makeGuide} from '../src/game/guide.js';
 import {qmat,mcol,len} from '../src/physics/math3.js';
 
 const DT=1/240,results=[];
@@ -67,4 +68,23 @@ for(const as of ['arcade','sport','sim']){
     if(!c.loc)return false;let ds=c.loc.s-lastS;if(ds<-T.len/2)ds+=T.len;if(ds>T.len/2)ds-=T.len;dist+=ds;lastS=c.loc.s;
     if(!started&&dist>15){started=true;c.t0=t;}if(started&&dist>=T.len+15){lapT=t-c.t0;return false;}});
   check('robot lap of Neon Loop, wet (arcade)',lapT>0&&walls<=2&&finite(car),`lap ${lapT.toFixed(2)} s over ${T.len.toFixed(0)} m, ${walls} wall hits, longest airtime ${maxAir.toFixed(2)} s, max slip ${(maxBeta*57.3).toFixed(0)} deg`);}
+/* 9. a careless driver (flat out, never brakes, lazy steering toward the middle of the road):
+      on Arcade the walls come quickly; Arcade Easy's guide should get them round */
+function careless(as){
+  const T=buildTrack('neon'),world=new TrackWorld(T),car=newCar(world,'six',as);car.wet=1;
+  car.placeOnTrack(T,T.len-15,0);startEngine(car);
+  const guide=ASSISTS[as].guide?makeGuide(T,car):null;let walls=0,flips=0,dist=0,lastS=car.loc?car.loc.s:0,steer=0,hard=0;
+  run(car,75,c=>{
+    if(!c.loc)return {thr:1};
+    const M=qmat(c.q),F=mcol(M,0),Rt=mcol(M,2),la=Math.max(8,c.vf*.9),s2=T.wrapS(c.loc.s+la),tg=T.pos(s2,0),d=[tg[0]-c.p[0],0,tg[2]-c.p[2]];
+    const want=Math.max(-1,Math.min(1,(d[0]*Rt[0]+d[2]*Rt[2])/(Math.hypot(d[0],d[2])+1e-6)*2.2));steer+=(want-steer)*.03;
+    const inp={thr:1,brk:0,steer};return guide?guide(inp):inp;},
+    (c,t)=>{const e=c.takeEvents();if(e.wall>3)hard++;if(e.wall>1.5)walls++;if(mcol(qmat(c.q),1)[1]<.2)flips++;
+      if(c.loc){let ds=c.loc.s-lastS;if(ds<-T.len/2)ds+=T.len;if(ds>T.len/2)ds-=T.len;dist+=ds;lastS=c.loc.s;}
+      if(dist>=T.len)return false;});
+  return {walls,hard,flips,dist};
+}
+{const a=careless('arcade'),e=careless('easy');
+  check('Arcade Easy keeps a careless driver off the walls',e.dist>=1250&&e.hard<=1&&e.flips===0&&e.hard<a.hard+a.walls,
+    `arcade: ${a.walls} wall hits (${a.hard} hard), ${a.dist.toFixed(0)} m; easy: ${e.walls} (${e.hard} hard), ${e.dist.toFixed(0)} m, flipped ${e.flips?'yes':'no'}`);}
 const failed=results.filter(r=>!r.ok).length;console.log(`\n${results.length-failed}/${results.length} passed`);process.exit(failed?1:0);

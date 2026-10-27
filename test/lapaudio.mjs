@@ -19,8 +19,9 @@ while(o<n){
   for(let k=0;k<4;k++)car.step(1/240,o<sr*2?{}:bot(car));
   const ev=car.takeEvents();
   E.set(car.pt.soundParams(0,len(car.v),{dist:5.2,pan:0,rear:1}));for(const e of car.pt.takeEvents())E.event(e);
-  const fx={slip:car.wheels.map(w=>w.contact?w.sg:0),load:car.wheels.map(w=>w.Fz),wet,rain:wet,speed:len(car.v),cabin:0,curb:car.wheels.some(w=>w.contact&&w.surf==='curb')?1:0,scrape:ev.scrape||0,vol:1};
-  maxSq=Math.max(maxSq,...fx.slip);
+  const tA=Math.tan(car.tyre.aPk),kP=car.tyre.kPk;
+  const fx={lat:car.wheels.map(w=>w.contact?Math.abs(w.tanA)/tA:0),lon:car.wheels.map(w=>w.contact?Math.abs(w.kap)/kP:0),load:car.wheels.map(w=>w.Fz),wet,speed:len(car.v),cabin:0,curb:car.wheels.some(w=>w.contact&&w.surf==='curb')?1:0,scrape:ev.scrape||0,vol:1};
+  maxSq=Math.max(maxSq,...fx.lat);
   F.set(fx);if(ev.wall>1.2)F.event({type:'hit',a:ev.wall/9});
   const m=Math.min(735,n-o);E.process(L.subarray(o,o+m),R.subarray(o,o+m),m);F.process(tl,tr,m);for(let i=0;i<m;i++){L[o+i]+=tl[i];R[o+i]+=tr[i];}o+=m;
 }
@@ -28,4 +29,4 @@ let pk=0,s2=0;for(let i=0;i<n;i++){pk=Math.max(pk,Math.abs(L[i]),Math.abs(R[i]))
 const b=Buffer.alloc(44+n*4);b.write('RIFF',0);b.writeUInt32LE(36+n*4,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(2,22);b.writeUInt32LE(sr,24);b.writeUInt32LE(sr*4,28);b.writeUInt16LE(4,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(n*4,40);
 for(let i=0;i<n;i++){b.writeInt16LE(Math.round(Math.max(-1,Math.min(1,L[i]))*32767),44+i*4);b.writeInt16LE(Math.round(Math.max(-1,Math.min(1,R[i]))*32767),46+i*4);}
 writeFileSync(`${out}/lap_${eng}.wav`,b);
-console.log(`lap_${eng}.wav: peak ${pk.toFixed(2)}, rms ${Math.sqrt(s2/n).toFixed(3)}, max slip ${maxSq.toFixed(2)}, reached s=${car.loc&&car.loc.s.toFixed(0)}`);
+console.log(`lap_${eng}.wav: peak ${pk.toFixed(2)}, rms ${Math.sqrt(s2/n).toFixed(3)}, max lateral slip ${maxSq.toFixed(2)}x peak, reached s=${car.loc&&car.loc.s.toFixed(0)}`);

@@ -1,61 +1,66 @@
 /* =====================================================================================
    FX SYNTH — everything that isn't the engine, made live per sample:
-   - tyre squeal: four resonant voices (one per tyre) driven by how far past peak grip each is
-   - road: rumble and tyre roar that rise with speed, the hiss of tyres on a wet road
-   - curb rumble: thumps at the rate the stripes go by
-   - wind, and rain (a hiss outside, drumming on the roof from inside)
-   - impacts (a thud and a crunch) and scraping along a barrier
+   - tyre squeal: one voice per tyre, only when that tyre is really sliding sideways (past
+     its peak slip angle) or spinning/locking hard. Normal hard driving stays quiet.
+     Wet tyres don't squeal.
+   - tyre roar: a steady band of road noise that rises with speed, quiet; a soft hiss when wet
+   - curb rumble: low, soft thumps as the stripes pass
+   - wind
+   - impacts (a thud and a crunch) and grinding along a barrier (grains of grit, not static)
    Self-contained so it can be stringified into an AudioWorklet, like the engine synth.
    ===================================================================================== */
 export function makeFX(){
   const TAU=Math.PI*2;
+  const ss=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
+  /* a two-pole band-pass (constant peak gain), for shaping noise */
+  class BP{constructor(){this.x1=0;this.x2=0;this.y1=0;this.y2=0;this.set(500,1,44100);}
+    set(f,q,sr){const w=TAU*Math.min(f,sr*.45)/sr,al=Math.sin(w)/(2*q),a0=1+al;this.b0=al/a0;this.a1=-2*Math.cos(w)/a0;this.a2=(1-al)/a0;}
+    run(x){const y=this.b0*x-this.b0*this.x2-this.a1*this.y1-this.a2*this.y2;this.x2=this.x1;this.x1=x;this.y2=this.y1;this.y1=y;return y;}}
   class FX{
-    constructor(sr){this.sr=sr;this.p={slip:[0,0,0,0],load:[0,0,0,0],wet:0,rain:0,speed:0,cabin:0,curb:0,scrape:0,air:0,vol:1,tunnel:0};
-      this.g={sq:[0,0,0,0],rd:0,hiss:0,wind:0,rain:0,curb:0,scr:0,cab:0};
-      this.sq=[0,1,2,3].map(i=>({f:700+i*37,y1:0,y2:0,ph:Math.random(),drift:0}));
-      this.seed=22222;this.b=[0,0,0,0,0,0,0];this.lp=[0,0,0,0,0,0,0,0];this.curbPh=0;this.thumpE=0;this.hits=[];this.dropT=0;this.drops=[];}
+    constructor(sr){this.sr=sr;this.p={lat:[0,0,0,0],lon:[0,0,0,0],load:[0,0,0,0],wet:0,speed:0,cabin:0,curb:0,scrape:0,vol:1};
+      this.g={sq:[0,0,0,0],rd:0,hiss:0,wind:0,curb:0,scr:0};
+      this.sq=[0,1,2,3].map(i=>({bp:new BP(),bp2:new BP(),drift:0,f:0}));
+      this.road=new BP();this.road.set(260,.7,sr);this.road2=new BP();this.road2.set(700,.9,sr);
+      this.hissF=new BP();this.hissF.set(2200,.9,sr);this.windF=new BP();this.windF.set(520,.6,sr);
+      this.grit=new BP();this.grit.set(900,2.2,sr);this.gritLo=new BP();this.gritLo.set(180,1.2,sr);
+      this.seed=22222;this.b=[0,0,0];this.curbPh=0;this.thumpE=0;this.thumpLp=0;this.hits=[];this.grainE=0;this.grainA=0;this.hitLp=0;this.k=0;}
     set(p){this.p=p;}
-    event(e){if(e.type==='hit')this.hits.push({t:0,a:Math.min(1.5,e.a),f:60+Math.random()*25});}
+    event(e){if(e.type==='hit')this.hits.push({t:0,a:Math.min(1.4,e.a),f:58+Math.random()*24});}
     rnd(){let s=this.seed;s^=s<<13;s^=s>>>17;s^=s<<5;this.seed=s;return (s>>>0)/4294967296*2-1;}
     process(L,R,n){
-      const p=this.p,g=this.g,sr=this.sr,k=1-Math.exp(-1/(sr*.04)),sp=p.speed||0;
-      const cab=p.cabin?1:0;
-      /* targets */
-      const sqT=p.slip.map((s,i)=>{const sl=Math.max(0,s);const a=Math.max(0,Math.min(1,(sl-.8)/.55))*(1-Math.max(0,Math.min(1,(sl-4)/3)));
-        return a*Math.min(1.2,(p.load[i]||0)/3600)*(1-.75*p.wet)*Math.min(1,sp/3);});
-      const rdT=Math.min(1,sp/45)*.5,hissT=p.wet*Math.min(1,sp/30)*.7,windT=Math.min(1.2,(sp/55)**2)*.6,rainT=p.rain*.35*(1-.6*p.tunnel),curbT=p.curb?Math.min(1,sp/20):0,scrT=Math.min(1,p.scrape/10);
-      const wcab=cab?.35:1;
+      const p=this.p,g=this.g,sr=this.sr,k=1-Math.exp(-1/(sr*.05)),sp=p.speed||0,cab=p.cabin?1:0,wet=p.wet||0;
+      const lat=p.lat||[0,0,0,0],lon=p.lon||[0,0,0,0];
+      /* how hard each tyre is really sliding */
+      const sqT=[0,1,2,3].map(i=>{const side=ss(1.25,2.1,lat[i]),spin=ss(2.8,5.5,lon[i]);
+        return Math.max(side*ss(2,6,sp),spin*.8*ss(.5,3,sp+lon[i]))*Math.min(1.2,(p.load[i]||0)/3600)*(1-.95*wet);});
+      const rdT=ss(1,45,sp)*.22,hissT=wet*ss(4,30,sp)*.07,windT=Math.min(1.2,(sp/55)**2)*.35,curbT=p.curb?ss(3,15,sp):0,scrT=ss(1,12,p.scrape||0);
+      /* retune the tyre voices once per block: pitch rises a little with slide angle */
+      for(let w=0;w<4;w++){const v=this.sq[w];v.drift+=(this.rnd()*.4-v.drift*.05)*.15;
+        const f=(720+w*31)*(1+.08*v.drift)*(1+.12*Math.min(1,Math.max(0,lat[w]-1.25)));v.bp.set(f,16,sr);v.bp2.set(f*2.02,14,sr);}
       for(let i=0;i<n;i++){
         for(let w=0;w<4;w++)g.sq[w]+=(sqT[w]-g.sq[w])*k;
-        g.rd+=(rdT-g.rd)*k;g.hiss+=(hissT-g.hiss)*k;g.wind+=(windT-g.wind)*k;g.rain+=(rainT-g.rain)*k;g.curb+=(curbT-g.curb)*k;g.scr+=(scrT-g.scr)*k*3;g.cab+=(cab-g.cab)*k;
+        g.rd+=(rdT-g.rd)*k;g.hiss+=(hissT-g.hiss)*k;g.wind+=(windT-g.wind)*k;g.curb+=(curbT-g.curb)*k;g.scr+=(scrT-g.scr)*k*2;
         const wn=this.rnd();
-        /* pink-ish noise (Paul Kellet's economy filter) and brown noise */
         const b=this.b;b[0]=.99765*b[0]+wn*.099046;b[1]=.963*b[1]+wn*.2965164;b[2]=.57*b[2]+wn*1.0526913;const pink=(b[0]+b[1]+b[2]+wn*.1848)*.12;
-        b[3]=(b[3]+.02*wn)/1.02;const brown=b[3]*3.5;
         let l=0,r=0;
-        /* tyres: a resonant voice each, wandering in pitch, panned by side */
+        /* tyre squeal: a narrow, steady band of noise per tyre with its octave, panned by side */
         for(let w=0;w<4;w++){const a=g.sq[w];if(a<1e-4)continue;const v=this.sq[w];
-          v.drift+=(this.rnd()*.5-v.drift*.002)*.02;const f=(640+v.drift*90+w*23+60*a)*(1+.04*Math.sin(v.ph));v.ph+=TAU*27/sr;
-          const q=.012,w0=TAU*f/sr,rr=1-q*w0,c=2*rr*Math.cos(w0);const y=wn*(1-rr)*2.2+c*v.y1-rr*rr*v.y2;v.y2=v.y1;v.y1=y;
-          const out=y*a*.9*(.7+.3*Math.sin(v.ph*.37));if(w%2===0)l+=out*1.15,r+=out*.75;else l+=out*.75,r+=out*1.15;}
-        /* road roar and the wet hiss */
-        const lp=this.lp;lp[0]+=(brown-lp[0])*(.02+g.rd*.05);lp[1]+=(pink-lp[1])*.25;const hissS=pink-lp[1];
-        const road=lp[0]*g.rd*1.4+hissS*g.hiss*(cab?.25:.9)*1.6;l+=road;r+=road;
+          const s=(v.bp.run(wn)*1.0+v.bp2.run(wn)*.35)*a*.55;if(w%2===0){l+=s*1.1;r+=s*.7;}else{l+=s*.7;r+=s*1.1;}}
+        /* steady tyre roar, and a soft hiss when the road is wet */
+        const road=(this.road.run(pink)*1.6+this.road2.run(pink)*.6)*g.rd*(cab?.7:1)+this.hissF.run(pink*3)*g.hiss*(cab?.3:1);l+=road;r+=road;
         /* wind */
-        lp[2]+=(pink-lp[2])*(.04+g.wind*.04);const wind=(lp[2]-lp[3])*g.wind*(cab?.5:1.1);lp[3]+=(lp[2]-lp[3])*.005;l+=wind*1.1;r+=wind*.9;
-        /* rain: hiss outside, drops drumming on the roof inside */
-        if(g.rain>1e-4){lp[4]+=(pink-lp[4])*.35;const rh=(pink-lp[4])*g.rain*(cab?.25:1.8);l+=rh;r+=rh;
-          if(cab&&Math.random()<g.rain*.02)this.drops.push({t:0,a:.15+Math.random()*.25,f:900+Math.random()*1600,pan:Math.random()});
-          if(!cab&&Math.random()<g.rain*.004)this.drops.push({t:0,a:.05+Math.random()*.08,f:2500+Math.random()*3000,pan:Math.random()});}
-        for(let d=this.drops.length-1;d>=0;d--){const D=this.drops[d];D.t+=1/sr;const e=Math.exp(-D.t*300)*D.a;const s=Math.sin(TAU*D.f*D.t)*e*(1+this.rnd()*.3);l+=s*(1-D.pan);r+=s*D.pan;if(D.t>.03)this.drops.splice(d,1);}
-        /* curb: a thump every time a stripe goes under the tyres */
-        if(g.curb>1e-3){this.curbPh+=Math.max(sp,1)/1.0/sr;if(this.curbPh>=1){this.curbPh-=1;this.thumpE=1;}
-          this.thumpE*=Math.exp(-1/(sr*.018));lp[5]+=(brown*4-lp[5])*.06;const t=(Math.sin(TAU*55*this.thumpE)*.6+lp[5])*this.thumpE*g.curb*.35;l+=t;r+=t;}
-        /* scraping along the wall */
-        if(g.scr>1e-3){lp[6]+=(wn-lp[6])*.5;const sc=(wn-lp[6])*g.scr*(.5+.5*Math.sin(TAU*this.curbPh*7))*.5;l+=sc;r+=sc;}
+        const wind=this.windF.run(pink)*g.wind*(cab?.45:1);l+=wind*1.05;r+=wind*.95;
+        /* curb: a soft low thud each stripe */
+        if(g.curb>1e-3){this.curbPh+=Math.max(sp,1)/2.0/sr;if(this.curbPh>=1){this.curbPh-=1;this.thumpE=1;}
+          this.thumpE*=Math.exp(-1/(sr*.03));this.thumpPh=(this.thumpPh||0)+46/sr;this.thumpLp+=(wn-this.thumpLp)*.01;
+          const th=(Math.sin(TAU*this.thumpPh)*.5+this.thumpLp*3)*this.thumpE*g.curb*.18;l+=th;r+=th;}
+        /* grinding along a wall: grains of grit at a rate set by the sliding speed, plus a low rub */
+        if(g.scr>1e-3){if(Math.random()<(30+p.scrape*6)/sr){this.grainE=1;this.grainA=.4+Math.random()*.6;}
+          this.grainE*=Math.exp(-1/(sr*.006));const gr=this.grit.run(wn)*this.grainE*this.grainA*.9+this.gritLo.run(pink)*.9;
+          const sc=gr*g.scr*.45;l+=sc;r+=sc;}
         /* impacts */
         for(let h=this.hits.length-1;h>=0;h--){const H=this.hits[h];H.t+=1/sr;const e=Math.exp(-H.t*14)*H.a;
-          lp[7]+=(wn-lp[7])*.15;const s=(Math.sin(TAU*H.f*H.t*(1-H.t*1.5))*.9+lp[7]*1.5*Math.exp(-H.t*30)+wn*.3*Math.exp(-H.t*60))*e;l+=s;r+=s;if(H.t>.6)this.hits.splice(h,1);}
+          this.hitLp+=(wn-this.hitLp)*.15;const s=(Math.sin(TAU*H.f*H.t*(1-H.t*1.5))*.9+this.hitLp*1.5*Math.exp(-H.t*30)+wn*.25*Math.exp(-H.t*80))*e;l+=s;r+=s;if(H.t>.6)this.hits.splice(h,1);}
         const v=(p.vol??1)*.55;L[i]=l*v;R[i]=r*v;
       }
     }
