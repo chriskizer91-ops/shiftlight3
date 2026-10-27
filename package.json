@@ -1,0 +1,12 @@
+{
+  "name": "shiftlight3",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shiftlight 3: a browser street-racing game. Engine Lab first.",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test:audio": "node test/render.cjs test/out",
+    "test:orders": "node test/orders.cjs",
+    "test:browser": "node tools/build.mjs && node test/browser.mjs test/out"
+  }
+}

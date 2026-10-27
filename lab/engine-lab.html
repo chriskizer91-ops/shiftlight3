@@ -1,0 +1,202 @@
+<title>Shiftlight Engine Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Saira+Condensed:wght@500;600;700&family=Saira:wght@400;500;600&display=swap">
+<style>
+/* Layout: a pit wall at night. Engine catalogue on the left, the instrument cluster in the middle,
+   the race engineer's setup sheet on the right. One committed dark look: lit instruments in a dark garage. */
+:root{
+  --bg:#0a0b0f;--surface:#111319;--raised:#181b23;--well:#07080b;
+  --line:rgba(214,220,255,.09);--line-2:rgba(214,220,255,.17);
+  --ink:#ecebf3;--ink-2:#a09fb3;--ink-3:#626176;
+  --accent:#ff3d5a;--amber:#ffb43c;--bank-a:#3fd8ff;--bank-b:#ff5ab4;--go:#5dff7a;--blue:#4c86ff;
+  --f-display:"Chakra Petch","Arial Narrow",system-ui,sans-serif;
+  --f-num:"Saira Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Saira",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:10px;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{font:400 14px/1.45 var(--f-body);-webkit-font-smoothing:antialiased}
+*,*::before,*::after{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--bank-a);outline-offset:2px}
+.app{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 28px;max-width:1680px;margin:0 auto}
+
+/* ---------- top bar ---------- */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.mark{font:700 18px/1 var(--f-display);letter-spacing:.3em;color:var(--accent)}
+.sub{font:600 12px/1 var(--f-display);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-2)}
+.power{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px 0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--raised);cursor:pointer;font:600 12px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase}
+.power .dot{width:10px;height:10px;border-radius:50%;background:var(--ink-3);box-shadow:0 0 0 2px rgba(0,0,0,.4) inset}
+.power[aria-pressed="true"] .dot{background:var(--go);box-shadow:0 0 10px var(--go)}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:999px;padding:2px;background:var(--surface)}
+.seg button{border:0;background:none;height:28px;padding:0 11px;border-radius:999px;cursor:pointer;font:500 12px/1 var(--f-body);color:var(--ink-2);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--raised);color:var(--ink);box-shadow:0 0 0 1px var(--line-2) inset}
+.vol{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+.vol input{width:96px}
+input[type=range]{accent-color:var(--amber)}
+
+/* ---------- three columns ---------- */
+.lab{display:grid;grid-template-columns:250px minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:1240px){.lab{grid-template-columns:minmax(0,1fr) 300px}.catalog{grid-column:1/-1}}
+@media (max-width:860px){.lab{grid-template-columns:minmax(0,1fr)}}
+h2{font:600 11px/1 var(--f-display);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);margin:0 0 10px}
+
+/* ---------- engine catalogue ---------- */
+.presets{display:flex;flex-direction:column;gap:4px}
+@media (max-width:1240px){.presets{flex-direction:row;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}.preset{flex:0 0 210px;scroll-snap-align:start}}
+.preset{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;padding:9px 10px 9px 12px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;position:relative}
+.preset:hover{background:var(--surface)}
+.preset[aria-pressed="true"]{background:var(--raised);border-color:var(--line-2)}
+.preset[aria-pressed="true"]::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;border-radius:2px;background:var(--accent)}
+.preset b{font:600 14px/1.2 var(--f-body)}
+.preset small{grid-column:1;color:var(--ink-2);font-size:12px;line-height:1.3}
+.preset .hp{grid-row:1/3;grid-column:2;align-self:center;font:600 15px/1 var(--f-num);color:var(--ink-2);font-variant-numeric:tabular-nums;text-align:right}
+.preset .hp em{display:block;font:500 10px/1.3 var(--f-body);font-style:normal;color:var(--ink-3);letter-spacing:.06em}
+
+/* ---------- the cluster ---------- */
+.cluster{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:4px 18px;padding:14px 18px 16px;border-radius:14px;
+  background:radial-gradient(ellipse 70% 90% at 32% 45%,#171a24 0%,var(--well) 70%);border:1px solid var(--line);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 18px 40px rgba(0,0,0,.35)}
+@media (max-width:620px){.cluster{grid-template-columns:minmax(0,1fr)}}
+#tach{width:100%;aspect-ratio:1.18;max-width:100%;display:block}
+.read{display:flex;flex-direction:column;gap:12px;padding-top:8px;min-width:0}
+.lbl{display:block;font:600 10px/1 var(--f-display);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
+.gearrow{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:end}
+.big{font:700 76px/.85 var(--f-num);color:var(--amber);text-shadow:0 0 22px rgba(255,180,60,.35);font-variant-numeric:tabular-nums}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.num{font:600 30px/1 var(--f-num);font-variant-numeric:tabular-nums}
+.unit{font:500 11px/1 var(--f-body);color:var(--ink-2);margin-left:4px}
+.meter .track{height:6px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}
+.meter .track i{display:block;height:100%;width:0;border-radius:4px;background:var(--amber);transition:width .06s linear}
+.meter .row{display:flex;justify-content:space-between;align-items:baseline}
+.meter .row span:last-child{font:600 13px/1 var(--f-num);font-variant-numeric:tabular-nums;color:var(--ink-2)}
+#nosFill{background:var(--bank-a)}#boostFill{background:var(--go)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips span{font:600 10px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;padding:5px 7px;border-radius:5px;border:1px solid var(--line);color:var(--ink-3)}
+.chips span.on{color:#0a0b0f;border-color:transparent}
+.chips [data-c=lim].on,.chips [data-c=bang].on{background:var(--accent)}
+.chips [data-c=step].on,.chips [data-c=al].on{background:var(--amber)}
+.chips [data-c=tc].on{background:var(--go)}
+.chips [data-c=nos].on{background:var(--bank-a)}
+.cover{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;text-align:center;padding:24px;border-radius:14px;background:rgba(7,8,11,.78);backdrop-filter:blur(3px)}
+.cover button{height:52px;padding:0 26px;border-radius:999px;border:1px solid rgba(255,61,90,.7);background:radial-gradient(circle at 50% 30%,rgba(255,61,90,.4),#1a0d12 75%);cursor:pointer;
+  font:700 15px/1 var(--f-display);letter-spacing:.18em;text-transform:uppercase;box-shadow:0 0 30px rgba(255,61,90,.25)}
+.cover p{margin:0;max-width:38ch;color:var(--ink-2);font-size:13px}
+
+/* ---------- hands and feet ---------- */
+.controls{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px;margin-top:12px;align-items:stretch}
+@media (max-width:620px){.controls{grid-template-columns:minmax(0,1fr)}}
+.pad{position:relative;overflow:hidden;min-height:88px;border-radius:var(--r);border:1px solid rgba(93,255,122,.35);background:var(--surface);cursor:ns-resize;touch-action:none;user-select:none;-webkit-user-select:none;
+  display:flex;flex-direction:column;justify-content:center;padding:0 16px}
+.pad span{font:700 13px/1 var(--f-display);letter-spacing:.2em;text-transform:uppercase;position:relative;z-index:1}
+.pad small{color:var(--ink-2);font-size:12px;margin-top:5px;position:relative;z-index:1}
+.pad i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(to top,rgba(93,255,122,.35),rgba(93,255,122,.08))}
+.btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.btns button{min-height:40px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font:600 11px/1.1 var(--f-display);letter-spacing:.1em;text-transform:uppercase;touch-action:none}
+.btns button.on{background:var(--raised);border-color:var(--ink-2)}
+.btns button:disabled{opacity:.35;cursor:default}
+#bBrake{border-color:rgba(255,61,90,.45)}#bNos{border-color:rgba(63,216,255,.45)}
+.keys{grid-column:1/-1;margin:0;color:var(--ink-2);font-size:12px}
+kbd{font:600 11px/1 var(--f-num);padding:2px 5px;border-radius:4px;border:1px solid var(--line-2);background:var(--raised);color:var(--ink)}
+
+/* ---------- analysis panels ---------- */
+.panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+@media (max-width:620px){.panels{grid-template-columns:minmax(0,1fr)}}
+.panel{margin:0;padding:12px 14px 12px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);min-width:0}
+.panel figcaption{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:8px}
+.panel figcaption b{font:600 11px/1 var(--f-display);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2)}
+.panel figcaption span{font:500 12px/1.2 var(--f-num);color:var(--ink-3);text-align:right;font-variant-numeric:tabular-nums}
+.panel canvas{display:block;width:100%;aspect-ratio:1.9;max-width:100%}
+#crank{aspect-ratio:1.9}
+.note{margin:8px 0 0;color:var(--ink-2);font-size:12.5px;max-width:62ch}
+.note b{font-weight:600;color:var(--ink)}
+
+/* ---------- setup sheet ---------- */
+.setup{display:flex;flex-direction:column;gap:12px}
+.sheet{border-radius:var(--r);background:var(--surface);border:1px solid var(--line);padding:12px 14px 10px}
+.sheet h3{font:600 11px/1 var(--f-display);letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin:0 0 8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;padding:7px 0;border-top:1px solid var(--line)}
+.sheet h3+.row{border-top:0;padding-top:2px}
+.row .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+.row .head output{font:600 13px/1 var(--f-num);color:var(--ink);font-variant-numeric:tabular-nums}
+.row select{width:100%;height:32px;border-radius:7px;border:1px solid var(--line-2);background:var(--raised);padding:0 8px}
+.row .seg{display:flex;width:100%}
+.row .seg button{flex:1;padding:0 4px;font-size:12px}
+.row input[type=range]{width:100%}
+.row.tog{grid-template-columns:1fr auto;align-items:center}
+.switch{position:relative;width:38px;height:22px;border-radius:999px;border:1px solid var(--line-2);background:var(--raised);cursor:pointer;padding:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--ink-3);transition:transform .12s,background .12s}
+.switch[aria-checked="true"]{background:rgba(93,255,122,.18);border-color:rgba(93,255,122,.5)}
+.switch[aria-checked="true"]::after{transform:translateX(16px);background:var(--go)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions button{flex:1;min-height:36px;border-radius:8px;border:1px solid var(--line-2);background:var(--raised);cursor:pointer;font:600 11px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase}
+.status{font-size:12px;color:var(--ink-3);margin:0}
+#copied{color:var(--go)}
+@media (prefers-reduced-motion:reduce){.meter .track i,.switch::after{transition:none}}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand"><span class="mark">SHIFTLIGHT</span><span class="sub">Engine Lab</span></div>
+    <button id="power" class="power" type="button" aria-pressed="false"><span class="dot"></span><span id="powerLbl">Start engine</span></button>
+    <div class="seg" role="group" aria-label="Mode" id="segMode"><button type="button" data-v="free" aria-pressed="true">Free rev</button><button type="button" data-v="drive" aria-pressed="false">Drive</button></div>
+    <div class="seg" role="group" aria-label="Listen from" id="segListen"><button type="button" data-v="0" aria-pressed="true">Behind</button><button type="button" data-v="1" aria-pressed="false">Cabin</button><button type="button" data-v="2" aria-pressed="false">Trackside</button></div>
+    <div class="seg" role="group" aria-label="Surroundings" id="segRoom"><button type="button" data-v="open" aria-pressed="true">Open air</button><button type="button" data-v="garage" aria-pressed="false">Garage</button><button type="button" data-v="tunnel" aria-pressed="false">Tunnel</button></div>
+    <label class="vol" for="vol">Volume <input id="vol" type="range" min="0" max="1" step="0.01" value="0.8"></label>
+  </header>
+
+  <main class="lab">
+    <aside class="catalog" aria-label="Engines">
+      <h2>Engines</h2>
+      <div id="presets" class="presets"></div>
+    </aside>
+
+    <section class="stage" aria-label="Instruments">
+      <div class="cluster">
+        <canvas id="tach" aria-label="Tachometer and shift lights"></canvas>
+        <div class="read">
+          <div class="gearrow">
+            <div><span class="lbl">Gear</span><span id="gear" class="big">N</span></div>
+            <div class="pair">
+              <div><span class="lbl">Speed</span><span id="speed" class="num">0</span><span class="unit">km/h</span></div>
+              <div><span class="lbl">Power</span><span id="pwr" class="num">0</span><span class="unit">hp</span></div>
+            </div>
+          </div>
+          <div class="meter"><div class="row"><span class="lbl">Throttle</span><span id="thrTxt">0%</span></div><div class="track"><i id="thrFill"></i></div></div>
+          <div class="meter" id="mBoost"><div class="row"><span class="lbl">Boost</span><span id="boostTxt">0.00 bar</span></div><div class="track"><i id="boostFill"></i></div></div>
+          <div class="meter" id="mNos"><div class="row"><span class="lbl">Nitrous</span><span id="nosTxt">None</span></div><div class="track"><i id="nosFill"></i></div></div>
+          <div class="chips" id="chips"><span data-c="lim">Limiter</span><span data-c="step">Two-step</span><span data-c="tc">TC</span><span data-c="al">Anti-lag</span><span data-c="nos">Nitrous</span><span data-c="bang">Bang</span></div>
+        </div>
+        <div id="cover" class="cover"><button id="startBig" type="button">Start the engine</button><p>Sound starts when you click. Headphones or good speakers help: the big engines go down to 30 Hz.</p></div>
+      </div>
+
+      <div class="controls">
+        <div class="pad" id="pad" role="slider" aria-label="Throttle" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><span>Throttle</span><small>Press and hold. Higher up means more throttle.</small><i id="padFill"></i></div>
+        <div class="btns">
+          <button type="button" id="bBrake">Brake</button><button type="button" id="bDown">Shift down</button><button type="button" id="bUp">Shift up</button>
+          <button type="button" id="bNos">Nitrous</button><button type="button" id="bPurge">Purge</button><button type="button" id="bBlip">Blip</button>
+        </div>
+        <p class="keys"><kbd>Space</kbd> throttle · <kbd>1</kbd>–<kbd>9</kbd> part throttle · <kbd>S</kbd> brake · <kbd>E</kbd> <kbd>Q</kbd> shift · <kbd>N</kbd> nitrous · <kbd>P</kbd> purge · <kbd>I</kbd> ignition · <kbd>V</kbd> where you listen</p>
+      </div>
+
+      <div class="panels">
+        <figure class="panel"><figcaption><b>Firing order</b><span id="crankName"></span></figcaption><canvas id="crank" aria-label="Firing order diagram"></canvas><p id="crankNote" class="note"></p></figure>
+        <figure class="panel"><figcaption><b>Torque and power</b><span id="curvePeak"></span></figcaption><canvas id="curve" aria-label="Torque and power curves"></canvas><p id="curveNote" class="note"></p></figure>
+        <figure class="panel"><figcaption><b>Pressure at your ear</b><span id="scopeNote">one engine cycle</span></figcaption><canvas id="scope" aria-label="Waveform"></canvas></figure>
+        <figure class="panel"><figcaption><b>Spectrum</b><span id="specNote"></span></figcaption><canvas id="spec" aria-label="Spectrum"></canvas></figure>
+      </div>
+    </section>
+
+    <aside class="setup" id="setup" aria-label="Setup sheet"></aside>
+  </main>
+</div>
+
+<script>
+/*@DSP@*/
+/*@SIM@*/
+/*@UI@*/
+</script>

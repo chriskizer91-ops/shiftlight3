@@ -1,0 +1,1164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Shiftlight Engine Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Saira+Condensed:wght@500;600;700&family=Saira:wght@400;500;600&display=swap">
+<style>
+/* Layout: a pit wall at night. Engine catalogue on the left, the instrument cluster in the middle,
+   the race engineer's setup sheet on the right. One committed dark look: lit instruments in a dark garage. */
+:root{
+  --bg:#0a0b0f;--surface:#111319;--raised:#181b23;--well:#07080b;
+  --line:rgba(214,220,255,.09);--line-2:rgba(214,220,255,.17);
+  --ink:#ecebf3;--ink-2:#a09fb3;--ink-3:#626176;
+  --accent:#ff3d5a;--amber:#ffb43c;--bank-a:#3fd8ff;--bank-b:#ff5ab4;--go:#5dff7a;--blue:#4c86ff;
+  --f-display:"Chakra Petch","Arial Narrow",system-ui,sans-serif;
+  --f-num:"Saira Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Saira",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:10px;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{font:400 14px/1.45 var(--f-body);-webkit-font-smoothing:antialiased}
+*,*::before,*::after{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--bank-a);outline-offset:2px}
+.app{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 28px;max-width:1680px;margin:0 auto}
+
+/* ---------- top bar ---------- */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.mark{font:700 18px/1 var(--f-display);letter-spacing:.3em;color:var(--accent)}
+.sub{font:600 12px/1 var(--f-display);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-2)}
+.power{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px 0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--raised);cursor:pointer;font:600 12px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase}
+.power .dot{width:10px;height:10px;border-radius:50%;background:var(--ink-3);box-shadow:0 0 0 2px rgba(0,0,0,.4) inset}
+.power[aria-pressed="true"] .dot{background:var(--go);box-shadow:0 0 10px var(--go)}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:999px;padding:2px;background:var(--surface)}
+.seg button{border:0;background:none;height:28px;padding:0 11px;border-radius:999px;cursor:pointer;font:500 12px/1 var(--f-body);color:var(--ink-2);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--raised);color:var(--ink);box-shadow:0 0 0 1px var(--line-2) inset}
+.vol{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+.vol input{width:96px}
+input[type=range]{accent-color:var(--amber)}
+
+/* ---------- three columns ---------- */
+.lab{display:grid;grid-template-columns:250px minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:1240px){.lab{grid-template-columns:minmax(0,1fr) 300px}.catalog{grid-column:1/-1}}
+@media (max-width:860px){.lab{grid-template-columns:minmax(0,1fr)}}
+h2{font:600 11px/1 var(--f-display);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);margin:0 0 10px}
+
+/* ---------- engine catalogue ---------- */
+.presets{display:flex;flex-direction:column;gap:4px}
+@media (max-width:1240px){.presets{flex-direction:row;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}.preset{flex:0 0 210px;scroll-snap-align:start}}
+.preset{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;padding:9px 10px 9px 12px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;position:relative}
+.preset:hover{background:var(--surface)}
+.preset[aria-pressed="true"]{background:var(--raised);border-color:var(--line-2)}
+.preset[aria-pressed="true"]::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;border-radius:2px;background:var(--accent)}
+.preset b{font:600 14px/1.2 var(--f-body)}
+.preset small{grid-column:1;color:var(--ink-2);font-size:12px;line-height:1.3}
+.preset .hp{grid-row:1/3;grid-column:2;align-self:center;font:600 15px/1 var(--f-num);color:var(--ink-2);font-variant-numeric:tabular-nums;text-align:right}
+.preset .hp em{display:block;font:500 10px/1.3 var(--f-body);font-style:normal;color:var(--ink-3);letter-spacing:.06em}
+
+/* ---------- the cluster ---------- */
+.cluster{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:4px 18px;padding:14px 18px 16px;border-radius:14px;
+  background:radial-gradient(ellipse 70% 90% at 32% 45%,#171a24 0%,var(--well) 70%);border:1px solid var(--line);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 18px 40px rgba(0,0,0,.35)}
+@media (max-width:620px){.cluster{grid-template-columns:minmax(0,1fr)}}
+#tach{width:100%;aspect-ratio:1.18;max-width:100%;display:block}
+.read{display:flex;flex-direction:column;gap:12px;padding-top:8px;min-width:0}
+.lbl{display:block;font:600 10px/1 var(--f-display);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
+.gearrow{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:end}
+.big{font:700 76px/.85 var(--f-num);color:var(--amber);text-shadow:0 0 22px rgba(255,180,60,.35);font-variant-numeric:tabular-nums}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.num{font:600 30px/1 var(--f-num);font-variant-numeric:tabular-nums}
+.unit{font:500 11px/1 var(--f-body);color:var(--ink-2);margin-left:4px}
+.meter .track{height:6px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}
+.meter .track i{display:block;height:100%;width:0;border-radius:4px;background:var(--amber);transition:width .06s linear}
+.meter .row{display:flex;justify-content:space-between;align-items:baseline}
+.meter .row span:last-child{font:600 13px/1 var(--f-num);font-variant-numeric:tabular-nums;color:var(--ink-2)}
+#nosFill{background:var(--bank-a)}#boostFill{background:var(--go)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips span{font:600 10px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;padding:5px 7px;border-radius:5px;border:1px solid var(--line);color:var(--ink-3)}
+.chips span.on{color:#0a0b0f;border-color:transparent}
+.chips [data-c=lim].on,.chips [data-c=bang].on{background:var(--accent)}
+.chips [data-c=step].on,.chips [data-c=al].on{background:var(--amber)}
+.chips [data-c=tc].on{background:var(--go)}
+.chips [data-c=nos].on{background:var(--bank-a)}
+.cover{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;text-align:center;padding:24px;border-radius:14px;background:rgba(7,8,11,.78);backdrop-filter:blur(3px)}
+.cover button{height:52px;padding:0 26px;border-radius:999px;border:1px solid rgba(255,61,90,.7);background:radial-gradient(circle at 50% 30%,rgba(255,61,90,.4),#1a0d12 75%);cursor:pointer;
+  font:700 15px/1 var(--f-display);letter-spacing:.18em;text-transform:uppercase;box-shadow:0 0 30px rgba(255,61,90,.25)}
+.cover p{margin:0;max-width:38ch;color:var(--ink-2);font-size:13px}
+
+/* ---------- hands and feet ---------- */
+.controls{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px;margin-top:12px;align-items:stretch}
+@media (max-width:620px){.controls{grid-template-columns:minmax(0,1fr)}}
+.pad{position:relative;overflow:hidden;min-height:88px;border-radius:var(--r);border:1px solid rgba(93,255,122,.35);background:var(--surface);cursor:ns-resize;touch-action:none;user-select:none;-webkit-user-select:none;
+  display:flex;flex-direction:column;justify-content:center;padding:0 16px}
+.pad span{font:700 13px/1 var(--f-display);letter-spacing:.2em;text-transform:uppercase;position:relative;z-index:1}
+.pad small{color:var(--ink-2);font-size:12px;margin-top:5px;position:relative;z-index:1}
+.pad i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(to top,rgba(93,255,122,.35),rgba(93,255,122,.08))}
+.btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.btns button{min-height:40px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font:600 11px/1.1 var(--f-display);letter-spacing:.1em;text-transform:uppercase;touch-action:none}
+.btns button.on{background:var(--raised);border-color:var(--ink-2)}
+.btns button:disabled{opacity:.35;cursor:default}
+#bBrake{border-color:rgba(255,61,90,.45)}#bNos{border-color:rgba(63,216,255,.45)}
+.keys{grid-column:1/-1;margin:0;color:var(--ink-2);font-size:12px}
+kbd{font:600 11px/1 var(--f-num);padding:2px 5px;border-radius:4px;border:1px solid var(--line-2);background:var(--raised);color:var(--ink)}
+
+/* ---------- analysis panels ---------- */
+.panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+@media (max-width:620px){.panels{grid-template-columns:minmax(0,1fr)}}
+.panel{margin:0;padding:12px 14px 12px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);min-width:0}
+.panel figcaption{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:8px}
+.panel figcaption b{font:600 11px/1 var(--f-display);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2)}
+.panel figcaption span{font:500 12px/1.2 var(--f-num);color:var(--ink-3);text-align:right;font-variant-numeric:tabular-nums}
+.panel canvas{display:block;width:100%;aspect-ratio:1.9;max-width:100%}
+#crank{aspect-ratio:1.9}
+.note{margin:8px 0 0;color:var(--ink-2);font-size:12.5px;max-width:62ch}
+.note b{font-weight:600;color:var(--ink)}
+
+/* ---------- setup sheet ---------- */
+.setup{display:flex;flex-direction:column;gap:12px}
+.sheet{border-radius:var(--r);background:var(--surface);border:1px solid var(--line);padding:12px 14px 10px}
+.sheet h3{font:600 11px/1 var(--f-display);letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin:0 0 8px}
+.row{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;padding:7px 0;border-top:1px solid var(--line)}
+.sheet h3+.row{border-top:0;padding-top:2px}
+.row .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+.row .head output{font:600 13px/1 var(--f-num);color:var(--ink);font-variant-numeric:tabular-nums}
+.row select{width:100%;height:32px;border-radius:7px;border:1px solid var(--line-2);background:var(--raised);padding:0 8px}
+.row .seg{display:flex;width:100%}
+.row .seg button{flex:1;padding:0 4px;font-size:12px}
+.row input[type=range]{width:100%}
+.row.tog{grid-template-columns:1fr auto;align-items:center}
+.switch{position:relative;width:38px;height:22px;border-radius:999px;border:1px solid var(--line-2);background:var(--raised);cursor:pointer;padding:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--ink-3);transition:transform .12s,background .12s}
+.switch[aria-checked="true"]{background:rgba(93,255,122,.18);border-color:rgba(93,255,122,.5)}
+.switch[aria-checked="true"]::after{transform:translateX(16px);background:var(--go)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions button{flex:1;min-height:36px;border-radius:8px;border:1px solid var(--line-2);background:var(--raised);cursor:pointer;font:600 11px/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase}
+.status{font-size:12px;color:var(--ink-3);margin:0}
+#copied{color:var(--go)}
+@media (prefers-reduced-motion:reduce){.meter .track i,.switch::after{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand"><span class="mark">SHIFTLIGHT</span><span class="sub">Engine Lab</span></div>
+    <button id="power" class="power" type="button" aria-pressed="false"><span class="dot"></span><span id="powerLbl">Start engine</span></button>
+    <div class="seg" role="group" aria-label="Mode" id="segMode"><button type="button" data-v="free" aria-pressed="true">Free rev</button><button type="button" data-v="drive" aria-pressed="false">Drive</button></div>
+    <div class="seg" role="group" aria-label="Listen from" id="segListen"><button type="button" data-v="0" aria-pressed="true">Behind</button><button type="button" data-v="1" aria-pressed="false">Cabin</button><button type="button" data-v="2" aria-pressed="false">Trackside</button></div>
+    <div class="seg" role="group" aria-label="Surroundings" id="segRoom"><button type="button" data-v="open" aria-pressed="true">Open air</button><button type="button" data-v="garage" aria-pressed="false">Garage</button><button type="button" data-v="tunnel" aria-pressed="false">Tunnel</button></div>
+    <label class="vol" for="vol">Volume <input id="vol" type="range" min="0" max="1" step="0.01" value="0.8"></label>
+  </header>
+
+  <main class="lab">
+    <aside class="catalog" aria-label="Engines">
+      <h2>Engines</h2>
+      <div id="presets" class="presets"></div>
+    </aside>
+
+    <section class="stage" aria-label="Instruments">
+      <div class="cluster">
+        <canvas id="tach" aria-label="Tachometer and shift lights"></canvas>
+        <div class="read">
+          <div class="gearrow">
+            <div><span class="lbl">Gear</span><span id="gear" class="big">N</span></div>
+            <div class="pair">
+              <div><span class="lbl">Speed</span><span id="speed" class="num">0</span><span class="unit">km/h</span></div>
+              <div><span class="lbl">Power</span><span id="pwr" class="num">0</span><span class="unit">hp</span></div>
+            </div>
+          </div>
+          <div class="meter"><div class="row"><span class="lbl">Throttle</span><span id="thrTxt">0%</span></div><div class="track"><i id="thrFill"></i></div></div>
+          <div class="meter" id="mBoost"><div class="row"><span class="lbl">Boost</span><span id="boostTxt">0.00 bar</span></div><div class="track"><i id="boostFill"></i></div></div>
+          <div class="meter" id="mNos"><div class="row"><span class="lbl">Nitrous</span><span id="nosTxt">None</span></div><div class="track"><i id="nosFill"></i></div></div>
+          <div class="chips" id="chips"><span data-c="lim">Limiter</span><span data-c="step">Two-step</span><span data-c="tc">TC</span><span data-c="al">Anti-lag</span><span data-c="nos">Nitrous</span><span data-c="bang">Bang</span></div>
+        </div>
+        <div id="cover" class="cover"><button id="startBig" type="button">Start the engine</button><p>Sound starts when you click. Headphones or good speakers help: the big engines go down to 30 Hz.</p></div>
+      </div>
+
+      <div class="controls">
+        <div class="pad" id="pad" role="slider" aria-label="Throttle" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><span>Throttle</span><small>Press and hold. Higher up means more throttle.</small><i id="padFill"></i></div>
+        <div class="btns">
+          <button type="button" id="bBrake">Brake</button><button type="button" id="bDown">Shift down</button><button type="button" id="bUp">Shift up</button>
+          <button type="button" id="bNos">Nitrous</button><button type="button" id="bPurge">Purge</button><button type="button" id="bBlip">Blip</button>
+        </div>
+        <p class="keys"><kbd>Space</kbd> throttle · <kbd>1</kbd>–<kbd>9</kbd> part throttle · <kbd>S</kbd> brake · <kbd>E</kbd> <kbd>Q</kbd> shift · <kbd>N</kbd> nitrous · <kbd>P</kbd> purge · <kbd>I</kbd> ignition · <kbd>V</kbd> where you listen</p>
+      </div>
+
+      <div class="panels">
+        <figure class="panel"><figcaption><b>Firing order</b><span id="crankName"></span></figcaption><canvas id="crank" aria-label="Firing order diagram"></canvas><p id="crankNote" class="note"></p></figure>
+        <figure class="panel"><figcaption><b>Torque and power</b><span id="curvePeak"></span></figcaption><canvas id="curve" aria-label="Torque and power curves"></canvas><p id="curveNote" class="note"></p></figure>
+        <figure class="panel"><figcaption><b>Pressure at your ear</b><span id="scopeNote">one engine cycle</span></figcaption><canvas id="scope" aria-label="Waveform"></canvas></figure>
+        <figure class="panel"><figcaption><b>Spectrum</b><span id="specNote"></span></figcaption><canvas id="spec" aria-label="Spectrum"></canvas></figure>
+      </div>
+    </section>
+
+    <aside class="setup" id="setup" aria-label="Setup sheet"></aside>
+  </main>
+</div>
+
+<script>
+/* ---- src/audio/engine-dsp.js ---- */
+/* =====================================================================================
+   SHIFTLIGHT ENGINE SYNTH — live, sample by sample.
+   Every cylinder fires on its own crank angle, in its real firing order, into its own bank
+   of pipe. The pipes are 1-D acoustic waveguides (Kelly-Lochbaum scattering at every change
+   of bore, lossy where there is packing, a closed-ish valve at one end and an open radiating
+   tip at the other), run live rather than baked into an impulse response. On top: flow rasp
+   gated by each pulse, induction through its own airbox model, afterfire and bangs fired
+   into the pipes, turbo/supercharger/gear whine, blow-off, nitrous, the starter, and a
+   listener with real propagation delay (so Doppler falls out of a moving source).
+
+   makeDSP() returns the EngineDSP class. Its source is stringified into an AudioWorklet
+   module, so everything it needs is declared inside this function.
+   ===================================================================================== */
+function makeDSP(){
+'use strict';
+const TAU=Math.PI*2,clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t;
+const C_GAS=500;   /* speed of sound in hot exhaust gas, m/s */
+const C_AIR=343;   /* and in the air between the car and you */
+const ftanh=x=>{if(x>3)return 1;if(x<-3)return -1;const x2=x*x;return x*(27+x2)/(27+9*x2);};
+const LP=0,HP=1,BP=2;
+
+class Biquad{
+  constructor(){this.b0=1;this.b1=0;this.b2=0;this.a1=0;this.a2=0;this.z1=0;this.z2=0;}
+  set(type,f,q,sr){
+    const w=TAU*clamp(f,8,sr*.47)/sr,cw=Math.cos(w),al=Math.sin(w)/(2*q),a0=1+al;let b0,b1,b2;
+    if(type===LP){b0=(1-cw)/2;b1=1-cw;b2=b0;}else if(type===HP){b0=(1+cw)/2;b1=-(1+cw);b2=b0;}else{b0=al;b1=0;b2=-al;}
+    this.b0=b0/a0;this.b1=b1/a0;this.b2=b2/a0;this.a1=-2*cw/a0;this.a2=(1-al)/a0;return this;
+  }
+  tick(x){const y=this.b0*x+this.z1;this.z1=this.b1*x-this.a1*y+this.z2;this.z2=this.b2*x-this.a2*y;return y;}
+  reset(){this.z1=this.z2=0;}
+}
+
+/* 1-D acoustic waveguide. sec = [[length m, bore m, packing 0..1], ...] from the valve outward.
+   Each section is a pair of delay lines; at every change of bore a Kelly-Lochbaum junction
+   splits the waves with k=(A1-A2)/(A1+A2). Packing is a lowpass and a loss per pass. The valve
+   end reflects (rPort); the open tip reflects inverted and duller (rEnd) and radiates the flow
+   it lets out through a leaky differentiator, the way a pipe's far field behaves. */
+class Waveguide{
+  constructor(sec,sr,rPort=.7,rEnd=-.8){
+    const n=sec.length;this.n=n;this.rPort=rPort;this.rEnd=rEnd;
+    this.m=new Int32Array(n);this.a=new Float64Array(n);this.g=new Float64Array(n);this.K=new Float64Array(n);this.p=new Int32Array(n);
+    this.yr=new Float64Array(n);this.yl=new Float64Array(n);this.ar=new Float64Array(n);this.al=new Float64Array(n);this.nr=new Float64Array(n);this.nl=new Float64Array(n);
+    this.R=[];this.L=[];
+    for(let i=0;i<n;i++){const [l,,pk]=sec[i];this.m[i]=Math.max(2,Math.round(l/C_GAS*sr));this.a[i]=Math.min(.75,1-Math.min(.9,.6*pk));this.g[i]=.985-.08*pk;
+      this.R.push(new Float64Array(this.m[i]));this.L.push(new Float64Array(this.m[i]));}
+    for(let i=0;i<n-1;i++){const A1=sec[i][1]*sec[i][1],A2=sec[i+1][1]*sec[i+1][1];this.K[i]=(A1-A2)/(A1+A2);}
+    this.tip=0;this.u1=0;this.dn=1e-20;
+  }
+  tick(x){
+    const n=this.n,a=this.a,g=this.g,ar=this.ar,al=this.al,nr=this.nr,nl=this.nl,R=this.R,L=this.L,p=this.p,yr=this.yr,yl=this.yl,K=this.K,m=this.m;
+    for(let i=0;i<n;i++){const q=p[i];yr[i]+=a[i]*(R[i][q]-yr[i]);ar[i]=yr[i]*g[i];yl[i]+=a[i]*(L[i][q]-yl[i]);al[i]=yl[i]*g[i];}
+    this.dn=-this.dn;nr[0]=this.rPort*al[0]+x+this.dn;
+    for(let i=0;i<n-1;i++){const k=K[i];nr[i+1]=(1+k)*ar[i]-k*al[i+1];nl[i]=k*ar[i]+(1-k)*al[i+1];}
+    this.tip+=.5*(ar[n-1]-this.tip);const back=this.rEnd*this.tip,u=ar[n-1]-back;nl[n-1]=back;const out=u-.6*this.u1;this.u1=u;
+    for(let i=0;i<n;i++){const q=p[i];R[i][q]=nr[i];L[i][q]=nl[i];p[i]=q+1>=m[i]?0:q+1;}
+    return out;
+  }
+}
+function irOf(sec,sr,rp,re){const w=new Waveguide(sec,sr,rp,re),n=Math.round(.15*sr),o=new Float64Array(n);for(let t=0;t<n;t++)o[t]=w.tick(t===0?1:0);return o;}
+/* peak tailpipe response to one standard blowdown pulse: every system is levelled by it */
+function pulsePeak(ir,sr){
+  const n=Math.round(.005*sr),P=new Float64Array(n);for(let q=0;q<n;q++){const t=q/sr*1.5;P[q]=(1-Math.exp(-t/1e-4))*Math.exp(-t/1.5e-3);}
+  const M=Math.min(ir.length,Math.round(.04*sr));let pk=1e-6;
+  for(let t=0;t<M;t++){let s=0;for(let q=0;q<n&&q<=t;q++)s+=P[q]*ir[t-q];if(Math.abs(s)>pk)pk=Math.abs(s);}
+  return pk;
+}
+/* plumbing per exhaust level: [length m, bore m, packing], valve to tip */
+const PIPES=[
+  [[.34,.036,.05],[.26,.05,.05],[.26,.1,.35],[1.05,.048,.05],[.34,.09,.4],[.85,.048,.05],[.42,.11,.55],[.3,.045,.05]], /* stock: manifold, cat, resonator, packed muffler */
+  [[.34,.036,.05],[.26,.05,.05],[.26,.1,.35],[1.3,.056,.04],[.42,.09,.28],[.34,.058,.04]],                         /* cat-back: bigger pipe, straight-through box */
+  [[.74,.04,.04],[.3,.06,.04],[.22,.085,.18],[1.3,.062,.03],[.34,.09,.2],[.3,.063,.03]],                            /* long-tube headers, high-flow cat */
+  [[.78,.042,.03],[.3,.064,.03],[1.9,.068,.02],[.22,.076,.02]],                                                    /* straight pipe */
+  [[.62,.042,.02],[.2,.056,.02]]];                                                                                 /* open headers: dump at the collector */
+const INTAKES=[
+  [[.22,.04,.03],[.32,.13,.35],[.06,.06,.05],[.45,.07,.08],[.3,.2,.6],[.22,.06,.1]],  /* airbox */
+  [[.22,.04,.03],[.32,.13,.3],[.06,.065,.04],[.55,.075,.05],[.12,.12,.25]],          /* cold air: long pipe, cone filter */
+  [[.22,.04,.03],[.32,.13,.25],[.06,.07,.03],[.35,.09,.05],[.2,.16,.2],[.25,.1,.05]], /* ram air */
+  [[.2,.044,.02],[.08,.052,.02]]];                                                   /* individual throttles: just trumpets */
+const EXK={ex:[.5,.66,.82,1,1.1],drive:[.55,.65,.8,1,1.12],bright:[.55,.75,.9,1.15,1.3],rasp:[.05,.09,.15,.24,.3],pop:[.25,.45,.7,1,1.15],crk:[.35,.6,1,1.35,1.6]};
+const INK=[.22,.3,.38,.75];
+function pipeGeom(c,bank){
+  const lv=c.ex|0,bore=Math.pow(c.disp/2,.33),P=PIPES[lv].map(s=>s.slice());
+  /* tuned primaries get shorter as the engine revs higher */
+  P[0][0]*=clamp(Math.pow(7000/c.redline,.7),.5,1.25);
+  /* the second bank's primaries are longer: equal-length headers tidy that up, a boxer keeps its rumble */
+  if(bank){P[0][0]+=c.split*(lv>=2&&!c.rumble?.4:1);if(c.dual)P[Math.min(3,P.length-1)][0]+=.16;}
+  if(c.turbo)P.splice(2,0,[.1,.032,.5]); /* the turbine: a lossy throat that swallows the crackle */
+  for(const s of P)s[1]*=bore;
+  return P;
+}
+function intakeGeom(c){const bore=Math.pow(c.disp/2,.25);return INTAKES[c.intake|0].map(s=>[s[0]*clamp(Math.pow(7000/c.redline,.5),.6,1.2),s[1]*bore,s[2]]);}
+const hermite=(y0,y1,y2,y3,f)=>{const c1=.5*(y2-y0),c2=y0-2.5*y1+2*y2-.5*y3,c3=.5*(y3-y0)+1.5*(y1-y2);return ((c3*f+c2)*f+c1)*f+y1;};
+
+class EngineDSP{
+  constructor(sr){
+    this.sr=sr;this.t=0;this.cfg=null;this.pend=null;
+    this.p={on:0,firing:0,crank:0,crankT:0,rpm:0,load:0,cutFrac:0,boost:0,nos:0,speed:0,gear:0,twostep:0,antilag:0,view:0,dist:3,pan:0,rear:1,vol:1};
+    this.rpm=0;this.load=0;this.ph=0;this.ei=0;this.idleW=1;this.kOn=0;this.und=.3;this.pl=0;this.crk=0;
+    this.bs=[{e1:0,e2:0,u1:0,u2:0,env:0},{e1:0,e2:0,u1:0,u2:0,env:0}];
+    this.bg=[{a1:0,a2:0,an:0,d1:0,d2:0,dn:0},{a1:0,a2:0,an:0,d1:0,d2:0,dn:0}];
+    this.dc={d1:0,d2:0,d3:0,d4:0,de:0};
+    this.pq=[];this.vox=[];
+    const B=()=>new Biquad();
+    this.f={rasp:B().set(BP,2400,.55,sr),roar:B(),rush:B(),sup:B(),nos:B().set(BP,3800,1.2,sr),start:B().set(LP,900,1.4,sr),
+      hpL:B().set(HP,28,.7,sr),hpR:B().set(HP,28,.7,sr),lpL:B(),lpR:B(),lpI:B(),lpI2:B()};
+    this.g={og:0,exG:0,inG:0,drive:1,post:1,rasp:0,roar:0,tw:0,rush:0,sup:0,gw:0,nos:0,st:0,fade:0,pan:0,gd:1};
+    this.T={};for(const k in this.g)this.T[k]=this.g[k];
+    this.ph1=0;this.ph2=0;this.ph3=0;this.phS=0;this.phG=0;this.phSt=0;this.phAm=0;
+    this.xd={n:64,a:new Float64Array(64),b:new Float64Array(64),w:0,d:6,x:.9};
+    this.dn=1<<15;this.dlL=new Float64Array(this.dn);this.dlR=new Float64Array(this.dn);this.dw=0;this.dS=3;this.airL=0;this.airR=0;this.aa=1;
+    this.stats={pops:0,fires:0};
+    this.ks=1-Math.exp(-1/(.012*sr));       /* per-sample smoothing for gains, ~12 ms */
+    this.kd=1-Math.exp(-1/(.06*sr));        /* listener distance, ~60 ms */
+  }
+  /* ---------- control from the main thread ---------- */
+  configure(c){
+    if(!this.cfg){this._apply(c,false);this.g.fade=0;this.T.fade=1;return;}
+    const geo=k=>JSON.stringify([k.layout,k.ex,k.intake,k.disp,k.redline,!!k.turbo,k.split,k.dual,k.rumble]);
+    if(geo(c)!==geo(this.cfg)){this.pend=c;this.T.fade=0;}else this._apply(c,true);
+  }
+  set(p){this.p=p;if(p.jump)this.dS=p.dist;}
+  event(e){
+    const T=this.t,sr=this.sr;
+    if(e.type==='bov'){
+      const k=clamp((this.p.boost||0)/.9,.35,1.3);
+      if(e.flutter){for(let i=0;i<10;i++)this._vox(T+(.015+i*.036*(1+i*.07))*sr,.026,.3*k*Math.pow(.82,i),1500-i*50,1100-i*40,BP,2.4);this._vox(T,.18,.16*k,700,300,LP,.7);}
+      else{this._vox(T,.42,.26*k,5200,1400,BP,.9);this._vox(T,.12,.12*k,9000,6000,HP,.7);}
+    }else if(e.type==='pop')this._bang(Math.random()<.5?0:1,e.k||.8);
+    else if(e.type==='shift'){if(this.cfg&&this.cfg.ex>=1)this._bang(Math.random()<.5?0:1,.5);}
+    else if(e.type==='purge'){this._vox(T,1.1,.32,7000,3000,HP,.7);this._vox(T,.9,.2,2600,900,BP,.8);}
+  }
+  takeStats(){const s=this.stats;if(!s.pops&&!s.fires)return null;this.stats={pops:0,fires:0};return s;}
+  _apply(c,soft){
+    const prev=this.cfg;this.cfg=c;const lv=c.ex|0,tb=!!c.turbo,ch=c.ch;
+    this.k={ex:EXK.ex[lv],drive:EXK.drive[lv],bright:EXK.bright[lv]*(tb?.82:1)*ch.bright,rasp:EXK.rasp[lv]*(tb?.6:1)*ch.rasp,pop:EXK.pop[lv],
+      inl:INK[c.intake|0],crackle:c.crackle*EXK.crk[lv]*(tb?.75:1),whine:c.gearWhine?1:.15,gain:c.gain||1};
+    if(soft&&prev&&prev.layout===c.layout)return;
+    const sr=this.sr;
+    this.wgA=new Waveguide(pipeGeom(c,0),sr);this.wgB=new Waveguide(pipeGeom(c,1),sr);this.wgI=new Waveguide(intakeGeom(c),sr,.8,-.85);
+    this.gEx=1/pulsePeak(irOf(pipeGeom(c,0),sr),sr);this.gIn=1/pulsePeak(irOf(intakeGeom(c),sr,.8,-.85),sr);
+    /* twin pipes sit apart; a single tip is close to mono */
+    this.xd.d=Math.round((c.dual?3.5e-4:1.2e-4)*sr);this.xd.x=c.dual?.5:.92;this.xd.a.fill(0);this.xd.b.fill(0);
+    for(const b of this.bs){b.e1=b.e2=b.u1=b.u2=b.env=0;}for(const b of this.bg){b.a1=b.a2=b.an=0;}
+    for(const k of ['hpL','hpR','lpL','lpR','lpI','lpI2'])this.f[k].reset();
+    this.ei=c.ang.findIndex(a=>a>this.ph);if(this.ei<0)this.ei=c.ang.length;
+  }
+  /* noise voice: an enveloped, swept, filtered noise burst (blow-off, flutter, purge) */
+  _vox(t0,dur,vol,f0,f1,type,q){
+    if(this.vox.length>40)this.vox.shift();const sr=this.sr,N=Math.max(8,Math.round(dur*sr)),att=Math.round(.004*sr);
+    this.vox.push({t0:Math.round(t0),N,att,e:1e-4,mA:Math.pow(vol/1e-4,1/att),mD:Math.pow(1e-4/vol,1/Math.max(1,N-att)),f0,f1,type,q,bq:new Biquad().set(type,f0,q,sr)});
+  }
+  /* a bang in the pipe: a hard pressure spike with a ragged tail, sometimes a double or a triple */
+  _bang(b,k,extra=true){
+    const s=this.bg[b],sr=this.sr,rate=.75+.5*Math.random(),tr=4e-5/rate,td=5e-4/rate,A=k*this.k.pop*1.6;
+    s.d1=Math.exp(-1/(td*sr));s.d2=Math.exp(-1/(1/(1/tr+1/td)*sr));s.dn=Math.exp(-1/(6e-3/rate*sr));
+    s.a1+=A;s.a2+=A;s.an+=A;this.stats.pops++;
+    if(extra){const r=Math.random();if(r<.4)this._sched(this.t+(.005+Math.random()*.022)*sr,b,k*(.35+.5*Math.random()),0);if(r<.15)this._sched(this.t+(.02+Math.random()*.03)*sr,b,k*(.3+.4*Math.random()),0);}
+  }
+  _sched(at,b,k,kind){if(this.pq.length>64)return;const e={at:Math.round(at),b,k,kind};let i=this.pq.length;while(i>0&&this.pq[i-1].at>e.at)i--;this.pq.splice(i,0,e);}
+  _burst(expect,k,n){let c=Math.floor(expect)+(Math.random()<expect%1?1:0);while(c-->0)this._sched(this.t+Math.random()*n,Math.random()<.5?0:1,k,0);}
+  /* one cylinder's exhaust valve cracks open */
+  _fire(i){
+    const c=this.cfg,p=this.p,b=c.bank[i],base=c.amp[i],R=Math.random,s=this.bs[b];let A;
+    this.stats.fires++;
+    if(!p.firing||R()<p.cutFrac){
+      /* no combustion: the piston still pumps air, and unburnt fuel can light off in the pipe */
+      A=base*.1*(.8+.4*R());
+      if(p.firing&&R()<.1*this.k.crackle+(p.twostep||p.antilag?.12:0))this._sched(this.t+(.0012+R()*.004)*this.sr,b,.5+.6*R(),0);
+    }else{
+      const r1=R(),sc=c.ch.scatter,kOn=this.kOn;
+      const on=base*(1-sc*.5+sc*r1)*(1+.5*Math.min(p.boost||0,2.5)+(p.nos?.35:0));
+      const off=base*(.32+.55*r1*r1)*(.7+.3*Math.min(1,this.rpm/this.cfg.redline*1.5));
+      A=off+(on-off)*kOn;
+      /* lumpy cams (and rotaries) idle unevenly: weak cycles, the odd near-misfire */
+      const lope=c.lope*this.idleW;if(lope>0){A*=1+lope*(R()-.5)*5;if(R()<lope*1.6)A*=.2;}
+      /* on overrun, now and then the thin charge lights off late in the header: the burble */
+      if(kOn<.5&&R()<(.02+.08*this.k.crackle)*(1-kOn*2))this._sched(this.t+(.0014+R()*.003)*this.sr,b,(.45+.6*R())*.35,1);
+    }
+    const u=this.und;s.e1+=A;s.e2+=A;s.u1+=A*u;s.u2+=A*u;s.env+=A;
+  }
+  process(L,R,n){for(let o=0;o<n;o+=128)this._block(L,R,o,Math.min(128,n-o));}
+  _block(OL,OR,o,n){
+    if(!this.cfg){for(let i=0;i<n;i++){OL[o+i]=0;OR[o+i]=0;}this.t+=n;return;}
+    /* a new engine waits until the old one has faded out, then swaps in at a block boundary */
+    if(this.pend&&this.g.fade<.002){this._apply(this.pend,false);this.pend=null;this.T.fade=1;}
+    const c=this.cfg,p=this.p,sr=this.sr,bt=n/sr,T=this.T,g=this.g,f=this.f,k=this.k;
+    /* ---- block-rate state ---- */
+    const r0=this.rpm,rT=p.on||p.crank?Math.max(0,p.rpm):0;this.rpm+=(rT-this.rpm)*(1-Math.exp(-bt/.01));const r1=this.rpm;
+    const cut=p.cutFrac>.5;this.load+=((p.load||0)-this.load)*(1-Math.exp(-bt/(cut?.003:.02)));
+    const L=this.load,rpm=Math.max(r1,1),x=rpm/c.redline;
+    this.idleW=1-clamp((rpm-c.idle)/(c.idle*.7),0,1);
+    this.kOn=p.firing?Math.max(Math.pow(L,.6),this.idleW*.55):0;const kOn=this.kOn,lw=Math.max(L,this.idleW*.3,p.firing?.3*Math.min(1,x):0);
+    /* pulse shape: crank-angle-ish at idle, tighter with revs */
+    const ts=clamp(Math.pow(3000/Math.max(rpm,250),.6),.26,2.8),tr=lerp(.22e-3,.1e-3,kOn)*ts*c.ch.tr,td=lerp(1.1e-3,1.5e-3,kOn)*ts*c.ch.td,td3=2.7*td;
+    const dc=this.dc;dc.d1=Math.exp(-1/(td*sr));dc.d2=Math.exp(-1/(sr/(1/tr+1/td)));dc.d3=Math.exp(-1/(td3*sr));dc.d4=Math.exp(-1/(sr/(1/td+1/td3)));dc.de=Math.exp(-1/(2e-3*ts*sr));
+    this.und=lerp(.16,.3,kOn);
+    const view=p.view|0,cab=view===1,rear=p.rear===undefined?1:p.rear,vol=p.vol===undefined?1:p.vol;
+    T.drive=k.drive*(.5+.9*lw*Math.min(1,x*1.2))*(1+.25*Math.min(p.boost||0,2));T.post=1/(.6+.5*k.drive);
+    f.lpL.set(LP,clamp((700+(1800+7000*lw)*x)*k.bright*(cab?.45:1)*(.75+.35*rear),250,17000),.6,sr);f.lpR.b0=f.lpL.b0;f.lpR.b1=f.lpL.b1;f.lpR.b2=f.lpL.b2;f.lpR.a1=f.lpL.a1;f.lpR.a2=f.lpL.a2;
+    T.exG=k.ex*(cab?.6:1)*(.75+.35*rear);
+    T.rasp=k.rasp*lw*Math.min(1.2,x*x*1.4);
+    T.inG=k.inl*(.12+.88*L)*(.35+.65*x)*(cab?2:1)*(.7+.5*(1-rear));
+    f.lpI.set(LP,3500,.5,sr);f.lpI2.set(LP,3500*(cab?.7:1),.5,sr);
+    T.roar=k.inl*.09*L*x*(cab?1.6:1);f.roar.set(BP,380+rpm*.12,.8,sr);
+    /* forced induction and gears */
+    const b=c.fiBoost>0?clamp((p.boost||0)/Math.max(.3,c.fiBoost),0,1.3):0;
+    this.fw=900+b*4200+rpm*.05;
+    T.tw=c.turbo?b*b*.04*(.35+.65*L):0;T.rush=c.turbo?b*.04*L+(p.antilag?b*.02:0):0;f.rush.set(BP,1300+b*2400,1.1,sr);
+    if(c.sup==='roots'){this.fs=rpm*.13;f.sup.set(BP,rpm*.26,1.1,sr);T.sup=.07*Math.pow(clamp(x,0,1.1),1.2)*(.45+.55*L);}
+    else if(c.sup==='screw'){this.fs=rpm*.24;f.sup.set(BP,rpm*.245,2.5,sr);T.sup=.055*Math.pow(clamp(x,0,1.1),1.3)*(.45+.55*L);}
+    else if(c.sup==='cent'){this.fs=700+5200*x*x;T.sup=.05*x*x*(.3+.7*L);}
+    else T.sup=0;
+    this.fg=rpm/60*23;T.gw=k.whine*.026*clamp((p.speed||0)/30,0,1)*(.4+.6*L)*(cab?1.8:1);
+    T.nos=p.nos?.06:0;
+    T.st=p.crank?.5:0;this.fSt=90+60*Math.min(1,(p.crankT||0)/.8);this.fAm=6+6*Math.min(1,(p.crankT||0)/.8);
+    T.og=.42*vol*(.32+.22*L+.75*Math.pow(Math.min(1.05,x),1.4))*k.gain*(p.on||p.crank?1:0)+(p.crank?.25:0);
+    /* the listener: distance, air, pan */
+    const dT=Math.max(.5,p.dist||3);this.aa=1-Math.exp(-TAU*clamp(21000/(1+this.dS/28),900,20000)/sr);
+    T.pan=clamp(p.pan||0,-1,1);T.gd=clamp(3/Math.max(this.dS,.6),0,2.4)*(view===2?1.5:1);
+    const width=clamp(5/Math.max(this.dS,1),.15,1);
+    /* events fired into the pipes */
+    if(this.pl>.5&&L<.15&&x>.45&&k.crackle>0)this.crk=Math.max(this.crk,.25+Math.random()*.5*k.crackle);
+    this.pl=L;
+    if(L<.2&&this.crk>0){this.crk-=bt;this._burst((5+9*k.crackle)*clamp(x*1.3,0,1.2)*(this.crk>.15?1:.45)*bt,.3+.5*Math.random(),n);}else if(L>.3)this.crk=0;
+    if(p.antilag&&L<.2&&x>.3)this._burst(14*bt,.8+.4*Math.random(),n);
+    if(p.twostep)this._burst(11*bt,.7+.3*Math.random(),n);
+    /* ---- per sample ---- */
+    const ang=c.ang,nE=ang.length,A=this.bs[0],B=this.bs[1],GA=this.bg[0],GB=this.bg[1],ks=this.ks,kd=this.kd,xd=this.xd,dl=this.dlL,dr=this.dlR,dn=this.dn,dm=dn-1;
+    const gEx=this.gEx,gIn=this.gIn,ftw=this.fw/sr,fsu=(this.fs||0)/sr,fgw=this.fg/sr,fst=this.fSt/sr,fam=this.fAm/sr;
+    const twin=!!c.twin,cent=c.sup==='cent',d1=dc.d1,d2=dc.d2,d3=dc.d3,d4=dc.d4,de=dc.de;
+    for(let i=0;i<n;i++){
+      g.og+=(T.og-g.og)*ks;g.exG+=(T.exG-g.exG)*ks;g.inG+=(T.inG-g.inG)*ks;g.drive+=(T.drive-g.drive)*ks;g.post+=(T.post-g.post)*ks;
+      g.rasp+=(T.rasp-g.rasp)*ks;g.roar+=(T.roar-g.roar)*ks;g.tw+=(T.tw-g.tw)*ks;g.rush+=(T.rush-g.rush)*ks;g.sup+=(T.sup-g.sup)*ks;
+      g.gw+=(T.gw-g.gw)*ks;g.nos+=(T.nos-g.nos)*ks;g.st+=(T.st-g.st)*ks;g.fade+=(T.fade-g.fade)*ks*1.5;g.pan+=(T.pan-g.pan)*ks*.25;g.gd+=(T.gd-g.gd)*ks*.25;
+      const rpmI=r0+(r1-r0)*(i/n);
+      if(rpmI>25&&(p.on||p.crank)){
+        this.ph+=rpmI*6/sr;
+        while(this.ei<nE&&this.ph>=ang[this.ei])this._fire(this.ei++);
+        if(this.ph>=720){this.ph-=720;this.ei=0;while(this.ei<nE&&this.ph>=ang[this.ei])this._fire(this.ei++);}
+      }
+      while(this.pq.length&&this.pq[0].at<=this.t){const e=this.pq.shift();if(e.kind===1){const s=this.bg[e.b],sr2=sr;s.d1=Math.exp(-1/(6e-4*sr2));s.d2=Math.exp(-1/(sr2/(1/6e-5+1/6e-4)));s.dn=Math.exp(-1/(1.5e-3*sr2));s.a1+=e.k;s.a2+=e.k;s.an+=e.k*.5;}else this._bang(e.b,e.k,true);}
+      this.t++;
+      const w=Math.random()*2-1,w2=Math.random()*2-1;
+      /* blowdown pulses: a fast rise, a decay, and the rarefaction behind it */
+      const pa=A.e1-A.e2-(A.u1-A.u2),pb=B.e1-B.e2-(B.u1-B.u2);
+      A.e1*=d1;A.e2*=d2;A.u1*=d3;A.u2*=d4;A.env*=de;B.e1*=d1;B.e2*=d2;B.u1*=d3;B.u2*=d4;B.env*=de;
+      const ba=2.4*(GA.a1-GA.a2)+.32*GA.an*w,bb=2.4*(GB.a1-GB.a2)+.32*GB.an*w2;
+      GA.a1*=GA.d1;GA.a2*=GA.d2;GA.an*=GA.dn;GB.a1*=GB.d1;GB.a2*=GB.d2;GB.an*=GB.dn;
+      const rn=f.rasp.tick(w);
+      const xa=this.wgA.tick(pa+rn*A.env*g.rasp+ba)*gEx,xb=this.wgB.tick(pb+rn*B.env*g.rasp+bb)*gEx;
+      xd.a[xd.w]=xa;xd.b[xd.w]=xb;const ri=(xd.w-xd.d+xd.n)%xd.n,da=xd.a[ri],db=xd.b[ri];xd.w=(xd.w+1)%xd.n;
+      /* saturation that grows with load, asymmetric so it adds even harmonics */
+      let l=xa+db*xd.x,r=da*xd.x+xb;
+      l=clamp(l*g.drive,-1,1);r=clamp(r*g.drive,-1,1);
+      l=ftanh(1.5*(l+.16*l*l))*1.07*g.post;r=ftanh(1.5*(r+.16*r*r))*1.07*g.post;
+      l=f.lpL.tick(f.hpL.tick(l))*g.exG;r=f.lpR.tick(f.hpR.tick(r))*g.exG;
+      /* induction: the same pulses through the airbox and runners, plus a pulse-locked roar */
+      let m=f.lpI2.tick(f.lpI.tick(this.wgI.tick(pa+pb)*gIn))*g.inG+f.roar.tick(w2)*(A.env+B.env)*g.roar+(ba+bb)*k.pop*.08;
+      if(c.turbo){this.ph1+=ftw;if(this.ph1>1)this.ph1-=1;this.ph2+=ftw*1.51;if(this.ph2>1)this.ph2-=1;
+        let tw=Math.sin(TAU*this.ph1)+.35*Math.sin(TAU*this.ph2);if(twin){this.ph3+=ftw*1.034;if(this.ph3>1)this.ph3-=1;tw+=.8*Math.sin(TAU*this.ph3);}
+        m+=tw*g.tw+f.rush.tick(w)*g.rush;}
+      if(g.sup>1e-5){this.phS+=fsu;if(this.phS>1)this.phS-=1;m+=(cent?Math.sin(TAU*this.phS)+.3*Math.sin(2*TAU*this.phS):f.sup.tick(2*this.phS-1)*3)*g.sup;}
+      if(g.gw>1e-5){this.phG+=fgw;if(this.phG>1)this.phG-=1;m+=(4*Math.abs(this.phG-.5)-1)*g.gw;}
+      if(g.nos>1e-5)m+=f.nos.tick(w2)*g.nos*3;
+      if(g.st>1e-4){this.phSt+=fst;if(this.phSt>1)this.phSt-=1;this.phAm+=fam;if(this.phAm>1)this.phAm-=1;m+=f.start.tick(2*this.phSt-1)*(.55+.45*(this.phAm<.5?1:-1))*g.st;}
+      for(let v=this.vox.length-1;v>=0;v--){const o2=this.vox[v],age=this.t-o2.t0;if(age<0)continue;if(age>=o2.N){this.vox.splice(v,1);continue;}
+        if((age&31)===0)o2.bq.set(o2.type,o2.f0*Math.pow(o2.f1/o2.f0,age/o2.N),o2.q,sr);o2.e*=age<o2.att?o2.mA:o2.mD;m+=o2.bq.tick(Math.random()*2-1)*o2.e*3;}
+      l=(l+m)*g.og*g.fade;r=(r+m)*g.og*g.fade;
+      /* the listener: propagation delay (Doppler falls out of it), air absorption, distance, pan */
+      this.dS+=(dT-this.dS)*kd;
+      dl[this.dw]=l;dr[this.dw]=r;
+      const dly=Math.min(dn-4,this.dS/C_AIR*sr+1),ip=Math.floor(dly),fr=dly-ip,j=this.dw-ip;
+      const j0=(j+1)&dm,j1=j&dm,j2=(j-1)&dm,j3=(j-2)&dm;
+      l=hermite(dl[j0],dl[j1],dl[j2],dl[j3],fr);r=hermite(dr[j0],dr[j1],dr[j2],dr[j3],fr);
+      this.dw=(this.dw+1)&dm;
+      this.airL+=this.aa*(l-this.airL);this.airR+=this.aa*(r-this.airR);
+      const mid=(this.airL+this.airR)*.5,side=(this.airL-this.airR)*.5*width,th=(g.pan+1)*Math.PI/4;
+      l=(mid+side)*Math.cos(th)*1.4142*g.gd;r=(mid-side)*Math.sin(th)*1.4142*g.gd;
+      /* a soft knee so nothing ever hard-clips */
+      const al=Math.abs(l),ar=Math.abs(r);
+      if(al>.9)l=Math.sign(l)*(.9+.1*ftanh((al-.9)*10));if(ar>.9)r=Math.sign(r)*(.9+.1*ftanh((ar-.9)*10));
+      OL[o+i]=l;OR[o+i]=r;
+    }
+  }
+}
+return EngineDSP;
+}
+if(typeof module!=='undefined')module.exports={makeDSP};
+
+/* ---- src/engine/engine-sim.js ---- */
+/* =====================================================================================
+   ENGINE + DRIVETRAIN SIM — runs on the main thread (the game will own this part), feeding
+   the synth its rpm, load, boost and ignition cuts. Layouts carry real firing orders: the
+   crank angle of each exhaust pulse over a 720 degree cycle and which bank of pipe it feeds.
+   ===================================================================================== */
+const SIM=(()=>{
+'use strict';
+const TAU=Math.PI*2,G0=9.81,clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t;
+const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+const steps=(n,d)=>Array.from({length:n},(_,i)=>i*d);
+const alt=n=>Array.from({length:n},(_,i)=>i&1);
+
+/* fire: crank angle of each exhaust pulse (of 720). bank: which pipe it feeds. order: the cylinder
+   (or rotor) firing at that angle. split: extra primary length on bank B (m). dual: separate tailpipes */
+const LAYOUTS={
+  I3:  {name:'Inline 3',fam:'Inline',fire:[0,240,480],bank:[0,1,0],order:[1,2,3],split:.06,dual:0,
+        note:'Three pulses every two turns. The off-beat thrum comes from the 240 degree gaps.'},
+  I4:  {name:'Inline 4',fam:'Inline',fire:steps(4,180),bank:[0,1,0,1],order:[1,3,4,2],amp:[1,.97,1.02,.98],split:.06,dual:0,
+        note:'Even 180 degree firing into a 4-2-1 manifold. Bright and buzzy, sings at high rpm.'},
+  I5:  {name:'Inline 5',fam:'Inline',fire:steps(5,144),bank:[0,1,0,1,0],order:[1,2,4,5,3],amp:[1,.93,1.05,.96,1.03],split:.1,dual:0,
+        note:'An odd number of cylinders into one collector: the pulses never line up, so it warbles.'},
+  I6:  {name:'Inline 6',fam:'Inline',fire:steps(6,120),bank:alt(6),order:[1,5,3,6,2,4],split:.04,dual:0,
+        note:'Perfectly balanced, front three and back three into separate scrolls. Smooth and silky.'},
+  I8:  {name:'Inline 8',fam:'Inline',fire:steps(8,90),bank:[0,1,0,1,1,0,1,0],order:[1,6,2,5,8,3,7,4],split:.05,dual:0,
+        note:'The straight-eight: V8 firing frequency, but the front and rear groups fire unevenly.'},
+  V6:  {name:'V6 · 60° even-fire',fam:'V',fire:steps(6,120),bank:alt(6),order:[1,2,3,4,5,6],split:.08,dual:1,
+        note:'Each bank fires every 240 degrees, like two inline threes woven together.'},
+  V6O: {name:'V6 · 90° odd-fire',fam:'V',fire:[0,90,240,330,480,570],bank:alt(6),order:[1,6,5,4,3,2],split:.1,dual:1,
+        note:'Gaps of 90 and 150 degrees. The engine gallops at idle.'},
+  V8:  {name:'V8 · cross-plane',fam:'V',fire:steps(8,90),bank:[0,1,1,0,1,0,0,1],order:[1,8,4,3,6,5,7,2],amp:[1,.94,.97,.95,1,.93,.98,.96],split:.12,dual:1,
+        note:'Each bank fires unevenly (90, 180 and 270 degree gaps). That is the burble.'},
+  V8F: {name:'V8 · flat-plane',fam:'V',fire:steps(8,90),bank:alt(8),order:[1,5,3,7,4,8,2,6],split:.05,dual:1,
+        note:'Banks alternate, so each fires evenly every 180 degrees: two inline fours that scream.'},
+  V10: {name:'V10 · even-fire',fam:'V',fire:steps(10,72),bank:alt(10),order:[1,6,5,10,2,7,3,8,4,9],split:.06,dual:1,
+        note:'Ten pulses per cycle, each bank firing every 144 degrees like an inline five. A raw, hard-edged howl.'},
+  V10O:{name:'V10 · odd-fire',fam:'V',fire:[0,90,144,234,288,378,432,522,576,666],bank:alt(10),order:[1,6,5,10,2,7,3,8,4,9],split:.08,dual:1,
+        note:'A 90 degree V10 on a shared crankpin: gaps of 54 and 90 degrees give it a rasping edge.'},
+  V12: {name:'V12 · 60°',fam:'V',fire:steps(12,60),bank:alt(12),order:[1,7,5,11,3,9,6,12,2,8,4,10],split:.04,dual:1,ch:{scatter:.12},
+        note:'Two inline sixes fired alternately. Silky at low revs, a shriek at the top.'},
+  F4:  {name:'Flat 4 · boxer',fam:'Flat',fire:steps(4,180),bank:[0,0,1,1],order:[1,3,2,4],split:.55,rumble:1,dual:0,
+        note:'Unequal-length headers: one side fires twice, then the other. The rumble.'},
+  F6:  {name:'Flat 6',fam:'Flat',fire:steps(6,120),bank:alt(6),order:[1,6,2,4,3,5],split:.05,dual:1,
+        note:'Opposed sixes, banks alternating. Mechanical, metallic and hard-edged near the redline.'},
+  R2:  {name:'Rotary · 2 rotor',fam:'Rotary',rotary:1,fire:steps(4,180),bank:[0,1,0,1],order:['R1','R2','R1','R2'],split:.05,dual:0,ch:{tr:.55,td:1.7,scatter:.24,rasp:1.9,bright:1.25,lope:.02},
+        note:'Each rotor fires once per shaft turn through a port that opens all at once: long, harsh pulses.'},
+  R3:  {name:'Rotary · 3 rotor',fam:'Rotary',rotary:1,fire:steps(6,120),bank:[0,1,0,0,1,0],order:['R1','R2','R3','R1','R2','R3'],split:.05,dual:0,ch:{tr:.55,td:1.7,scatter:.22,rasp:1.9,bright:1.3,lope:.015},
+        note:'Three rotors, six pulses per cycle into two pipes. The high, piercing shriek of a racing rotary.'}
+};
+const LAYOUT_IDS=Object.keys(LAYOUTS);
+const CAM_LOPE=[0,.012,.032,.065];
+const EXHAUSTS=['Stock muffler','Cat-back','Headers','Straight pipe','Open headers'];
+const INTAKES=['Airbox','Cold air','Ram air','Individual throttles'];
+const CAMS=['Stock','Street','Race','Wild'];
+const INDUCTION={none:'Natural',turbo:'Turbo',twin:'Twin turbo',roots:'Roots blower',screw:'Screw blower',cent:'Centrifugal'};
+const NOS_SHOTS=[0,35,75,125,250];
+const GEARS6=[3.13,2.1,1.58,1.25,1.03,.86],GEARS6R=[2.9,2.1,1.66,1.37,1.16,1.0],GEARS7=[3.0,2.4,1.98,1.68,1.45,1.27,1.12],GEARS4=[2.7,1.75,1.3,1.0];
+
+/* turbo sizes: spool window (fraction of redline) and lag */
+const TURBO_SIZE=[{n:'Small',s0:.32,s1:.48,lag:.24},{n:'Medium',s0:.4,s1:.6,lag:.36},{n:'Large',s0:.48,s1:.7,lag:.55}];
+
+const PRESETS=[
+  {id:'street4',name:'Street Four',tag:'2.0 L inline-4, stock',layout:'I4',disp:2.0,redline:7200,idle:850,tq:205,cP:.6,cW:.48,cA:.45,Ie:.13,ex:0,intake:0,cam:0,crackle:.15,limiter:'soft',mass:1180,drv:'RWD'},
+  {id:'screamer',name:'Ten-Grand Four',tag:'2.0 L inline-4, throttle bodies, 9,400 rpm',layout:'I4',disp:2.0,redline:9400,idle:1150,tq:232,cP:.8,cW:.42,cA:.42,Ie:.085,ex:3,intake:3,cam:3,crackle:.55,seq:1,gearWhine:1,limiter:'hard',mass:980,drv:'RWD'},
+  {id:'three',name:'Pocket Three',tag:'1.6 L inline-3, turbo',layout:'I3',disp:1.6,redline:7200,idle:900,tq:190,cP:.55,cW:.5,cA:.5,Ie:.11,fi:'turbo',boost:1.25,tsize:0,bov:'flutter',ex:2,intake:1,cam:1,crackle:.6,mass:1180,drv:'FWD'},
+  {id:'five',name:'Group B Five',tag:'2.1 L inline-5, turbo, anti-lag',layout:'I5',disp:2.1,redline:8000,idle:950,tq:235,cP:.62,cW:.45,cA:.42,Ie:.13,fi:'turbo',boost:1.6,tsize:1,antilag:1,bov:'valve',ex:3,intake:2,cam:2,crackle:.9,launch:1,launchRpm:5500,mass:1100,drv:'AWD'},
+  {id:'six',name:'Big-Turbo Six',tag:'3.0 L inline-6, single turbo, 75-shot',layout:'I6',disp:3.0,redline:7600,idle:850,tq:300,cP:.58,cW:.5,cA:.5,Ie:.17,fi:'turbo',boost:1.4,tsize:2,bov:'flutter',ex:3,intake:1,cam:1,crackle:.4,nos:2,mass:1450,drv:'RWD'},
+  {id:'eight',name:'Blown Straight-Eight',tag:'4.0 L inline-8, roots blower, 1930s Grand Prix',layout:'I8',disp:4.0,redline:6200,idle:650,tq:430,cP:.6,cW:.55,cA:.55,Ie:.24,fi:'roots',boost:.85,ex:4,intake:0,cam:1,crackle:.65,gearWhine:1,mass:1050,drv:'RWD',mu:.95,gears:GEARS4},
+  {id:'oddv6',name:'Odd-Fire V6',tag:'3.8 L 90-degree V6, odd-firing crank',layout:'V6O',disp:3.8,redline:5800,idle:700,tq:350,cP:.5,cW:.5,cA:.6,Ie:.22,ex:3,intake:0,cam:2,crackle:.3,mass:1500,drv:'RWD'},
+  {id:'v6tt',name:'Twin-Turbo V6',tag:'3.5 L 60-degree V6, twin turbos',layout:'V6',disp:3.5,redline:7600,idle:850,tq:340,cP:.6,cW:.48,cA:.5,Ie:.15,fi:'twin',boost:1.2,tsize:0,bov:'valve',ex:2,intake:1,cam:1,crackle:.5,seq:1,mass:1550,drv:'AWD'},
+  {id:'muscle',name:'Lumpy-Cam V8',tag:'6.2 L cross-plane V8, big cam',layout:'V8',disp:6.2,redline:6800,idle:780,tq:640,cP:.6,cW:.5,cA:.55,Ie:.27,ex:3,intake:1,cam:3,crackle:.5,limiter:'hard',mass:1650,drv:'RWD'},
+  {id:'blown',name:'Blown Big-Block',tag:'8.2 L V8, roots blower, 125-shot',layout:'V8',disp:8.2,redline:7200,idle:900,tq:780,cP:.55,cW:.55,cA:.6,Ie:.32,fi:'roots',boost:.9,ex:4,intake:2,cam:3,crackle:.6,nos:3,launch:1,launchRpm:4800,limiter:'hard',mass:1500,drv:'RWD',mu:1.45},
+  {id:'flatplane',name:'Flat-Plane V8',tag:'4.5 L flat-plane V8, 9,000 rpm',layout:'V8F',disp:4.5,redline:9000,idle:1000,tq:540,cP:.72,cW:.45,cA:.5,Ie:.16,ex:2,intake:2,cam:2,crackle:.35,seq:1,mass:1450,drv:'RWD'},
+  {id:'v10',name:'V10 Supercar',tag:'5.2 L V10, even-firing, 8,700 rpm',layout:'V10',disp:5.2,redline:8700,idle:950,tq:560,cP:.75,cW:.45,cA:.5,Ie:.17,ex:2,intake:1,cam:2,crackle:.45,seq:1,mass:1550,drv:'AWD'},
+  {id:'gp',name:'Grand Prix V10',tag:'3.0 L V10, 19,000 rpm',layout:'V10',disp:3.0,redline:19000,idle:4200,tq:345,cP:.82,cW:.34,cA:.42,Ie:.022,ex:4,intake:3,cam:3,crackle:.25,seq:1,gearWhine:1,limiter:'hard',mass:610,drv:'RWD',cdA:1.0,mu:1.8,gears:GEARS7},
+  {id:'v12',name:'V12 Grand Tourer',tag:'6.5 L V12, 8,900 rpm',layout:'V12',disp:6.5,redline:8900,idle:900,tq:720,cP:.72,cW:.48,cA:.5,Ie:.2,ex:2,intake:1,cam:2,crackle:.35,seq:1,mass:1650,drv:'RWD'},
+  {id:'boxer',name:'Boxer Rally',tag:'2.0 L flat-4, turbo, anti-lag',layout:'F4',disp:2.0,redline:7800,idle:950,tq:225,cP:.6,cW:.46,cA:.45,Ie:.12,fi:'turbo',boost:1.3,tsize:1,antilag:1,bov:'valve',ex:2,intake:1,cam:1,crackle:.7,seq:1,gearWhine:1,launch:1,launchRpm:5200,mass:1230,drv:'AWD'},
+  {id:'flat6',name:'Flat-Six Wail',tag:'4.0 L flat-6, 9,000 rpm',layout:'F6',disp:4.0,redline:9000,idle:950,tq:470,cP:.74,cW:.45,cA:.5,Ie:.15,ex:2,intake:2,cam:2,crackle:.3,seq:1,mass:1420,drv:'RWD'},
+  {id:'rotary2',name:'Bridge-Port Twin Rotor',tag:'1.3 L two-rotor, bridge port',layout:'R2',disp:1.3,redline:9200,idle:1300,tq:215,cP:.7,cW:.45,cA:.45,Ie:.08,ex:3,intake:1,cam:3,crackle:.75,mass:1150,drv:'RWD'},
+  {id:'rotary3',name:'Three-Rotor Shriek',tag:'2.6 L three-rotor, peripheral ports',layout:'R3',disp:2.6,redline:9500,idle:1400,tq:340,cP:.78,cW:.42,cA:.42,Ie:.1,ex:4,intake:3,cam:3,crackle:.5,seq:1,gearWhine:1,mass:900,drv:'RWD',mu:1.6}
+];
+const DEFAULTS={fi:'none',boost:1,tsize:1,antilag:0,bov:'valve',ex:1,intake:0,cam:0,crackle:.3,seq:0,gearWhine:0,nos:0,launch:0,launchRpm:5000,limiter:'hard',mass:1350,drv:'RWD',cdA:.68,mu:1.15};
+
+/* fill in a full engine spec from a preset plus any edits */
+function makeSpec(base){
+  const e=Object.assign({},DEFAULTS,base),L=LAYOUTS[e.layout];
+  e.cyl=L.fire.length;e.rotary=!!L.rotary;e.limiterRpm=Math.round(e.redline*1.022+40);
+  e.ch=Object.assign({tr:1,td:1,scatter:.18,rasp:1,bright:1,lope:0},L.ch||{});
+  e.turbo=e.fi==='turbo'||e.fi==='twin';e.sup=['roots','screw','cent'].includes(e.fi)?e.fi:'';
+  const ts=TURBO_SIZE[e.tsize|0];e.s0=e.redline*ts.s0;e.s1=e.redline*ts.s1;e.lag=ts.lag*(e.fi==='twin'?.8:1);
+  e.fiBoost=e.fi==='none'?0:e.boost;
+  e.nosKw=[0,26,56,93,186][e.nos|0];e.nosT=8;
+  e.resp=[1,1.1,1.25,1.7][e.intake|0];
+  e.gears=(e.gears||(e.seq?GEARS6R:GEARS6)).slice();e.nG=e.gears.length;
+  e.shiftT=e.seq?.06:.3;
+  /* gearing: the top gear runs out near a top speed that suits the power */
+  e.peak=peakPower(e);
+  const vTop=clamp(46+e.peak.hp*.06,62,98);e.R=.33;e.fd=(e.limiterRpm*TAU/60)*e.R/(e.gears[e.nG-1]*vTop);
+  e.shiftRpm=e.redline*.99;
+  return e;
+}
+/* crank torque (N m): bell-shaped NA curve x (1 + boost), friction and pumping when off throttle */
+function engTq(e,rpm,thr,boost){
+  const x=rpm/e.redline;
+  const base=e.tq*(e.cA+(1-e.cA)*Math.exp(-Math.pow((x-e.cP)/e.cW,2)));
+  const fade=rpm>e.redline?Math.max(0,1-(rpm-e.redline)/(e.redline*.18)):1;
+  const wot=base*(1+boost*.62)*fade-(e.sup?e.tq*.03*x:0);
+  const fric=e.tq*(.08+.13*x);
+  return thr*wot-(1-thr)*fric;
+}
+function steadyBoost(e,rpm){
+  if(!e.fiBoost)return 0;
+  if(e.sup==='roots'||e.sup==='screw')return e.fiBoost*Math.pow(Math.min(1,rpm/(e.redline*.38)),.6);
+  if(e.sup==='cent')return e.fiBoost*Math.pow(rpm/e.redline,2);
+  return e.fiBoost*sstep(e.s0,e.s1,rpm);
+}
+function peakPower(e){let pk=0,pr=0,tk=0,tr=0;for(let rpm=e.idle;rpm<=e.redline*1.02;rpm+=e.redline/200){const t=engTq(e,rpm,1,steadyBoost(e,rpm)),p=t*rpm*TAU/60;if(p>pk){pk=p;pr=rpm;}if(t>tk){tk=t;tr=rpm;}}return {kw:pk/1000,hp:pk/745.7,rpm:pr,tq:tk,tqRpm:tr};}
+function curve(e,n=120){const out=[];for(let i=0;i<=n;i++){const rpm=e.idle+(e.limiterRpm-e.idle)*i/n,b=steadyBoost(e,rpm),t=engTq(e,rpm,1,b);out.push({rpm,tq:t,hp:t*rpm*TAU/60/745.7,boost:b});}return out;}
+/* bank firing intervals, for the crank diagram */
+function bankIntervals(L){const out=[[],[]];for(const b of [0,1]){const a=L.fire.filter((_,i)=>L.bank[i]===b);for(let i=0;i<a.length;i++)out[b].push(((a[(i+1)%a.length]-a[i])+720)%720||720);}return out;}
+
+/* the synth's configuration for a spec */
+function dspCfg(e){
+  const L=LAYOUTS[e.layout],n=L.fire.length;
+  return {layout:e.layout,ang:L.fire.slice(),bank:L.bank.slice(),amp:L.amp?L.amp.slice():Array.from({length:n},(_,i)=>1+.03*Math.sin(i*2.39+n)),
+    ch:e.ch,lope:CAM_LOPE[e.cam|0]+(e.ch.lope||0),split:L.split,dual:L.dual,rumble:L.rumble|0,
+    ex:e.ex|0,intake:e.intake|0,disp:e.disp,redline:e.redline,idle:e.idle,turbo:e.turbo?1:0,twin:e.fi==='twin'?1:0,sup:e.sup,fiBoost:e.fiBoost,
+    crackle:e.crackle,gearWhine:e.gearWhine|0,seq:e.seq|0,gain:L.fire.length>=10?.85:L.fire.length<=3?1.15:1};
+}
+
+/* ---------- the engine and car ---------- */
+class EngineSim{
+  constructor(spec){this.st='off';this.t=0;this.we=0;this.rpm=0;this.thr=0;this.boost=0;this.gear=0;this.v=0;this.cutT=0;this.cutFrac=0;
+    this.shiftT=0;this.shiftTo=0;this.clutch='open';this.engage=0;this.spin=false;this.nos=1;this.nosOn=false;this.thrPrev=0;this.load=0;
+    this.twostep=false;this.events=[];this.pos=-40;this.ww=0;this.launching=false;this.launchT=0;this.wHold=0;this.slip=0;this.tc=true;this.tcOn=false;this.jump=false;this.held=false;this.aPrev=0;this.lopeT=0;this.rpmOut=0;this.mode='free';this.auto=true;
+    if(spec)this.setSpec(spec);}
+  setSpec(e){const keep=this.e;this.e=e;if(keep&&this.gear>e.nG)this.gear=e.nG;}
+  start(){if(this.st==='off'||this.st==='stopping'){this.st='crank';this.t=0;this.nos=1;}}
+  stop(){if(this.st!=='off')this.st='stopping';}
+  get running(){return this.st==='run'||this.st==='catch';}
+  shift(dir){
+    const e=this.e;if(this.mode!=='drive'||this.shiftT>0||!this.running)return false;
+    const to=this.gear+dir;if(to<1||to>e.nG)return false;
+    if(this.gear===0){this.gear=to;this.clutch='open';return true;}
+    this.shiftTo=to;this.shiftT=e.shiftT;this.clutch='open';this.engage=0;
+    if(dir>0&&e.seq&&this.thr>.6)this.events.push({type:'shift'});
+    return true;
+  }
+  /* inp: {thr 0..1, brk 0..1, nos bool} */
+  step(dt,inp){
+    const e=this.e,idleW=e.idle*TAU/60,limW=e.limiterRpm*TAU/60;this.t+=dt;this.lopeT+=dt;
+    this.twostep=false;this.cutFrac=0;let thrIn=clamp(inp.thr||0,0,1);const brk=clamp(inp.brk||0,0,1);
+    /* ---- starting and stopping ---- */
+    if(this.st==='off'){this.we=0;this.v=Math.max(0,this.v-dt*3);this._out();return;}
+    if(this.st==='crank'){this.we=(235+70*Math.sin(this.t*38))*TAU/60;this.thr=0;if(this.t>.8){this.st='catch';this.t=0;}this._out();return;}
+    if(this.st==='catch'){const t=this.t;this.we=idleW*(1+.95*Math.sin(Math.min(1,t/.22)*Math.PI/2)*Math.exp(-Math.max(0,t-.22)*2.6));this.load=t<.22?.6:0;
+      if(t>1.1)this.st='run';this.rpm=this.we*60/TAU;this._out();return;}
+    if(this.st==='stopping')thrIn=0;
+    /* ---- throttle body ---- */
+    this.thr+=(thrIn-this.thr)*Math.min(1,dt*(thrIn>this.thr?9:14)*e.resp);
+    let thr=this.thr,thrSnd=this.thr;const rpm=this.we*60/TAU;
+    /* ---- the rev limiter ---- */
+    if(this.cutT>0){this.cutT-=dt;thr=0;this.cutFrac=1;}
+    else if(e.limiter==='hard'&&rpm>e.limiterRpm){this.cutT=clamp(24/e.cyl*60/rpm*2,.025,.07);thr=0;this.cutFrac=1;}
+    else if(e.limiter==='soft'&&rpm>e.limiterRpm-160){const k=clamp((e.limiterRpm-rpm)/160,0,1);thr*=k;this.cutFrac=1-k;}
+    /* ---- shifting ---- */
+    const drive=this.mode==='drive',R=e.R;
+    if(!drive)this.ww=this.v/R;
+    if(this.shiftT>0){this.shiftT-=dt;
+      if(this.shiftTo>this.gear){if(!(e.seq&&thrIn>.7)){thr=0;thrSnd=0;}else{thr=0;this.cutFrac=1;}}
+      else{const tgt=e.gears[this.shiftTo-1]*e.fd*this.ww;thr=Math.max(thr,clamp((tgt-this.we)*.03,0,1));thrSnd=thr;}
+      if(this.shiftT<=0){this.gear=this.shiftTo;this.clutch='slip';this.launching=false;this.engage=e.seq?.85:.3;this.engT=e.seq?.05:.18;}}
+    /* ---- launch: hold the brake at a standstill, rev against the two-step, let go to launch ---- */
+    if(drive&&this.v<.4&&brk>.5){this.held=true;this.clutch='open';this.launching=false;if(this.gear===0)this.gear=1;
+      if(e.launch&&rpm>e.launchRpm){thr=0;this.cutFrac=.75;this.twostep=thrIn>.4;}}
+    else if(drive&&this.held&&brk<.3)this.held=false;
+    if(drive&&this.gear===0&&thrIn>.1&&this.running)this.gear=1;
+    /* pulling away: the driver's left foot slips the clutch to hold the revs and lets it go as the car catches up */
+    if(drive&&this.clutch==='open'&&!this.held&&this.shiftT<=0&&this.gear>0&&thrIn>.1&&this.running){
+      this.clutch='slip';this.launching=this.v<4;this.launchT=0;this.engage=this.launching?.6:.2;this.engT=.25;
+      this.wHold=e.launch?e.launchRpm*TAU/60:lerp(idleW*1.4,e.redline*.55*TAU/60,thrIn);}
+    /* ---- traction control: cut sparks while the driven tyres spin past their peak (the rally-car stutter) ---- */
+    this.tcOn=false;
+    if(this.tc&&drive&&this.gear>0&&this.clutch!=='open'&&this.slip>.16&&this.v>.5){const k=clamp((this.slip-.16)*4.5,0,.85);thr*=1-k;this.cutFrac=Math.max(this.cutFrac,k);this.tcOn=k>.05;}
+    /* ---- forced induction ---- */
+    if(e.turbo){const spool=sstep(e.s0,e.s1,rpm),tgt=thrSnd>.15?e.fiBoost*spool*(.35+.65*thrSnd):e.antilag&&this.running?e.fiBoost*.75*sstep(e.s0*.7,e.s1,rpm):0;
+      if(this.boost>.35&&this.thrPrev>.6&&thrIn<.2&&!e.antilag&&e.bov!=='none'){this.events.push({type:'bov',flutter:e.bov==='flutter'});}
+      this.boost+=(tgt-this.boost)*Math.min(1,dt*(tgt>this.boost?(.5+1.5*rpm/e.redline)/e.lag:6));}
+    else this.boost=steadyBoost(e,rpm)*(thrSnd>.05?1:.2);
+    this.thrPrev=thrIn;
+    /* ---- torque ---- */
+    let Te=engTq(e,Math.max(rpm,1),thr,this.boost);
+    this.nosOn=false;
+    if(inp.nos&&e.nosKw&&this.nos>0&&thrIn>.5&&this.running&&this.shiftT<=0&&!this.held&&this.cutFrac<.5){this.nosOn=true;this.nos=Math.max(0,this.nos-dt/e.nosT);Te+=Math.min(e.nosKw*1000/Math.max(this.we,150),e.tq*1.6);}
+    if(this.st==='run'&&this.we<idleW*1.1&&thr<.3)Te+=Math.max(0,(idleW-this.we)*e.Ie*28);
+    /* what the cylinders that do fire are breathing: the limiter drops events, it does not close the throttle */
+    const TeS=engTq(e,Math.max(rpm,1),thrSnd,this.boost);
+    this.load=this.st==='run'?clamp(thrSnd*(TeS>0?1:0)*(.42+.58*Math.min(1,TeS/e.tq)),0,1):0;
+    /* ---- drivetrain: engine, clutch, gearbox, driven wheels with their own speed, tyre slip ---- */
+    const m=e.mass,eta=.9,G=drive&&this.gear>0?e.gears[this.gear-1]*e.fd:0,Iw=e.drv==='AWD'?4.8:2.4;
+    const drvF=e.drv==='AWD'?1:e.drv==='FWD'?.6-.15*this.aPrev/G0:.56+.18*this.aPrev/G0,Fmax=e.mu*m*G0*clamp(drvF,.35,1);
+    /* tyre: force rises with slip to a peak at 12 percent, then falls away to a sliding plateau */
+    const vn=Math.max(this.v,3),kap=(this.ww*R-this.v)/vn,KP=.12,sl=kap/KP,as=Math.abs(sl);
+    let tf,tdf;if(as<1){tf=sl*(2-as);tdf=2-2*as;}else{tf=Math.sign(sl)*(.82+.18*Math.exp(-(as-1)*.8));tdf=0;}
+    const F0=Fmax*tf,K=Fmax*tdf/KP;
+    const res=.5*1.2*e.cdA*this.v*this.v+(this.v>.05?.013*m*G0+brk*m*G0*.95:0);
+    /* semi-implicit wheel update: the tyre's own stiffness goes into the denominator */
+    const wheel=(Tw,J)=>{const dww=dt*(Tw-F0*R)/(J+dt*K*R*R/vn);this.ww+=dww;return F0+K*dww*R/vn;};
+    let F=0;
+    if(!drive||this.gear===0||this.clutch==='open'){this.we+=dt*Te/e.Ie;F=wheel(0,Iw);}
+    else if(this.clutch==='slip'){
+      this.engage=Math.min(1,this.engage+dt/Math.max(.03,this.engT||.2));
+      const cap=e.tq*(1.6+e.fiBoost*.7)*this.engage,wG=G*this.ww;let Tc;
+      const wCar=G*this.v/R;if(this.launching&&wCar>=this.we-15)this.launching=false;
+      if(this.launching){this.launchT+=dt;const wT=Math.max(wCar,this.wHold*Math.max(.8,1-.25*this.launchT));Tc=clamp(Te+30*e.Ie*(this.we-wT),0,cap);}
+      else{Tc=cap*clamp((this.we-wG)/14,-1,1);if(Tc>0&&this.we<idleW*1.25)Tc=Math.min(Tc,Math.max(0,Te+e.Ie*30*(this.we-idleW*1.05)));}
+      this.we+=dt*(Te-Tc)/e.Ie;F=wheel(Tc*G*eta,Iw);
+      if(this.engage>=1&&!this.launching&&Math.abs(this.we-G*this.ww)<8){this.clutch='lock';this.launching=false;this.we=G*this.ww;}
+      if(this.launching&&this.launchT>3)this.launching=false;
+    }else{
+      F=wheel(Te*G*eta,Iw+e.Ie*G*G*eta);this.we=G*this.ww;
+      if(this.we<idleW*.8&&this.v<6)this.clutch='open';
+    }
+    if(brk>.1)this.ww+=(this.v/R-this.ww)*Math.min(1,dt*25*brk);
+    let dv=(F-res)/(m+2.4/(R*R));
+    if(this.held){dv=Math.min(0,dv);this.ww=0;}
+    this.v=Math.max(0,this.v+dv*dt);if(this.v<.05&&brk>.1){this.v=0;this.ww=0;}
+    this.ww=Math.max(0,this.ww);this.aPrev=dv;this.spin=kap>.2;this.slip=kap;
+    if(this.we>limW*1.08)this.we=limW*1.08;
+    if(this.st==='stopping'){if(this.we<idleW*.35){this.st='off';this.we=0;}}
+    else if(this.we<idleW*.6)this.we=idleW*.6;
+    this.rpm=this.we*60/TAU;
+    /* ---- the automatic gearbox ---- */
+    if(drive&&this.auto&&this.shiftT<=0&&!this.held&&this.gear>0){
+      if(this.clutch!=='open'&&!this.launching&&this.gear<e.nG&&this.rpm>e.shiftRpm&&thrIn>.3)this.shift(1);
+      else if(this.gear>1){const after=this.rpm*e.gears[this.gear-2]/e.gears[this.gear-1];if(after<e.redline*.86&&(this.rpm<e.redline*.42||(brk>.3&&after<e.redline*.8)))this.shift(-1);}
+    }
+    if(drive&&this.v<.5&&this.gear>1&&this.shiftT<=0)this.gear=1;
+    /* ---- where the car is, for the trackside listener ---- */
+    this.pos+=this.v*dt;if(this.pos>170){this.pos=-170;this.jump=true;}
+    this._out();
+  }
+  _out(){
+    const e=this.e,w=1-clamp((this.rpm-e.idle)/(e.idle*.9),0,1),lope=CAM_LOPE[e.cam|0]*1.4+(e.ch.lope||0);
+    /* lumpy cams hunt at idle: the needle and the sound both bob */
+    const mod=this.running&&lope?lope*w*(Math.sin(this.lopeT*TAU*1.55)+.6*Math.sin(this.lopeT*TAU*.62+1.3)):0;
+    this.rpmOut=this.st==='off'?0:this.st==='crank'?this.we*60/TAU:this.we*60/TAU*(1+mod);
+  }
+  /* parameters for the synth. listener: 0 behind the car, 1 in the cabin, 2 trackside */
+  params(listener,vol=1){
+    const e=this.e;let dist=3,pan=0,rear=1;
+    if(listener===1){dist=1.4;rear=.35;}
+    else if(listener===2){const y=7;dist=Math.hypot(this.pos,y);pan=clamp(this.pos/dist,-1,1);rear=.5+.5*this.pos/dist;}
+    return {on:this.st!=='off'&&this.st!=='crank'?1:0,firing:this.st==='run'||this.st==='catch'?1:0,crank:this.st==='crank'?1:0,crankT:this.st==='crank'?this.t:0,
+      rpm:this.rpmOut,load:this.load,cutFrac:this.cutFrac,boost:this.boost,nos:this.nosOn?1:0,speed:this.v,gear:this.gear,twostep:this.twostep?1:0,
+      antilag:e.antilag&&e.turbo&&this.thr<.2&&this.running?1:0,view:listener,dist,pan,rear,vol,jump:this._jump()};
+  }
+  _jump(){const j=this.jump?1:0;this.jump=false;return j;}
+  takeEvents(){const ev=this.events;this.events=[];return ev;}
+}
+return {LAYOUTS,LAYOUT_IDS,PRESETS,DEFAULTS,EXHAUSTS,INTAKES,CAMS,INDUCTION,NOS_SHOTS,TURBO_SIZE,makeSpec,engTq,steadyBoost,curve,bankIntervals,dspCfg,EngineSim,clamp};
+})();
+if(typeof module!=='undefined')module.exports=SIM;
+
+/* ---- lab/engine-lab.js ---- */
+/* =====================================================================================
+   ENGINE LAB — presets, the setup sheet, hands and feet, the audio graph and the instruments.
+   ===================================================================================== */
+(()=>{
+'use strict';
+const S=SIM,TAU=Math.PI*2,clamp=S.clamp,$=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const COL={};{const cs=getComputedStyle(document.documentElement);for(const k of ['bg','surface','raised','well','line','line-2','ink','ink-2','ink-3','accent','amber','bank-a','bank-b','go','blue'])COL[k]=cs.getPropertyValue('--'+k).trim();}
+const FNUM='"Saira Condensed","Arial Narrow",sans-serif',FDISP='"Chakra Petch","Arial Narrow",sans-serif';
+const rgba=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;};
+
+/* ---------- state ---------- */
+const st={preset:S.PRESETS.find(p=>p.id==='muscle'),over:{},mode:'free',listener:0,room:'open',vol:.8,
+  keys:new Set(),digits:new Set(),pad:0,padOn:false,brk:false,nos:false,blipT:0,popT:-1e9,crankPh:0,glow:[],curvePts:null};
+const sim=new S.EngineSim();let spec=null,audio=null,audioBusy=false;
+const cur=()=>Object.assign({},S.DEFAULTS,st.preset,st.over);
+function applySpec(){
+  spec=S.makeSpec(cur());sim.setSpec(spec);st.curvePts=S.curve(spec,160);st.glow=new Array(spec.cyl).fill(0);
+  if(audio)audio.port.post({t:'cfg',cfg:S.dspCfg(spec)});
+  syncSetup();syncInfo();
+}
+
+/* ---------- the engine catalogue ---------- */
+function buildPresets(){
+  const box=$('presets');box.textContent='';
+  for(const p of S.PRESETS){
+    const s=S.makeSpec(p),b=document.createElement('button');b.type='button';b.className='preset';b.dataset.id=p.id;
+    b.innerHTML=`<b></b><small></small><span class="hp">${fmt(s.peak.hp)}<em>HP</em></span>`;
+    b.querySelector('b').textContent=p.name;b.querySelector('small').textContent=S.LAYOUTS[p.layout].name+(p.fi&&p.fi!=='none'?' · '+S.INDUCTION[p.fi].toLowerCase():'');
+    b.addEventListener('click',()=>{st.preset=p;st.over={};applySpec();markPreset();});
+    box.appendChild(b);
+  }
+  markPreset();
+}
+function markPreset(){for(const b of $('presets').children)b.setAttribute('aria-pressed',String(b.dataset.id===st.preset.id));}
+
+/* ---------- the setup sheet ---------- */
+const turbo=o=>o.fi==='turbo'||o.fi==='twin';
+const SETUP=[
+  {h:'Engine',rows:[
+    {k:'layout',l:'Layout',t:'select',opts:()=>S.LAYOUT_IDS.map(id=>[id,S.LAYOUTS[id].name])},
+    {k:'disp',l:'Displacement',t:'range',min:.6,max:9,step:.1,live:0,fmt:v=>v.toFixed(1)+' L'},
+    {k:'redline',l:'Redline',t:'range',min:4000,max:20000,step:100,live:0,fmt:v=>fmt(v)+' rpm'},
+    {k:'cam',l:'Camshaft',t:'seg',opts:()=>S.CAMS.map((n,i)=>[i,n])}]},
+  {h:'Induction',rows:[
+    {k:'fi',l:'Type',t:'select',opts:()=>Object.entries(S.INDUCTION)},
+    {k:'boost',l:'Boost',t:'range',min:.2,max:2.5,step:.05,live:1,fmt:v=>v.toFixed(2)+' bar',show:o=>o.fi!=='none'},
+    {k:'tsize',l:'Turbo size',t:'seg',opts:()=>S.TURBO_SIZE.map((s,i)=>[i,s.n]),show:turbo},
+    {k:'bov',l:'Blow-off',t:'seg',opts:()=>[['valve','Valve'],['flutter','Flutter'],['none','None']],show:turbo},
+    {k:'antilag',l:'Anti-lag',t:'toggle',show:turbo},
+    {k:'intake',l:'Intake',t:'select',opts:()=>S.INTAKES.map((n,i)=>[i,n])}]},
+  {h:'Exhaust',rows:[
+    {k:'ex',l:'System',t:'select',opts:()=>S.EXHAUSTS.map((n,i)=>[i,n])},
+    {k:'crackle',l:'Pops and crackle',t:'range',min:0,max:1,step:.05,live:1,fmt:v=>Math.round(v*100)+'%'}]},
+  {h:'Gearbox and launch',rows:[
+    {k:'seq',l:'Gearbox',t:'seg',opts:()=>[[0,'H-pattern'],[1,'Sequential']]},
+    {k:'auto',l:'Automatic shifts',t:'toggle',sim:1},
+    {k:'tc',l:'Traction control',t:'toggle',sim:1},
+    {k:'gearWhine',l:'Straight-cut gears',t:'toggle'},
+    {k:'launch',l:'Launch control',t:'toggle'},
+    {k:'launchRpm',l:'Launch rpm',t:'range',min:2500,max:14000,step:100,live:1,fmt:v=>fmt(v)+' rpm',show:o=>o.launch},
+    {k:'limiter',l:'Rev limiter',t:'seg',opts:()=>[['soft','Soft cut'],['hard','Hard cut']]}]},
+  {h:'Nitrous',rows:[
+    {k:'nos',l:'Shot',t:'seg',opts:()=>S.NOS_SHOTS.map((n,i)=>[i,n?String(n):'None'])}]}
+];
+const ROWS={};
+function setVal(r,v){
+  if(r.sim){sim[r.k]=!!v;return;}
+  const o={};o[r.k]=v;
+  /* bigger engines make more torque: keep the preset's torque per litre */
+  if(r.k==='disp')o.tq=st.preset.tq/st.preset.disp*v;
+  if(r.k==='redline'){const lr=cur().launchRpm;if(lr>v*.9)o.launchRpm=Math.round(v*.65/100)*100;}
+  Object.assign(st.over,o);applySpec();
+}
+function buildSetup(){
+  const box=$('setup');box.textContent='';
+  for(const sec of SETUP){
+    const s=document.createElement('section');s.className='sheet';const h=document.createElement('h3');h.textContent=sec.h;s.appendChild(h);
+    for(const r of sec.rows){
+      const row=document.createElement('div');row.className='row'+(r.t==='toggle'?' tog':'');const id='set-'+r.k;
+      const head=document.createElement('div');head.className='head';const lab=document.createElement('label');lab.textContent=r.l;lab.htmlFor=id;head.appendChild(lab);row.appendChild(head);
+      let el;
+      if(r.t==='select'){el=document.createElement('select');el.id=id;for(const [v,n] of r.opts()){const op=document.createElement('option');op.value=String(v);op.textContent=n;el.appendChild(op);}
+        el.addEventListener('change',()=>{const raw=el.value;setVal(r,/^\d+$/.test(raw)?+raw:raw);});row.appendChild(el);}
+      else if(r.t==='seg'){el=document.createElement('div');el.className='seg';el.id=id;el.setAttribute('role','group');el.setAttribute('aria-label',r.l);
+        for(const [v,n] of r.opts()){const b=document.createElement('button');b.type='button';b.dataset.v=String(v);b.textContent=n;b.addEventListener('click',()=>setVal(r,typeof v==='number'?v:v));el.appendChild(b);}
+        row.appendChild(el);}
+      else if(r.t==='range'){el=document.createElement('input');el.type='range';el.id=id;el.min=r.min;el.max=r.max;el.step=r.step;const out=document.createElement('output');out.htmlFor=id;head.appendChild(out);r.out=out;
+        el.addEventListener('input',()=>{out.textContent=r.fmt(+el.value);if(r.live)setVal(r,+el.value);});
+        el.addEventListener('change',()=>{if(!r.live)setVal(r,+el.value);});row.appendChild(el);}
+      else{el=document.createElement('button');el.type='button';el.className='switch';el.id=id;el.setAttribute('role','switch');el.setAttribute('aria-label',r.l);
+        el.addEventListener('click',()=>setVal(r,el.getAttribute('aria-checked')!=='true'?1:0));row.appendChild(el);}
+      r.el=el;r.row=row;ROWS[r.k]=r;s.appendChild(row);
+    }
+    box.appendChild(s);
+  }
+  const act=document.createElement('section');act.className='sheet';
+  act.innerHTML=`<h3 id="buildName">This build</h3><div class="actions"><button type="button" id="bReset">Reset to preset</button><button type="button" id="bCopy">Copy engine spec</button></div>
+    <textarea id="specOut" readonly hidden rows="6" style="width:100%;margin-top:8px;background:var(--well);color:var(--ink-2);border:1px solid var(--line-2);border-radius:7px;font:12px/1.4 ui-monospace,monospace"></textarea>
+    <p class="status" id="status" style="margin-top:8px">Audio starts when you start the engine.</p>`;
+  box.appendChild(act);
+  $('bReset').addEventListener('click',()=>{st.over={};applySpec();});
+  $('bCopy').addEventListener('click',()=>{
+    const o=cur(),keep=['layout','disp','redline','idle','tq','cP','cW','cA','Ie','fi','boost','tsize','antilag','bov','ex','intake','cam','crackle','seq','gearWhine','nos','launch','launchRpm','limiter','mass','drv'];
+    const out={name:st.preset.name+(Object.keys(st.over).length?' (edited)':'')};for(const k of keep)if(o[k]!==undefined)out[k]=typeof o[k]==='number'?+o[k].toFixed(3):o[k];
+    const txt=JSON.stringify(out,null,1),ta=$('specOut');
+    const shown=()=>{ta.hidden=false;ta.value=txt;ta.select();};
+    try{navigator.clipboard.writeText(txt).then(()=>{$('bCopy').textContent='Copied';setTimeout(()=>$('bCopy').textContent='Copy engine spec',1400);},shown);}catch(e){shown();}
+  });
+}
+function syncSetup(){
+  const o=cur();
+  for(const k in ROWS){const r=ROWS[k],v=r.sim?sim[k]:o[k];
+    if(r.row)r.row.hidden=!!(r.show&&!r.show(o));
+    if(r.t==='select')r.el.value=String(v);
+    else if(r.t==='seg')for(const b of r.el.children)b.setAttribute('aria-pressed',String(b.dataset.v===String(v)));
+    else if(r.t==='range'){if(document.activeElement!==r.el)r.el.value=v;r.out.textContent=r.fmt(+r.el.value);}
+    else r.el.setAttribute('aria-checked',String(!!v));}
+}
+function syncInfo(){
+  const L=S.LAYOUTS[spec.layout],iv=S.bankIntervals(L),pk=spec.peak;
+  $('crankName').textContent=L.name+(L.rotary?' · rotor firings':' · '+L.fire.length+' cylinders');
+  const ivs=a=>a.length&&a.every(v=>v===a[0])?'every '+a[0]+'°':a.map(v=>v+'°').join(', ');
+  const bankTxt=(L.dual||L.bank.some(b=>b))?` <b>Bank A</b> fires ${ivs(iv[0])}. <b>Bank B</b> fires ${ivs(iv[1])}.`:'';
+  $('crankNote').innerHTML=L.note.replace(/&/g,'&amp;').replace(/</g,'&lt;')+bankTxt;
+  $('curvePeak').textContent=`${fmt(pk.hp)} hp at ${fmt(pk.rpm)} · ${fmt(pk.tq)} N·m at ${fmt(pk.tqRpm)}`;
+  $('curveNote').textContent=spec.fi==='none'?'Naturally aspirated. Power keeps climbing until the cams run out of breath near the redline.'
+    :spec.turbo?`Boost builds from about ${fmt(spec.s0)} rpm and is all there by ${fmt(spec.s1)}. Below that you are waiting on the turbo.`
+    :'A crank-driven blower makes boost from just off idle, so the torque arrives at once.';
+  $('buildName').textContent=st.preset.name+(Object.keys(st.over).length?' · edited':'');
+  $('mBoost').hidden=!spec.fiBoost;$('mNos').hidden=!spec.nosKw;
+  $('nosTxt').textContent=spec.nosKw?S.NOS_SHOTS[spec.nos|0]+' shot':'None';
+}
+
+/* ---------- audio ---------- */
+function roomIR(ctx,kind){
+  const sr=ctx.sampleRate,n=Math.round(sr*{open:.5,garage:1.2,tunnel:2.4}[kind]),b=ctx.createBuffer(2,n,sr);let seed=1234567;
+  const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647*2-1;};
+  for(let ch=0;ch<2;ch++){const X=b.getChannelData(ch);let lp=0;
+    if(kind==='tunnel'){
+      /* flutter echoes bouncing between the walls, each a little duller, then a long diffuse tail */
+      for(let k=1;k<44;k++){const i=Math.round((k*.036+(k&1?ch*.011:0)+rnd()*.0015)*sr);if(i>=n)break;const a=Math.pow(.8,k)*(((k+ch)&1)?.55:1);
+        for(let q=0;q<90&&i+q<n;q++)X[i+q]+=a*Math.exp(-q/(5+k*1.4))*(q?rnd()*.6:1);}
+      for(let i=0;i<n;i++){const t=i/sr;lp+=.3*(rnd()-lp);X[i]+=lp*.55*Math.exp(-t*2.5)*Math.min(1,t/.03);}
+    }else if(kind==='garage'){
+      for(const [t,a] of [[.007,.7],[.013,.5],[.019,.45],[.026,.35],[.034,.3],[.041,.28]])X[Math.round((t+ch*.0013)*sr)]+=a*(rnd()>0?1:-1);
+      for(let i=0;i<n;i++){const t=i/sr;lp+=.45*(rnd()-lp);X[i]+=lp*.5*Math.exp(-t*5.8)*Math.min(1,t/.012);}
+    }else{
+      /* open air: a ground bounce and the slap off a distant wall */
+      X[Math.round((.0045+ch*.0006)*sr)]+=.5;
+      for(const [t,a,d] of [[.085,.22,12],[.16,.12,18]]){const s=Math.round((t+ch*.005)*sr);for(let q=0;q<80;q++)X[s+q]+=a*Math.exp(-q/d)*rnd();}
+      for(let i=0;i<n;i++){const t=i/sr;lp+=.25*(rnd()-lp);X[i]+=lp*.12*Math.exp(-t*9)*Math.min(1,t/.02);}
+    }}
+  return b;
+}
+const ROOM_SEND={open:.28,garage:.5,tunnel:.8};
+function setRoom(){if(!audio)return;const a=audio;a.conv.buffer=roomIR(a.ctx,st.room);a.send.gain.setTargetAtTime(ROOM_SEND[st.room]*(st.listener===1?.35:1),a.ctx.currentTime,.05);}
+async function initAudio(){
+  if(audio)return audio;
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error('This browser has no Web Audio.');
+  const ctx=new AC({latencyHint:'interactive'});
+  const master=ctx.createGain();master.gain.value=st.vol;
+  const comp=ctx.createDynamicsCompressor();comp.threshold.value=-8;comp.knee.value=6;comp.ratio.value=4;comp.attack.value=.003;comp.release.value=.15;
+  master.connect(comp);comp.connect(ctx.destination);
+  const an=ctx.createAnalyser();an.fftSize=4096;an.smoothingTimeConstant=.55;comp.connect(an);
+  const send=ctx.createGain();send.gain.value=0;const conv=ctx.createConvolver();send.connect(conv);conv.connect(master);
+  let node,port,kind;
+  try{
+    if(!ctx.audioWorklet)throw new Error('no worklet');
+    const src=`const EngineDSP=(${makeDSP.toString()})();
+class ShiftlightEngine extends AudioWorkletProcessor{
+  constructor(){super();this.d=new EngineDSP(sampleRate);this.k=0;
+    this.port.onmessage=e=>{const m=e.data;if(m.t==='cfg')this.d.configure(m.cfg);else if(m.t==='p')this.d.set(m.p);else if(m.t==='ev')this.d.event(m.ev);};}
+  process(i,o){const out=o[0];this.d.process(out[0],out[1]||out[0],out[0].length);if(++this.k>=8){this.k=0;const s=this.d.takeStats();if(s)this.port.postMessage(s);}return true;}
+}
+registerProcessor('shiftlight-engine',ShiftlightEngine);`;
+    /* a blob URL where the page has a real origin; a data URL where it does not (a file opened from disk) */
+    try{await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([src],{type:'application/javascript'})));}
+    catch(e1){await ctx.audioWorklet.addModule('data:application/javascript;charset=utf-8,'+encodeURIComponent(src));}
+    node=new AudioWorkletNode(ctx,'shiftlight-engine',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2]});
+    node.port.onmessage=e=>onStats(e.data);port={post:m=>node.port.postMessage(m)};kind='audio worklet';
+  }catch(err){
+    /* fallback: the same synth on the main thread */
+    const D=makeDSP(),d=new D(ctx.sampleRate);node=ctx.createScriptProcessor(1024,1,2);
+    const silent=ctx.createConstantSource?ctx.createConstantSource():null;if(silent){silent.offset.value=0;silent.connect(node);silent.start();}
+    node.onaudioprocess=ev=>{const b=ev.outputBuffer;d.process(b.getChannelData(0),b.getChannelData(1),b.length);const s=d.takeStats();if(s)onStats(s);};
+    port={post:m=>{if(m.t==='cfg')d.configure(m.cfg);else if(m.t==='p')d.set(m.p);else if(m.t==='ev')d.event(m.ev);}};kind='main-thread fallback ('+(err&&err.message||err)+')';
+  }
+  node.connect(master);node.connect(send);
+  audio={ctx,master,comp,an,send,conv,node,port,kind,td:new Float32Array(an.fftSize),fd:new Float32Array(an.frequencyBinCount)};
+  setRoom();port.post({t:'cfg',cfg:S.dspCfg(spec)});
+  $('status').textContent=`Synth running live in an ${kind} at ${(ctx.sampleRate/1000).toFixed(1)} kHz.`;
+  return audio;
+}
+function onStats(s){if(s.pops)st.popT=performance.now();}
+async function startEngine(){
+  if(audioBusy)return;audioBusy=true;
+  try{await initAudio();if(audio.ctx.state!=='running')await audio.ctx.resume();sim.start();$('cover').hidden=true;}
+  catch(e){$('status').textContent='Sound could not start: '+e.message;}
+  audioBusy=false;syncPower();
+}
+function toggleEngine(){if(!audio||sim.st==='off'||sim.st==='stopping')startEngine();else{sim.stop();syncPower();}}
+function syncPower(){const on=sim.st!=='off'&&sim.st!=='stopping';$('power').setAttribute('aria-pressed',String(on));$('powerLbl').textContent=on?'Engine on':'Start engine';}
+
+/* ---------- top bar ---------- */
+function seg(id,cb){const el=$(id);el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;for(const x of el.children)x.setAttribute('aria-pressed',String(x===b));cb(b.dataset.v);});}
+function setMode(m){
+  st.mode=m;sim.mode=m;sim.gear=0;sim.clutch='open';sim.shiftT=0;sim.held=false;
+  if(m==='free'){sim.v=0;sim.ww=0;sim.pos=0;}else sim.pos=-120;
+  for(const x of $('segMode').children)x.setAttribute('aria-pressed',String(x.dataset.v===m));
+  for(const id of ['bBrake','bUp','bDown'])$(id).disabled=m!=='drive';
+}
+function setListener(v){st.listener=+v;for(const x of $('segListen').children)x.setAttribute('aria-pressed',String(+x.dataset.v===st.listener));setRoom();}
+
+/* ---------- hands and feet ---------- */
+const typing=t=>t&&(t.tagName==='SELECT'||t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&t.type!=='range'));
+addEventListener('keydown',e=>{
+  if(typing(e.target)||e.metaKey||e.ctrlKey||e.altKey)return;
+  const c=e.code,onRange=e.target&&e.target.type==='range';
+  if((c==='Space'||c==='KeyW'||(c==='ArrowUp'&&!onRange))){e.preventDefault();st.keys.add('thr');return;}
+  if(c==='KeyS'||(c==='ArrowDown'&&!onRange)){e.preventDefault();st.keys.add('brk');return;}
+  if(/^Digit\d$/.test(c)){st.digits.add(+c.slice(5)||10);return;}
+  if(e.repeat)return;
+  if(c==='KeyE')sim.shift(1);else if(c==='KeyQ')sim.shift(-1);
+  else if(c==='KeyN')st.keys.add('nos');
+  else if(c==='KeyP')purge();
+  else if(c==='KeyB')st.blipT=.22;
+  else if(c==='KeyI')toggleEngine();
+  else if(c==='KeyV')setListener((st.listener+1)%3);
+});
+addEventListener('keyup',e=>{const c=e.code;
+  if(c==='Space'||c==='KeyW'||c==='ArrowUp'){st.keys.delete('thr');if(c==='Space'&&!typing(e.target))e.preventDefault();}
+  if(c==='KeyS'||c==='ArrowDown')st.keys.delete('brk');if(c==='KeyN')st.keys.delete('nos');
+  if(/^Digit\d$/.test(c))st.digits.delete(+c.slice(5)||10);});
+addEventListener('blur',()=>{st.keys.clear();st.digits.clear();st.padOn=false;st.brk=false;st.nos=false;});
+function purge(){if(audio)audio.port.post({t:'ev',ev:{type:'purge'}});}
+function hold(id,on){const el=$(id);const set=v=>{if(el.disabled)return;on(v);el.classList.toggle('on',v);};
+  el.addEventListener('pointerdown',e=>{e.preventDefault();try{el.setPointerCapture(e.pointerId);}catch(_){}set(true);});
+  for(const ev of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(ev,()=>set(false));}
+function bindControls(){
+  const pad=$('pad'),setPad=e=>{const r=pad.getBoundingClientRect();st.pad=clamp(1-(e.clientY-r.top)/r.height*1.1+.05,0,1);};
+  pad.addEventListener('pointerdown',e=>{e.preventDefault();try{pad.setPointerCapture(e.pointerId);}catch(_){}st.padOn=true;setPad(e);});
+  pad.addEventListener('pointermove',e=>{if(st.padOn)setPad(e);});
+  for(const ev of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(ev,()=>{st.padOn=false;});
+  hold('bBrake',v=>st.brk=v);hold('bNos',v=>st.nos=v);
+  $('bUp').addEventListener('click',()=>sim.shift(1));$('bDown').addEventListener('click',()=>sim.shift(-1));
+  $('bPurge').addEventListener('click',purge);$('bBlip').addEventListener('click',()=>st.blipT=.22);
+  $('power').addEventListener('click',toggleEngine);$('startBig').addEventListener('click',startEngine);
+  seg('segMode',setMode);seg('segListen',setListener);
+  seg('segRoom',v=>{st.room=v;setRoom();});
+  $('vol').addEventListener('input',e=>{st.vol=+e.target.value;if(audio)audio.master.gain.setTargetAtTime(st.vol,audio.ctx.currentTime,.03);});
+}
+function readInput(dt){
+  let thr=st.keys.has('thr')?1:0;
+  for(const d of st.digits)thr=Math.max(thr,d/10);
+  if(st.padOn)thr=Math.max(thr,st.pad);
+  if(st.blipT>0){st.blipT-=dt;thr=1;}
+  return {thr,brk:st.keys.has('brk')||st.brk?1:0,nos:st.keys.has('nos')||st.nos};
+}
+
+/* ---------- canvases ---------- */
+const CV={};
+function fit(){for(const id of ['tach','crank','curve','scope','spec']){const c=$(id),r=c.getBoundingClientRect(),d=Math.min(2,devicePixelRatio||1),w=Math.max(16,Math.round(r.width*d)),h=Math.max(16,Math.round(r.height*d));
+  if(c.width!==w||c.height!==h){c.width=w;c.height=h;}CV[id]={c,x:c.getContext('2d'),w,h,u:d};}}
+function glowOn(x,col,b){x.shadowColor=col;x.shadowBlur=b;}
+function glowOff(x){x.shadowBlur=0;}
+
+function drawTach(o){
+  const x=o.x,w=o.w,h=o.h,u=o.u,e=spec,rpm=sim.st==='off'?0:Math.max(0,sim.rpmOut);x.clearRect(0,0,w,h);
+  /* shift lights: fill toward the shift point, flash blue at it */
+  const n=15,sAt=e.shiftRpm,lo=sAt-Math.min(3500,sAt*.42),f=clamp((rpm-lo)/(sAt-lo),0,1),lit=Math.floor(f*n+.001),at=rpm>=sAt-40&&sim.running,blink=(performance.now()/65|0)%2===0;
+  const sp=Math.min(w*.84/n,30*u),x0=w/2-sp*(n-1)/2,ly=14*u,lr=Math.min(sp*.33,8*u);
+  for(let i=0;i<n;i++){const col=at?COL.blue:i<5?COL.go:i<10?COL.amber:COL.accent,on=at?blink:i<lit;
+    x.beginPath();x.arc(x0+i*sp,ly,lr,0,TAU);if(on){glowOn(x,col,12*u);x.fillStyle=col;}else x.fillStyle=rgba(col,.12);x.fill();glowOff(x);}
+  /* the dial */
+  const step=e.limiterRpm>12500?2000:1000,M=Math.ceil((e.limiterRpm+step*.3)/step)*step,a0=Math.PI*.75,a1=Math.PI*2.25,ang=r=>a0+(a1-a0)*clamp(r/M,0,1.015);
+  const top=ly+lr+10*u,cx=w/2,R=Math.min(w*.47,(h-top)*.56),cy=top+R*1.02;
+  x.lineCap='butt';
+  x.lineWidth=1*u;x.strokeStyle=COL['line-2'];x.beginPath();x.arc(cx,cy,R,a0,a1);x.stroke();
+  x.lineWidth=8*u;x.strokeStyle=rgba(COL.accent,.85);x.beginPath();x.arc(cx,cy,R*.93,ang(e.redline),a1);x.stroke();
+  x.lineWidth=3*u;glowOn(x,COL.amber,10*u);x.strokeStyle=COL.amber;x.beginPath();x.arc(cx,cy,R*1.0,a0,ang(rpm));x.stroke();glowOff(x);
+  const minor=step/(step===2000?4:5);
+  for(let r=0;r<=M+.1;r+=minor){const a=ang(r),maj=Math.abs(r/step-Math.round(r/step))<1e-6,r0=R*(maj?.83:.89),r1=R*.97,c=Math.cos(a),s=Math.sin(a);
+    x.lineWidth=(maj?2.2:1)*u;x.strokeStyle=r>=e.redline?COL.accent:maj?COL.ink:COL['ink-3'];x.beginPath();x.moveTo(cx+c*r0,cy+s*r0);x.lineTo(cx+c*r1,cy+s*r1);x.stroke();
+    if(maj){x.fillStyle=r>=e.redline?COL.accent:COL['ink-2'];x.font=`600 ${Math.round(R*.12)}px ${FNUM}`;x.textAlign='center';x.textBaseline='middle';x.fillText(String(r/1000),cx+c*R*.7,cy+s*R*.7);}}
+  /* the needle */
+  const a=ang(rpm),c=Math.cos(a),s=Math.sin(a);
+  x.lineCap='round';glowOn(x,COL.amber,14*u);x.strokeStyle=COL.amber;x.lineWidth=4*u;x.beginPath();x.moveTo(cx-c*R*.12,cy-s*R*.12);x.lineTo(cx+c*R*.9,cy+s*R*.9);x.stroke();glowOff(x);
+  x.fillStyle=COL.raised;x.beginPath();x.arc(cx,cy,R*.085,0,TAU);x.fill();x.strokeStyle=COL['line-2'];x.lineWidth=1*u;x.stroke();
+  x.textAlign='center';x.textBaseline='alphabetic';
+  x.fillStyle=COL.ink;x.font=`700 ${Math.round(R*.24)}px ${FNUM}`;x.fillText(fmt(rpm),cx,cy+R*.6);
+  x.fillStyle=COL['ink-3'];x.font=`600 ${Math.round(R*.065)}px ${FDISP}`;x.fillText('RPM',cx,cy+R*.74);
+  x.fillText('×1000',cx,cy-R*.3);
+}
+
+function drawCrank(o,dt){
+  const x=o.x,w=o.w,h=o.h,u=o.u,L=S.LAYOUTS[spec.layout],n=L.fire.length,rpm=sim.st==='off'?0:sim.rpmOut;x.clearRect(0,0,w,h);
+  /* a slowed-down crank so you can follow the firing order by eye */
+  const dps=rpm>50?150+420*clamp(rpm/spec.redline,0,1):0,prev=st.crankPh;st.crankPh=(st.crankPh+dps*dt)%720;
+  for(let i=0;i<n;i++){const a=L.fire[i];const crossed=prev<=st.crankPh?(a>prev&&a<=st.crankPh):(a>prev||a<=st.crankPh);if(crossed)st.glow[i]=1;st.glow[i]=(st.glow[i]||0)*Math.exp(-dt*5);}
+  const r=Math.min(h*.36,w*.2),cx=r+18*u,cy=h/2,th=d=>d/720*TAU-Math.PI/2;
+  x.lineWidth=1*u;x.strokeStyle=COL['line-2'];x.beginPath();x.arc(cx,cy,r,0,TAU);x.stroke();
+  for(let i=0;i<n;i++){const t=th(L.fire[i]),col=L.bank[i]?COL['bank-b']:COL['bank-a'],g=st.glow[i];
+    const px=cx+Math.cos(t)*r,py=cy+Math.sin(t)*r;x.beginPath();x.arc(px,py,(3.2+3.5*g)*u,0,TAU);x.fillStyle=g>.05?col:rgba(col,.45);if(g>.05)glowOn(x,col,14*u*g);x.fill();glowOff(x);
+    x.fillStyle=g>.3?COL.ink:COL['ink-3'];x.font=`600 ${Math.round(10*u)}px ${FNUM}`;x.textAlign='center';x.textBaseline='middle';x.fillText(String(L.order[i]),cx+Math.cos(t)*(r+12*u),cy+Math.sin(t)*(r+12*u));}
+  const tn=th(st.crankPh);x.strokeStyle=COL.amber;x.lineWidth=2*u;x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+Math.cos(tn)*r*.86,cy+Math.sin(tn)*r*.86);x.stroke();
+  x.fillStyle=COL['ink-3'];x.font=`600 ${Math.round(9*u)}px ${FDISP}`;x.fillText('720°',cx,cy+r*.35);
+  /* the same cycle unrolled, one track per bank of pipe */
+  const tx0=cx+r+34*u,tx1=w-8*u,tw=tx1-tx0,rows=[[0,'BANK A',COL['bank-a']],[1,'BANK B',COL['bank-b']]],rh=h*.26;
+  rows.forEach(([b,lbl,col],k)=>{const y=h*.3+k*rh*1.25;x.fillStyle=COL['ink-3'];x.font=`600 ${Math.round(9*u)}px ${FDISP}`;x.textAlign='left';x.textBaseline='bottom';x.fillText(lbl,tx0,y-rh*.55);
+    x.strokeStyle=COL.line;x.lineWidth=1*u;x.beginPath();x.moveTo(tx0,y);x.lineTo(tx1,y);x.stroke();
+    for(let i=0;i<n;i++){if(L.bank[i]!==b)continue;const px=tx0+L.fire[i]/720*tw,g=st.glow[i];x.fillStyle=g>.05?col:rgba(col,.4);if(g>.05)glowOn(x,col,10*u*g);
+      x.beginPath();x.moveTo(px,y);x.lineTo(px+3*u,y-rh*(.45+.5*g));x.lineTo(px+9*u,y);x.closePath();x.fill();glowOff(x);}});
+  const ph=tx0+st.crankPh/720*tw;x.strokeStyle=rgba(COL.amber,.8);x.lineWidth=1.5*u;x.beginPath();x.moveTo(ph,h*.12);x.lineTo(ph,h*.92);x.stroke();
+  if(rpm>50)$('crankName').textContent=`${L.name} · shown ${Math.max(1,Math.round(rpm*6/dps))}× slower`;
+}
+
+function drawCurve(o){
+  const x=o.x,w=o.w,h=o.h,u=o.u,pts=st.curvePts,e=spec;x.clearRect(0,0,w,h);if(!pts)return;
+  const l=34*u,rr=w-34*u,t=10*u,b=h-20*u,mt=Math.max(...pts.map(p=>p.tq))*1.12,mp=Math.max(...pts.map(p=>p.hp))*1.12,M=e.limiterRpm;
+  const X=r=>l+(rr-l)*r/M,Yt=v=>b-(b-t)*v/mt,Yp=v=>b-(b-t)*v/mp;
+  x.strokeStyle=COL.line;x.lineWidth=1*u;for(let k=1;k<=4;k++){const y=b-(b-t)*k/4;x.beginPath();x.moveTo(l,y);x.lineTo(rr,y);x.stroke();}
+  const step=M>12500?4000:M>8000?2000:1000;x.fillStyle=COL['ink-3'];x.font=`500 ${Math.round(10*u)}px ${FNUM}`;x.textAlign='center';x.textBaseline='top';
+  for(let r=0;r<=M;r+=step)x.fillText(String(r/1000),X(r),b+5*u);
+  x.textAlign='right';x.textBaseline='middle';x.fillStyle=COL.amber;x.fillText(fmt(mt/1.12),l-5*u,Yt(mt/1.12));x.fillText('N·m',l-5*u,t+4*u);
+  x.textAlign='left';x.fillStyle=COL.accent;x.fillText(fmt(mp/1.12),rr+5*u,Yp(mp/1.12));x.fillText('hp',rr+5*u,t+4*u);
+  x.fillStyle=rgba(COL.accent,.08);x.fillRect(X(e.redline),t,rr-X(e.redline),b-t);
+  const line=(f,col)=>{x.strokeStyle=col;x.lineWidth=2.2*u;x.beginPath();pts.forEach((p,i)=>i?x.lineTo(X(p.rpm),f(p)):x.moveTo(X(p.rpm),f(p)));x.stroke();};
+  line(p=>Yt(p.tq),COL.amber);line(p=>Yp(p.hp),COL.accent);
+  const rpm=sim.st==='off'?0:sim.rpm;if(rpm>0){const q=pts.reduce((a,p)=>Math.abs(p.rpm-rpm)<Math.abs(a.rpm-rpm)?p:a,pts[0]);
+    x.strokeStyle=rgba(COL.ink,.5);x.lineWidth=1*u;x.beginPath();x.moveTo(X(rpm),t);x.lineTo(X(rpm),b);x.stroke();
+    for(const [y,col] of [[Yt(q.tq),COL.amber],[Yp(q.hp),COL.accent]]){x.fillStyle=col;x.beginPath();x.arc(X(rpm),y,3.5*u,0,TAU);x.fill();}}
+}
+
+function drawScope(o){
+  const x=o.x,w=o.w,h=o.h,u=o.u;x.clearRect(0,0,w,h);
+  x.strokeStyle=COL.line;x.lineWidth=1*u;x.beginPath();x.moveTo(0,h/2);x.lineTo(w,h/2);x.stroke();
+  if(!audio||sim.st==='off')return;
+  const td=audio.td;audio.an.getFloatTimeDomainData(td);const sr=audio.ctx.sampleRate,N=td.length;
+  /* show exactly one engine cycle (two crank turns, every cylinder once), triggered on its biggest pulse */
+  const rpm=Math.max(300,sim.rpmOut),cyc=Math.round(clamp(120/rpm*sr,256,N/2));
+  let pk=0,pi=0;for(let i=1;i<N-cyc;i++){const v=td[i];if(v>pk){pk=v;pi=i;}}
+  let st0=pi;while(st0>1&&!(td[st0-1]<0&&td[st0]>=0))st0--;
+  let amp=1e-4;for(let i=0;i<cyc;i++)amp=Math.max(amp,Math.abs(td[st0+i]));st.scopeAmp=Math.max(amp,(st.scopeAmp||amp)*.94);
+  x.strokeStyle=COL.go;x.lineWidth=1.6*u;glowOn(x,COL.go,6*u);x.beginPath();
+  for(let i=0;i<cyc;i++){const px=i/(cyc-1)*w,py=h/2-td[st0+i]/st.scopeAmp*h*.42;i?x.lineTo(px,py):x.moveTo(px,py);}x.stroke();glowOff(x);
+  $('scopeNote').textContent=`one engine cycle · ${(cyc/sr*1000).toFixed(1)} ms`;
+}
+
+function drawSpec(o){
+  const x=o.x,w=o.w,h=o.h,u=o.u;x.clearRect(0,0,w,h);
+  const f0=25,f1=12000,X=f=>Math.log(f/f0)/Math.log(f1/f0)*w,Y=db=>h-14*u-(h-18*u)*clamp((db+110)/85,0,1);
+  x.fillStyle=COL['ink-3'];x.font=`500 ${Math.round(10*u)}px ${FNUM}`;x.textAlign='center';x.textBaseline='bottom';
+  for(const f of [50,100,200,500,1000,2000,5000,10000]){x.strokeStyle=COL.line;x.lineWidth=1*u;x.beginPath();x.moveTo(X(f),0);x.lineTo(X(f),h-14*u);x.stroke();x.fillText(f>=1000?f/1000+'k':String(f),X(f),h);}
+  if(!audio||sim.st==='off')return;
+  const fd=audio.fd;audio.an.getFloatFrequencyData(fd);const sr=audio.ctx.sampleRate,bin=sr/audio.an.fftSize;
+  const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,rgba(COL.accent,.75));g.addColorStop(1,rgba(COL.amber,.1));
+  x.beginPath();x.moveTo(0,h-14*u);let last=-1;
+  for(let px=0;px<=w;px+=2*u){const f=f0*Math.pow(f1/f0,px/w),i=Math.min(fd.length-1,Math.round(f/bin));if(i===last)continue;last=i;let v=fd[i];if(i>1)v=Math.max(v,fd[i-1],fd[i+1]);x.lineTo(px,Y(v));}
+  x.lineTo(w,h-14*u);x.closePath();x.fillStyle=g;x.fill();x.strokeStyle=COL.amber;x.lineWidth=1.4*u;x.stroke();
+  /* where the firing frequency and its harmonics sit right now */
+  const L=S.LAYOUTS[spec.layout],ff=sim.rpmOut/60*L.fire.length/2;
+  if(ff>f0){x.setLineDash([3*u,3*u]);for(let k=1;k<=6;k++){const f=ff*k;if(f>f1)break;x.strokeStyle=rgba(COL['bank-a'],k===1?.9:.35);x.lineWidth=1*u;x.beginPath();x.moveTo(X(f),0);x.lineTo(X(f),h-14*u);x.stroke();}x.setLineDash([]);}
+  $('specNote').textContent=ff>1?`firing frequency ${fmt(ff)} Hz`:'';
+}
+
+/* ---------- readouts ---------- */
+const RO={};
+function setText(id,v){if(RO[id]!==v){RO[id]=v;$(id).textContent=v;}}
+function readouts(){
+  const e=spec,on=sim.st!=='off';
+  setText('gear',st.mode!=='drive'?'N':sim.shiftT>0?'–':sim.gear?String(sim.gear):'N');
+  setText('speed',fmt(sim.v*3.6));
+  const p=on&&sim.running?Math.max(0,S.engTq(e,sim.rpm,sim.thr,sim.boost))*sim.rpm*TAU/60/745.7+(sim.nosOn?e.nosKw*1.341:0):0;setText('pwr',fmt(p));
+  setText('thrTxt',Math.round(sim.thr*100)+'%');$('thrFill').style.width=(sim.thr*100).toFixed(1)+'%';$('padFill').style.height=(readInput(0).thr*100).toFixed(1)+'%';
+  if(e.fiBoost){setText('boostTxt',sim.boost.toFixed(2)+' bar');$('boostFill').style.width=clamp(sim.boost/(e.fiBoost*1.05),0,1)*100+'%';}
+  if(e.nosKw)$('nosFill').style.width=(sim.nos*100).toFixed(1)+'%';
+  const chips={lim:sim.cutFrac>.5&&!sim.twostep&&!sim.tcOn&&sim.shiftT<=0,step:sim.twostep,tc:sim.tcOn,al:!!(e.antilag&&e.turbo&&sim.thr<.2&&sim.running&&sim.rpm>e.redline*.3),nos:sim.nosOn,bang:performance.now()-st.popT<140};
+  for(const s of $('chips').children){const v=!!chips[s.dataset.c];if(s.classList.contains('on')!==v)s.classList.toggle('on',v);}
+  $('pad').setAttribute('aria-valuenow',String(Math.round(readInput(0).thr*100)));
+}
+
+/* ---------- the loop ---------- */
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
+  const inp=readInput(dt);for(let k=0;k<4;k++)sim.step(dt/4,inp);
+  const ev=sim.takeEvents();
+  if(audio){for(const e of ev)audio.port.post({t:'ev',ev:e});audio.port.post({t:'p',p:sim.params(st.listener,1)});}
+  if(sim.st==='off'&&$('power').getAttribute('aria-pressed')==='true')syncPower();
+  try{drawTach(CV.tach);drawCrank(CV.crank,dt);drawCurve(CV.curve);drawScope(CV.scope);drawSpec(CV.spec);readouts();}catch(err){console.error(err);}
+  requestAnimationFrame(frame);
+}
+
+/* ---------- boot ---------- */
+buildPresets();buildSetup();bindControls();setMode('free');applySpec();fit();
+if(window.ResizeObserver){const ro=new ResizeObserver(()=>fit());for(const id of ['tach','crank','curve','scope','spec'])ro.observe($(id));}else addEventListener('resize',fit);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);
+requestAnimationFrame(frame);
+window.__lab={sim,st,get spec(){return spec;},get audio(){return audio;},applySpec};
+})();
+
+</script>
+</body>
+</html>
