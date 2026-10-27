@@ -120,6 +120,51 @@ void matRoad(inout Surf s,inout vec3 em,inout float ssr,inout vec2 g,vec2 uv,uve
   s.diff=alb;s.rough=rough;
   water(s,g,ssr,s.P.xz,1.0,vCol.r,smoothstep(hw-1.,hw+.5,ad)*.35+(1.0-trk)*.03);
 }
+/* city streets: markings by road class. uv = (metres along from the start, metres left of centre).
+   cls 0 ring, 1 main avenue, 2 avenue, 3 street, 4 junction box. p2 = length*2; p3 bit 0: no crossings at the ends */
+void matCityRoad(inout Surf s,inout float ssr,inout vec2 g,vec2 uv,uvec4 m){
+  int cls=int(m.y);float along=uv.x,d=uv.y,ad=abs(d),L=float(m.z)*.5;bool ends=(m.w&1u)==0u&&cls<4;
+  vec2 wp=s.P.xz;vec3 gr=vnd(wp*13.);float g2=fbm(wp*.06);
+  vec3 alb=vec3(.072,.072,.077)*(.75+.5*gr.x)*(.82+.36*g2);float rough=.86-.14*gr.x;
+  float fpr=length(fwidth(wp));g+=gr.yz*13.*.0012*saturate(1.0-fpr*9.);
+  /* patches and sealed cracks */
+  vec3 vc=voro(wp*.9);float crk=(1.0-smoothstep(.008,.03,vc.y))*smoothstep(.62,.72,fbm(wp*.03+5.));alb=mix(alb,vec3(.02),crk*.9);rough=mix(rough,.35,crk);
+  float pt=smoothstep(.7,.72,vn(floor(wp/vec2(5.,3.))*.37+2.));alb*=1.0-.2*pt;
+  float paint=0.0,yel=0.0;
+  if(cls<4){
+    float med=cls==0?1.6:cls==1?1.2:0.0,lw=cls==0?3.5:cls==3?3.6:3.4,lanes=cls==0?3.:cls==3?1.:2.,hw=cls==0?16.:cls==1?8.:cls==2?7.:5.5;
+    if(med==0.0)yel=max(yel,1.0-aaStep(.065,min(abs(d-.13),abs(d+.13))));
+    else yel=max(yel,1.0-aaStep(.07,abs(ad-med-.15)));
+    for(float k=1.;k<3.;k++){if(k>=lanes)break;float dl=med+lw*k;paint=max(paint,(1.0-aaStep(.07,abs(ad-dl)))*step(fract(along/12.),.27));}
+    float edge=med+lw*lanes+.12;paint=max(paint,1.0-aaStep(.075,abs(ad-edge)));
+    /* parking bays beyond the edge line */
+    if(ad>edge+.2&&ad<hw-.3&&cls!=1&&cls!=2)paint=max(paint,(1.0-aaStep(.06,abs(fract(along/6.5)-.5)*6.5))*step(ad,hw-.4));
+    if(ends){float e=min(along,L-along);
+      /* zebra crossings at both ends, stop lines for the lanes coming in */
+      if(e<3.6)paint=max(paint,step(.5,fract(d/1.1))*step(.35,e)*step(ad,hw-.2)*step(med+.2,ad));
+      float inb=along<L*.5?step(med,d):step(med,-d);
+      paint=max(paint,(1.0-aaStep(.2,abs(e-4.3)))*inb*step(ad,hw-.2));}
+  }
+  float wear=smoothstep(.3,.75,fbm(wp*vec2(.9,1.7)));
+  float py=yel*(1.0-wear*.7),pw=paint*(1.0-wear*.8);
+  if(py+pw>0.0){vec3 c=py>pw?vec3(.62,.45,.06):vec3(.72);float a=max(py,pw);alb=mix(alb,c,a);rough=mix(rough,.55,a);s.clear=-a;}
+  s.diff=alb;s.rough=rough;
+  water(s,g,ssr,wp,1.0,vCol.r,smoothstep(.6,1.,ad/max(1.,float(cls==0?16.:cls==1?8.:cls==2?7.:5.5)))*.3);
+}
+/* the expressway deck (kind 0) and ramps (kind 1): smoother asphalt, expansion joints, lane paint */
+void matDeck(inout Surf s,inout float ssr,inout vec2 g,vec2 uv,uvec4 m){
+  float sx=uv.x,d=uv.y,ad=abs(d);int kind=int(m.y);vec2 wp=s.P.xz;
+  vec3 gr=vnd(uv*12.);vec3 alb=vec3(.085,.085,.09)*(.8+.4*gr.x)*(.85+.3*fbm(uv*vec2(.08,.3)));float rough=.82-.12*gr.x;
+  g+=gr.yz*12.*.001*saturate(1.0-length(fwidth(uv))*9.);
+  float joint=1.0-aaStep(.04,abs(fract(sx/30.)-.5)*30.);alb=mix(alb,vec3(.03),joint*.8);
+  float lc=mod(ad,3.6)-1.8,trk=exp(-pow((abs(lc)-.85)/.38,2.));alb*=1.0-.18*trk;rough-=.12*trk;
+  float paint=0.0,yel=0.0;
+  if(kind==0){yel=1.0-aaStep(.07,abs(ad-.75));paint=max((1.0-aaStep(.07,abs(ad-4.2)))*step(fract(sx/12.),.3),1.0-aaStep(.08,abs(ad-7.85)));}
+  else paint=1.0-aaStep(.08,abs(ad-2.95));
+  float wear=smoothstep(.35,.8,fbm(uv*vec2(.8,2.)));paint*=1.0-wear*.7;yel*=1.0-wear*.6;
+  if(paint+yel>0.0){vec3 c=yel>paint?vec3(.62,.45,.06):vec3(.72);float a=max(paint,yel);alb=mix(alb,c,a);rough=mix(rough,.5,a);s.clear=-a;}
+  s.diff=alb;s.rough=rough;water(s,g,ssr,wp,1.0,1.0,smoothstep(5.5,8.5,ad)*.3);
+}
 void matSidewalk(inout Surf s,inout float ssr,inout vec2 g,vec2 uv){
   vec2 p=uv/1.2,f=fract(p),id=floor(p);float j=min(min(f.x,1.-f.x),min(f.y,1.-f.y));
   float jo=1.0-smoothstep(.01,.03,j);float sv=h12(id);
@@ -261,8 +306,18 @@ void main(){
     if(w>.07)discard;s.diff=vec3(.25);s.F0=vec3(.6);s.rough=.4;}
   else if(id==13u){s.diff=vCol.rgb*.2;s.rough=float(vMat.y)/255.;}
   else if(id==14u){s.diff=vCol.rgb;s.F0=vec3(.5);s.rough=.25;}
-  else if(id==15u){int lamp=int(vMat.y);float on=lamp==1?step(.5,fract(uSignal)):0.0;vec3 c=lamp==0?vec3(1.,.08,.05):lamp==1?vec3(1.,.55,.05):vec3(.1,1.,.5);
+  else if(id==15u){/* signals: 36 s cycle, the same one the traffic obeys; axis 2 flashes amber */
+    int lamp=int(vMat.y),ax=int(vMat.z);float on=0.0;
+    if(ax==2)on=lamp==1?step(.5,fract(uSignal)):0.0;
+    else{float t=mod(uTime+float(vMat.w)/256.*36.+(ax==1?18.:0.),36.);int st=t<14.?2:t<17.?1:0;on=st==lamp?1.0:0.0;}
+    vec3 c=lamp==0?vec3(1.,.08,.05):lamp==1?vec3(1.,.55,.05):vec3(.1,1.,.5);
     em=c*(on*14.+.08);s.diff=vec3(.02);s.rough=.2;}
+  else if(id==16u){/* foliage */
+    vec3 n3=vnd(s.P.xz*3.1+s.P.y*2.3);float v=h11(float(vMat.y));s.diff=vCol.rgb*.42*(.6+.6*n3.x)*(.85+.3*v);s.rough=.75;s.trans=.35;
+    g+=n3.yz*.08;s.diff*=1.0-.25*uWet;s.rough=mix(s.rough,.4,uWet*.6);}
+  else if(id==17u)matCityRoad(s,ssr,g,uv,vMat);
+  else if(id==18u)matDeck(s,ssr,g,uv,vMat);
+  else if(id==19u){vec2 wp=uv;float n=fbm(wp*.7),n2=vn(wp*9.);s.diff=vec3(.05,.09,.03)*(.6+.6*n)*(.8+.4*n2);s.rough=.9;s.diff*=1.0-.3*uWet;water(s,g,ssr,s.P.xz,.6,1.0,-.35);}
   s.ao*=vCol.a>0.0&&id!=5u?vCol.a:1.0;
   if(dot(g,g)>0.0)s.N=bump(s.N,s.P,uv,g);
   /* specular anti-aliasing: widen the lobe where the normal changes within a pixel */

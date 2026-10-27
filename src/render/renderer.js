@@ -63,13 +63,17 @@ export class Renderer{
   }
   /* the world: geometry tiles and the static lights */
   loadWorld(city,T){
-    const G=this.G;this.city=city;
+    const G=this.G,gl=this.gl;this.city=city;
+    /* replacing a level: let go of the last one's buffers and light textures */
+    if(this.world){gl.deleteVertexArray(this.world.vao);gl.deleteBuffer(this.world.vb);if(this.world.ib)gl.deleteBuffer(this.world.ib);}
+    if(this.lights){G.del(this.lights.tex);G.del(this.lights.grid);G.del(this.lights.list);}
     this.world=G.mesh(LAYOUT,STRIDE,city.geo.vb,city.geo.ib);
     this.tiles=city.geo.ranges.map(r=>({...r,c:[(r.mn[0]+r.mx[0])/2,(r.mn[1]+r.mx[1])/2,(r.mn[2]+r.mx[2])/2]}));
-    this.lights=new LightGrid(G,city.lights);
+    this.lights=new LightGrid(G,city.lights,(city.info&&city.info.lightGrid)||{});
     this.U.uGridP=this.lights.params;
-    const xw=new Float32Array(8).fill(-1);city.info.xw.forEach((s,i)=>{if(i<8)xw[i]=s;});this.U.uXw=xw;
-    this.U.uRoad=[T.hw,T.lanes,T.len,1];
+    const xw=new Float32Array(8).fill(-1);if(T)(city.info.xw||[]).forEach((s,i)=>{if(i<8)xw[i]=s;});this.U.uXw=xw;
+    this.U.uRoad=T?[T.hw,T.lanes,T.len,1]:[6.5,2,1e4,1];
+    this.resetTAA=true;this.hasPrev=false;this.probeFilled=0;
   }
   /* (re)allocate everything that depends on the screen size and render scale */
   resize(W,H,scale=this.scale){

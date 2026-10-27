@@ -9,17 +9,12 @@ import {CarRenderer,PAINTS} from '../src/render/car.js';
 import {ENVS,ENV_IDS} from '../src/render/env.js';
 import {Particles} from '../src/render/particles.js';
 import {DRS} from '../src/render/drs.js';
-import {buildTrack,speedProfile} from '../src/world/track.js';
-import {buildCity} from '../src/world/city.js';
-import {buildRainMask} from '../src/world/rainmask.js';
-import {TrackWorld} from '../src/world/collision.js';
+import {makeLevel,LEVELS} from '../src/game/levels.js';
 import {Vehicle,ASSISTS} from '../src/physics/vehicle.js';
 import {CHASSIS,ENGINE_CHOICES,carSpec} from '../src/game/cars.js';
 import {SIM} from '../src/engine/engine-sim.js';
 import {Input} from '../src/game/input.js';
 import {CameraRig,CAM_MODES} from '../src/game/camera.js';
-import {makeBot} from '../src/game/bot.js';
-import {makeGuide} from '../src/game/guide.js';
 import {GameAudio} from '../src/audio/game-audio.js';
 import {HUD} from '../src/ui/hud.js';
 import {Menu,loadSettings,saveSettings} from '../src/ui/menu.js';
@@ -27,7 +22,7 @@ import {qmat,mcol,mvec,add,norm,clamp,madd,sub,len,dot} from '../src/physics/mat
 
 const $=id=>document.getElementById(id);
 const Q=new URLSearchParams(location.search);
-const DEFAULTS={assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',volume:.8,units:'kmh'};
+const DEFAULTS={level:'city',assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',volume:.8,units:'kmh'};
 const settings=loadSettings(DEFAULTS);
 for(const k of Object.keys(DEFAULTS))if(Q.has(k))settings[k]=isNaN(+Q.get(k))||k==='scale'&&Q.get(k)==='auto'?Q.get(k):+Q.get(k);
 const save=()=>{if(!Q.has('manual'))saveSettings(settings);};
@@ -35,42 +30,48 @@ const save=()=>{if(!Q.has('manual'))saveSettings(settings);};
 /* ---------- the world ---------- */
 const canvas=$('view'),hudC=$('hud');
 const R=new Renderer(canvas,{quality:settings.quality});
-const T=buildTrack('neon'),city=buildCity(T);R.loadWorld(city,T);
+let level=makeLevel(settings.level);R.loadWorld(level.geo,level.T);
 const CR=new CarRenderer(R,CHASSIS.sl3);
-const PS=new Particles(R,buildRainMask(T,city),{rainN:{low:4000,medium:6500,high:9000,ultra:12000}[settings.quality]||9000});
-const world=new TrackWorld(T);
+const PS=new Particles(R,level.mask,{rainN:{low:4000,medium:6500,high:9000,ultra:12000}[settings.quality]||9000});
 const drs=new DRS({min:.5,max:R.Q.maxScale,start:settings.scale==='auto'?.85:+settings.scale});drs.enabled=settings.scale==='auto';
-const hud=new HUD(hudC);hud.setTrack(T);
-const ledHud=document.createElement('canvas');const ledHudView=new HUD(ledHud);ledHudView.setTrack(T);
+const hud=new HUD(hudC);hud.setMap(level.map);
+const ledHud=document.createElement('canvas');const ledHudView=new HUD(ledHud);ledHudView.setMap(level.map);
 const audio=new GameAudio();audio.setVolume(settings.volume);
-const input=new Input(window),cam=new CameraRig(T);
+const input=new Input(window),cam=new CameraRig(level);
 const menu=new Menu($('menu'));
 let env=ENVS[settings.env]||ENVS.rain;
 cam.mode=Math.max(0,CAM_MODES.indexOf(settings.cam));
 if(Q.get('orbit')){const o=Q.get('orbit').split(',').map(Number);cam.orbit={yaw:o[0],pitch:o[1],dist:o[2],fov:o[3]||.7,y:o[4]||0};}
 
 /* ---------- the car ---------- */
-const GRID_S=T.len-14;
 let car=null,spec=null;
 function makeCar(engineId,keep){
-  spec=carSpec(engineId);const c=new Vehicle(CHASSIS.sl3,spec,world);c.setAssists(settings.assist);c.pt.auto=settings.gearbox==='auto';
+  spec=carSpec(engineId);const c=new Vehicle(CHASSIS.sl3,spec,level.world);c.setAssists(settings.assist);c.pt.auto=settings.gearbox==='auto';
   if(keep){c.p=keep.p.slice();c.q=keep.q.slice();c.v=keep.v.slice();c.w=keep.w.slice();c.wheels.forEach((w,i)=>{w.w=keep.wheels[i].w;w.ang=keep.wheels[i].ang;});c.hint=keep.hint;
     c.pt.st='run';c.pt.we=Math.max(c.pt.we,spec.idle*6.283/60*1.5);c.pt.gear=Math.min(keep.pt.gear,spec.nG);c.pt.rpm=keep.pt.rpm;}
-  else{c.placeOnTrack(T,GRID_S,-2.2);}
-  car=c;audio.configure(SIM.dspCfg(spec));guide=makeGuide(T,car);
-  const prof=speedProfile(T,{mass:car.m,clF:car.c.clF,clR:car.c.clR,cdA:car.c.cdA,powerKw:car.spec.peak.kw},{mu:car.tyre.mu*.84});
-  botFn=makeBot(T,prof,{pace:.88});
+  else level.spawn(c);
+  car=c;audio.configure(SIM.dspCfg(spec));guide=level.guide(car);botFn=level.bot(car);
   return c;
 }
+/* swap levels in place: the renderer, rain, minimap, camera and the car all move to the new one */
+function loadLevel(kind){
+  settings.level=kind;save();
+  level=makeLevel(kind);R.loadWorld(level.geo,level.T);PS.setMask(level.mask);hud.setMap(level.map);ledHudView.setMap(level.map);cam.setLevel(level);
+  car.world=level.world;level.spawn(car);car.pt.start();guide=level.guide(car);botFn=level.bot(car);
+  lap.n=0;lap.t0=-1;lap.lastS=null;lap.best=0;lap.bestTrace=null;loadBest();
+  if(state==='title'){if(level.botStart)level.botStart(car);$('titleSub').textContent=titleSub();}
+}
+const titleSub=()=>`◀  ${level.name} · ${LEVELS[level.kind].mode}  ▶`;
 let botFn=null,guide=null;
 makeCar(settings.engine);car.pt.start();
 
 /* ---------- laps ---------- */
 const BEST_KEY='shiftlight.best.neon';
 const lap={n:0,t0:-1,lastS:null,last:0,best:0,trace:null,bestTrace:null,armed:false};
-try{const b=JSON.parse(localStorage.getItem(BEST_KEY)||'null');if(b&&b.t>0){lap.best=b.t;lap.bestTrace=b.trace?Float32Array.from(b.trace):null;}}catch(e){}
+function loadBest(){try{const b=JSON.parse(localStorage.getItem(BEST_KEY)||'null');if(b&&b.t>0){lap.best=b.t;lap.bestTrace=b.trace?Float32Array.from(b.trace):null;}}catch(e){}}
+loadBest();
 function lapUpdate(){
-  if(!car.loc)return;const s=car.loc.s;
+  if(!level.laps||!car.loc)return;const s=car.loc.s,T=level.T;
   if(lap.lastS!==null){
     if(lap.lastS>T.len-40&&s<40){/* crossed the line going forward */
       if(lap.t0>=0&&lap.armed){const t=time-lap.t0;lap.last=t;
@@ -90,16 +91,18 @@ let state='boot',time=0,acc=0,frameN=0,highBeam=false,lastInp={};
 const DT=1/240;
 function enterTitle(){
   $('boot').hidden=true;state=Q.has('manual')?'drive':'title';
-  if(state==='title'){$('title').hidden=false;cam.orbit={yaw:2.5,pitch:.1,dist:7.6,fov:.72,y:.2};$('titleSub').textContent='Neon Loop · '+env.name;}
+  if(state==='title'){$('title').hidden=false;cam.orbit={yaw:2.5,pitch:.1,dist:7.6,fov:.72,y:.2};$('titleSub').textContent=titleSub();if(level.botStart)level.botStart(car);}
 }
 function begin(){
   if(state!=='title')return;
   state='drive';$('title').hidden=true;cam.orbit=null;cam.mode=Math.max(0,CAM_MODES.indexOf(settings.cam));cam.cut=true;
-  car.placeOnTrack(T,GRID_S,-2.2);car.pt.stop&&car.pt.stop();car.pt.start();lap.n=0;lap.t0=-1;lap.lastS=null;
+  level.spawn(car);car.pt.stop&&car.pt.stop();car.pt.start();lap.n=0;lap.t0=-1;lap.lastS=null;
   audio.start();
 }
-const anyKey=()=>{if(state==='title')begin();else audio.start();};
-window.addEventListener('keydown',anyKey);window.addEventListener('pointerdown',anyKey);
+/* on the title: left and right choose the place, anything else starts */
+const anyKey=e=>{if(state==='title'){if(e&&(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='a'||e.key==='d')){switchTitleLevel();return;}begin();}else audio.start();};
+function switchTitleLevel(){const ks=Object.keys(LEVELS),k=ks[(ks.indexOf(level.kind)+1)%ks.length];$('titleSub').textContent='Loading '+LEVELS[k].name+'…';setTimeout(()=>loadLevel(k),30);}
+window.addEventListener('keydown',anyKey);window.addEventListener('pointerdown',()=>anyKey(null));
 window.addEventListener('keydown',e=>{if(!menu.open)return;const k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',Enter:'enter',' ':'enter'}[e.key];if(k){menu.key(k);e.preventDefault();}});
 
 function pause(on){
@@ -124,6 +127,7 @@ function menuRows(){
     {type:'choice',label:'Engine',get:()=>settings.engine,set:v=>swapEngine(v),options:ENGINE_CHOICES.map(id=>{const p=SIM.PRESETS.find(q=>q.id===id);return opt(id,p.name,p.tag);})},
     {type:'choice',label:'Paint',chips:1,get:()=>settings.paint,set:set('paint'),options:Object.entries(PAINTS).map(([id,p])=>opt(id,p.name,'',{swatch:`rgb(${p.col.map(c=>Math.round(Math.pow(c,1/2.2)*255)).join(',')})`}))},
     {type:'head',label:'World'},
+    {type:'choice',label:'Place',chips:1,get:()=>level.kind,set:v=>{if(v!==level.kind){loadLevel(v);pause(false);}},options:Object.entries(LEVELS).map(([id,L])=>opt(id,L.name,L.mode==='Circuit'?'The street circuit: laps against the clock.':'The whole town, the expressway and its ramps. Go anywhere.'))},
     {type:'choice',label:'Time',chips:1,get:()=>settings.env,set:set('env',v=>{env=ENVS[v];}),options:ENV_IDS.map(id=>opt(id,ENVS[id].name))},
     {type:'head',label:'View'},
     {type:'choice',label:'Camera',chips:1,get:()=>CAM_MODES[cam.mode],set:v=>{cam.mode=CAM_MODES.indexOf(v);cam.cut=true;settings.cam=v;save();},options:CAM_MODES.map(m=>opt(m,m[0].toUpperCase()+m.slice(1)))},
@@ -136,7 +140,7 @@ function menuRows(){
       options:[opt('auto','Auto','Keeps the frame rate by adjusting the render scale; TAA rebuilds full resolution.'),opt('0.5','50%'),opt('0.67','67%'),opt('0.85','85%'),opt('1','100%')]},
     {type:'head',label:'Sound'},
     {type:'slider',label:'Volume',min:0,max:1,stepV:.05,get:()=>settings.volume,set:v=>{settings.volume=v;save();audio.setVolume(v);},fmt:v=>Math.round(v*100)+'%'},
-    {type:'action',label:'Back to the grid',act:()=>{car.placeOnTrack(T,GRID_S,-2.2);car.pt.start();lap.t0=-1;lap.lastS=null;pause(false);}}
+    {type:'action',label:level.laps?'Back to the grid':'Back to the start',act:()=>{level.spawn(car);car.pt.start();lap.t0=-1;lap.lastS=null;pause(false);}}
   ];
 }
 
@@ -165,7 +169,7 @@ function effects(dt){
     if(wet>.2&&sp>4)PS.emit('sp'+i,wet*(sp-4)*(w.front?1.5:4),dt,()=>{const r=()=>Math.random()-.5,p=madd(madd(w.cp,F,-back-.1*Math.random()),U,.12),side=(w.left?-1:1)*(.6+Math.random());
       PS.spawn(0,p,[car.v[0]*.55-F[0]*sp*.06+Rt[0]*side*.8+r()*.8,1.1+Math.random()*1.4+sp*.02,car.v[2]*.55-F[2]*sp*.06+Rt[2]*side*.8+r()*.8],.55+Math.random()*.7,.22,1.2+sp*.012,.05+.03*wet);});
     if(wet<.4&&w.slipV>3.5)PS.emit('sm'+i,(w.slipV-3.5)*w.Fz/2500*5,dt,()=>{const p=madd(w.cp,U,.15);PS.spawn(1,p,[car.v[0]*.3+(Math.random()-.5),.4+Math.random()*.5,car.v[2]*.3+(Math.random()-.5)],1.8+Math.random()*1.6,.35,3.2,.22);});});
-  for(const s of city.steam){const dx=s.pos[0]-car.p[0],dz=s.pos[2]-car.p[2];if(dx*dx+dz*dz>90*90)continue;
+  for(const s of level.geo.steam){const dx=s.pos[0]-car.p[0],dz=s.pos[2]-car.p[2];if(dx*dx+dz*dz>90*90)continue;
     PS.emit(s,s.rate*4,dt,()=>PS.spawn(2,[s.pos[0]+(Math.random()-.5)*.4,s.pos[1]+.05,s.pos[2]+(Math.random()-.5)*.4],[.3+(Math.random()-.5)*.3,.7+Math.random()*.4,.15+(Math.random()-.5)*.3],3.5+Math.random()*2,.4,2.6,.1));}
 }
 function soundUpdate(c,ev){
@@ -178,7 +182,7 @@ function soundUpdate(c,ev){
   else if(mode==='tv'){listener=2;geo.rear=.5-.5*dot(dirToCam,F);geo.jump=c.cut;}
   else geo.rear=clamp(.5-.5*dot(dirToCam,F),0,1)*.6+.4;
   const ep=car.pt.soundParams(listener,len(car.v),geo);
-  const tunnel=city.info.tunnel&&car.loc&&car.loc.s>city.info.tunnel[0]-5&&car.loc.s<city.info.tunnel[1]+5&&Math.abs(car.loc.d)<T.wl?1:0;
+  const tunnel=level.shelter(car);
   const tA=Math.tan(car.tyre.aPk),kP=car.tyre.kPk;
   const fx={lat:car.wheels.map(w=>w.contact?Math.abs(w.tanA)/tA:0),lon:car.wheels.map(w=>w.contact?Math.abs(w.kap)/kP:0),load:car.wheels.map(w=>w.Fz),wet:env.wet,speed:len(car.v),cabin:listener===1?1:0,
     curb:car.wheels.some(w=>w.contact&&w.surf==='curb')?1:0,scrape:ev.scrape||0,vol:1,tunnel};
@@ -191,6 +195,7 @@ function hudState(){
   return {rpm:pt.rpm,limiter:e.limiterRpm,shiftRpm:(pt.upRpm&&pt.upRpm[g-1])||e.shiftRpm,speed:car.vf*kmh,units:settings.units==='mph'?'MPH':'KM/H',
     gear:pt.gear,rev:car.rev,auto:pt.auto,shiftLamp:pt.rpm>((pt.upRpm&&pt.upRpm[g-1])||e.shiftRpm)*.985,
     boost:pt.boost*(e.fiBoost||0),boostMax:e.turbo||e.sup?e.fiBoost:0,nos:pt.nos,nosMax:e.nosKw?1:0,nosOn:pt.nosOn,
+    levelName:level.name.toUpperCase(),laps:level.laps,place:level.laps?null:level.place(car),mapHead:Math.atan2(-mcol(qmat(car.q),0)[2],mcol(qmat(car.q),0)[0]),
     lap:lap.n,lapT:lap.t0>=0?time-lap.t0:0,best:lap.best,last:lap.last,
     delta:lap.bestTrace&&lap.t0>=0&&car.loc?(time-lap.t0)-(lap.bestTrace[Math.floor(car.loc.s)]||0):null,
     assistName:ASSISTS[settings.assist].name.toUpperCase()+' · '+(pt.auto?'AUTO':'MANUAL'),
@@ -213,7 +218,7 @@ function step(dt){
     if(inp.led){settings.display=settings.display==='led'?'modern':'led';save();}
     if(inp.high)highBeam=!highBeam;
     if(inp.env){settings.env=ENV_IDS[(ENV_IDS.indexOf(settings.env)+1)%ENV_IDS.length];env=ENVS[settings.env];save();hud.message(env.name.toUpperCase(),'#4fe3ff',1.5);}
-    if(inp.reset){const s=car.loc?car.loc.s:GRID_S;car.placeOnTrack(T,s,T.lineAt(s));car.pt.start();}
+    if(inp.reset){level.resetAt(car);car.pt.start();}
     if(inp.up)car.pt.shift(1);if(inp.down)car.pt.shift(-1);
   }
   car.wet=env.wet;
@@ -235,7 +240,7 @@ function render(dt,ev){
     ledHudView.pixel=true;ledHudView.draw(state==='drive'?hudState():null,dt);ledS={res,hud:R.hudTexture(ledHud),quant:15};}
   R.render({time,dt,cam:c,cut:c.cut,env,flicker:flicker(time),probePos:add(car.p,[0,.4,0]),dyn:L.dyn,headlights:L.headlights,
     occ:[[car.p[0],car.p[1],car.p[2],car.c.hcg,fw[0],fw[2],car.c.body.L/2,car.c.body.W/2]],cars:[carView()],
-    shutter:.5,lensRain:c.lensRain*env.rain,led:ledS,debug:Q.get('debug'),debugGain:+(Q.get('gain')||1)});
+    shutter:.5,lensRain:c.lensRain*env.rain*(1-level.shelter(car)),led:ledS,debug:Q.get('debug'),debugGain:+(Q.get('gain')||1)});
   hud.draw(state==='drive'&&!led?hudState():null,dt);
   if(state!=='pause')soundUpdate(c,ev);
 }
@@ -244,7 +249,7 @@ function frame(dt){fit();const r=step(dt);render(dt,r.ev||{});frameN++;
   if(settings.scale==='auto'){const sc=drs.update(dt*1000,R.gpuMs);if(Math.abs(sc-R.scale)>.001)R.resize(canvas.width,canvas.height,sc);}}
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;fps+=(1/Math.max(dt,1e-3)-fps)*.05;frame(dt);requestAnimationFrame(loop);}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='drive')pause(true);});
-window.__game={R,T,city,get car(){return car;},cam,input,frame,audio,menu,settings,begin,pause,swapEngine,
+window.__game={R,get level(){return level;},get car(){return car;},cam,input,frame,audio,menu,settings,begin,pause,swapEngine,loadLevel,
   sim:sec=>{for(let t=0;t<sec;t+=1/60)step(1/60);},setEnv:id=>{settings.env=id;env=ENVS[id];},setPaint:id=>{settings.paint=id;},
   stats:()=>({iw:R.iw,ih:R.ih,gpu:R.gpuMs,drawn:R.drawn,speed:car.vf,gear:car.pt.gear,rpm:car.pt.rpm,s:car.loc&&car.loc.s,d:car.loc&&car.loc.d,lap:lap.n,state})};
 /* compile every shader behind the boot screen, then show the title */

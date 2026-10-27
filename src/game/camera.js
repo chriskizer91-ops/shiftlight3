@@ -10,8 +10,9 @@ export const CAM_MODES=['chase','far','hood','bumper','cockpit','tv'];
 const springTo=(x,v,t,w,dt)=>{const a=2*dt*w,b=dt*dt*w*w,n=(x*(1+a)+dt*v+b*t)/(1+a+b);return [n,(n-x)/dt];};
 
 export class CameraRig{
-  constructor(T){this.T=T;this.mode=0;this.yaw=null;this.yawV=0;this.pos=null;this.pv=[0,0,0];this.shake=0;this.tvIdx=-1;this.tvPos=null;this.cut=true;
+  constructor(level){this.setLevel(level);this.mode=0;this.yaw=null;this.yawV=0;this.pos=null;this.pv=[0,0,0];this.shake=0;this.tvIdx=-1;this.tvPos=null;this.cut=true;
     this.fq=null;this.lookBack=false;this.pitchSm=0;}
+  setLevel(level){this.level=level;this.T=level.T||null;this.tv=null;this.pos=null;this.yaw=null;this.cut=true;}
   next(){this.mode=(this.mode+1)%CAM_MODES.length;this.cut=true;this.yaw=null;this.pos=null;this.tvIdx=-1;}
   get name(){return CAM_MODES[this.mode];}
   update(dt,car,{look=false,impact=0}={}){
@@ -37,18 +38,15 @@ export class CameraRig{
       const h=[Math.cos(this.yaw),0,-Math.sin(this.yaw)];
       const far=mode==='far';const dist=(far?7.6:5.5)+clamp(sp*.018,0,1.4),ht=(far?2.6:1.55)-clamp(sp*.004,0,.2);
       let tgt=[car.p[0]-h[0]*dist,car.p[1]+ht,car.p[2]-h[2]*dist];
-      /* stay inside the barriers and above the road */
-      const L=this.T.locate(tgt[0],tgt[2],-1);
-      if(L){const lim=(L.d>0?this.T.wl:this.T.wr)-.45;if(Math.abs(L.d)>lim){const fr=this.T.frame(L.s),push=(Math.abs(L.d)-lim)*Math.sign(L.d);tgt=madd(tgt,fr.l,-push);}
-        tgt[1]=Math.max(tgt[1],this.T.yAt(L.s)+.6);}
+      /* stay inside the barriers (or out of the buildings) and above the road */
+      tgt=this.level.camCollide(tgt,[car.p[0],car.p[1]+.9,car.p[2]]);
       /* spring the offset from the car, not the position: no lag at steady speed, a pull back when it surges */
       const ax=clamp((car.accB?car.accB[0]:0)*.05,-.5,.8);
       const off=[tgt[0]-car.p[0]-h[0]*ax,tgt[1]-car.p[1],tgt[2]-car.p[2]-h[2]*ax];
       if(!this.pos||cut){this.off=off.slice();this.pv=[0,0,0];}
       for(let k=0;k<3;k++){const wk=k===1?6:8;const r=springTo(this.off[k],this.pv[k],off[k],wk,dt);this.off[k]=r[0];this.pv[k]=r[1];}
       this.pos=add(car.p,this.off);
-      {const L2=this.T.locate(this.pos[0],this.pos[2],-1);if(L2){const lim=(L2.d>0?this.T.wl:this.T.wr)-.35;if(Math.abs(L2.d)>lim){const fr=this.T.frame(L2.s);this.pos=madd(this.pos,fr.l,-(Math.abs(L2.d)-lim)*Math.sign(L2.d));}
-        this.pos[1]=Math.max(this.pos[1],this.T.yAt(L2.s)+.5);}}
+      this.pos=this.level.camCollide(this.pos,[car.p[0],car.p[1]+.9,car.p[2]]);
       const at=[car.p[0]+h[0]*2.6,car.p[1]+.62,car.p[2]+h[2]*2.6];
       out.pos=this.pos.slice();out.fwd=norm(sub(at,out.pos));out.up=[0,1,0];
       out.fov=(far?1.0:1.12)+clamp(sp*.0035,0,.28);
@@ -61,11 +59,9 @@ export class CameraRig{
       out.fov=mode==='cockpit'?1.2:1.08+clamp(sp*.003,0,.22);out.lensRain=mode==='bumper'?1:mode==='hood'?.6:0;
       this.pos=null;this.yaw=null;
     }else{
-      /* TV: trackside cameras ahead of the car, switching as it passes */
-      const T=this.T,s=car.loc?car.loc.s:0,N=Math.max(8,Math.round(T.len/110)),seg=T.len/N;
-      let idx=Math.floor(T.wrapS(s+seg*.55)/seg)%N;
-      if(idx!==this.tvIdx){this.tvIdx=idx;const cs=idx*seg,side=(idx%2?1:-1);this.tvPos=T.pos(cs,side*(T.wl+1.6),4.5+(idx%3)*1.5);out.cut=true;}
-      out.pos=this.tvPos;const at=[car.p[0],car.p[1]+.3,car.p[2]];out.fwd=norm(sub(at,out.pos));out.up=[0,1,0];
+      /* TV: cameras beside the road ahead of the car, switching as it passes */
+      const spot=this.level.tvSpot(car,this.tv);if(!this.tv||spot.id!==this.tv.id){this.tv=spot;out.cut=true;}
+      out.pos=this.tv.pos;const at=[car.p[0],car.p[1]+.3,car.p[2]];out.fwd=norm(sub(at,out.pos));out.up=[0,1,0];
       const dd=len(sub(at,out.pos));out.fov=clamp(2*Math.atan(6/dd),.18,1.1);
       this.pos=null;this.yaw=null;
     }

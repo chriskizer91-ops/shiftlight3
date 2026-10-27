@@ -12,8 +12,10 @@ export class HUD{
   constructor(canvas){this.c=canvas;this.g=canvas.getContext('2d');this.led=null;this.msg=null;this.msgT=0;this.mapPath=null;this.flash=0;}
   message(text,col=C.white,dur=2.2){this.msg={text,col};this.msgT=dur;}
   /* the minimap outline, normalised to a unit box once */
-  setTrack(T){const xs=T.mx,ys=T.my;let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(let i=0;i<T.N;i++){x0=Math.min(x0,xs[i]);x1=Math.max(x1,xs[i]);y0=Math.min(y0,ys[i]);y1=Math.max(y1,ys[i]);}
-    const sc=1/Math.max(x1-x0,y1-y0);this.map={T,x0,y0,sc,w:(x1-x0)*sc,h:(y1-y0)*sc};}
+  /* the minimap: polylines in map coordinates, fitted into a square once */
+  setMap(map){let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;const all=[...map.paths.flatMap(p=>p.pts),...(map.hwy||[])];
+    for(const [x,y] of all){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+    const sc=1/Math.max(x1-x0,y1-y0);this.map={...map,x0,y0,sc,w:(x1-x0)*sc,h:(y1-y0)*sc};}
   /* ------------ dot primitives ------------ */
   dots(ctx,str,x,y,p,col,{r=.38,unlit=true,glow=true,align='l',font=5}={}){
     str=String(str);
@@ -71,21 +73,28 @@ export class HUD{
       this.small(ctx,(b*1).toFixed(1)+' BAR',cx+170*s,by,3*s,C.faint);by+=24*s;}
     if(S.nosMax>0){this.small(ctx,'N2O',cx-130*s,by,3*s,C.faint);const bw=230*s;ctx.fillStyle='rgba(200,190,230,.12)';ctx.fillRect(cx-70*s,by,bw,12*s);
       ctx.fillStyle=S.nosOn?C.white:C.cyan;ctx.fillRect(cx-70*s,by,bw*S.nos,12*s);}
-    /* ---- laps ---- */
+    /* ---- laps, or where you are ---- */
     const lx=pad,ly=pad;
-    this.small(ctx,'NEON LOOP',lx,ly,4*s,C.pink);
-    this.small(ctx,'LAP '+Math.max(1,S.lap),lx,ly+34*s,4*s,C.faint);
-    this.dots(ctx,fmtT(S.lapT),lx,ly+60*s,6*s,C.white,{unlit:false});
-    this.small(ctx,'BEST',lx,ly+118*s,3*s,C.faint);this.small(ctx,fmtT(S.best),lx+70*s,ly+118*s,3*s,S.best>0?C.green:C.faint);
-    this.small(ctx,'LAST',lx,ly+140*s,3*s,C.faint);this.small(ctx,fmtT(S.last),lx+70*s,ly+140*s,3*s,C.ink);
-    if(S.delta!==null&&S.delta!==undefined&&S.best>0){const d=S.delta;this.small(ctx,(d>=0?'+':'-')+Math.abs(d).toFixed(2),lx+250*s,ly+74*s,4*s,d>0?C.red:C.green);}
+    this.small(ctx,S.levelName||'NEON LOOP',lx,ly,4*s,C.pink);
+    if(S.laps!==false){
+      this.small(ctx,'LAP '+Math.max(1,S.lap),lx,ly+34*s,4*s,C.faint);
+      this.dots(ctx,fmtT(S.lapT),lx,ly+60*s,6*s,C.white,{unlit:false});
+      this.small(ctx,'BEST',lx,ly+118*s,3*s,C.faint);this.small(ctx,fmtT(S.best),lx+70*s,ly+118*s,3*s,S.best>0?C.green:C.faint);
+      this.small(ctx,'LAST',lx,ly+140*s,3*s,C.faint);this.small(ctx,fmtT(S.last),lx+70*s,ly+140*s,3*s,C.ink);
+      if(S.delta!==null&&S.delta!==undefined&&S.best>0){const d=S.delta;this.small(ctx,(d>=0?'+':'-')+Math.abs(d).toFixed(2),lx+250*s,ly+74*s,4*s,d>0?C.red:C.green);}
+    }else if(S.place){this.dots(ctx,S.place,lx,ly+34*s,5*s,C.white,{unlit:false});}
     /* ---- minimap ---- */
-    if(this.map){const M=this.map,sz=230*s,mx=W-pad-sz,my=pad,P=(x,y)=>[mx+(x-M.x0)*M.sc*sz+(1-M.w)*sz/2,my+sz-((y-M.y0)*M.sc*sz+(1-M.h)*sz/2)];
-      const T=M.T;ctx.lineJoin='round';
-      for(const [w,a,col] of [[12*s,.12,C.pink],[4*s,.85,C.pink]]){ctx.strokeStyle=col;ctx.globalAlpha=a;ctx.lineWidth=w;ctx.beginPath();for(let i=0;i<=T.N;i+=4){const k=i%T.N,[x,y]=P(T.mx[k],T.my[k]);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.closePath();ctx.stroke();}
+    if(this.map&&this.map.paths){const M=this.map,sz=230*s,mx=W-pad-sz,my=pad,P=(x,y)=>[mx+(x-M.x0)*M.sc*sz+(1-M.w)*sz/2,my+sz-((y-M.y0)*M.sc*sz+(1-M.h)*sz/2)];
+      ctx.lineJoin='round';ctx.lineCap='round';
+      const stroke=(pts,closed,w,col,a)=>{ctx.strokeStyle=col;ctx.globalAlpha=a;ctx.lineWidth=w;ctx.beginPath();pts.forEach(([x,y],i)=>{const [u,v]=P(x,y);if(i)ctx.lineTo(u,v);else ctx.moveTo(u,v);});if(closed)ctx.closePath();ctx.stroke();};
+      for(const p of M.paths){stroke(p.pts,p.closed,(this.pixel?1:10*s)*p.w,C.pink,.12);}
+      for(const p of M.paths){stroke(p.pts,p.closed,(this.pixel?1:3.4*s)*p.w,C.pink,.8);}
+      if(M.hwy)stroke(M.hwy,true,this.pixel?1:2.4*s,C.cyan,.85);
       ctx.globalAlpha=1;
-      const [sx,sy]=P(T.mx[0],T.my[0]);ctx.fillStyle=C.white;ctx.fillRect(sx-1.5*s,sy-7*s,3*s,14*s);
-      if(S.mapCar){const [x,y]=P(S.mapCar[0],S.mapCar[1]);ctx.fillStyle=C.white;ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(x,y,12*s,0,6.283);ctx.fill();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,6*s,0,6.283);ctx.fill();}}
+      if(M.start){const [sx,sy]=P(M.start[0],M.start[1]);ctx.fillStyle=C.white;ctx.fillRect(sx-1.5*s,sy-7*s,3*s,14*s);}
+      if(S.mapCar){const [x,y]=P(S.mapCar[0],S.mapCar[1]);ctx.fillStyle=C.white;ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(x,y,12*s,0,6.283);ctx.fill();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,6*s,0,6.283);ctx.fill();
+        if(S.mapHead!==undefined){ctx.strokeStyle=C.white;ctx.lineWidth=2*s;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(S.mapHead)*16*s,y-Math.sin(S.mapHead)*16*s);ctx.stroke();}}}
+    if(S.others&&this.map){/* other cars on the minimap */}
     /* ---- assists ---- */
     const ax=pad,ay=H-pad-30*s;
     this.small(ctx,S.assistName||'',ax,ay-40*s,3*s,C.faint);

@@ -8,8 +8,7 @@ export class Particles{
   constructor(R,mask,{rainN=9000,splashN=1400}={}){
     this.R=R;const G=R.G,gl=R.gl;this.G=G;
     this.P={rain:G.program('rain',RAIN_VS,RAIN_FS),splash:G.program('splash',SPLASH_VS,SPLASH_FS),puff:G.program('puff',PUFF_VS,PUFF_FS)};
-    const md=new Float32Array(mask.n*mask.n*2);md.set(mask.data);
-    this.maskT=G.texture(mask.n,mask.n,'rg32f',{data:md,filter:G.ext.flt?'linear':'nearest'});this.maskP=mask.params;
+    this.setMask(mask);
     this.rainN=rainN;this.splashN=splashN;
     /* the CPU pool */
     this.n=0;this.p=new Float32Array(MAXP*3);this.v=new Float32Array(MAXP*3);this.life=new Float32Array(MAXP);this.age=new Float32Array(MAXP);
@@ -22,6 +21,8 @@ export class Particles{
     this.rain={on:0,fall:[1.2,-9.5,.6],camVel:[0,0,0]};this.emitAcc=new Map();
     R.extra.push(this);
   }
+  setMask(mask){const G=this.G;if(this.maskT)G.del(this.maskT);const md=new Float32Array(mask.n*mask.n*2);md.set(mask.data);
+    this.maskT=G.texture(mask.n,mask.n,'rg32f',{data:md,filter:G.ext.flt?'linear':'nearest'});this.maskP=mask.params;this.n=0;}
   /* spawn one puff. kind: 0 spray, 1 tyre smoke, 2 steam */
   spawn(kind,p,v,life,s0,s1,a0){
     let i;if(this.n<MAXP)i=this.n++;else{i=Math.floor(Math.random()*MAXP);}

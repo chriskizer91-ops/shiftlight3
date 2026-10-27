@@ -346,7 +346,7 @@ export function buildCity(T){
   for(const X of XS)for(const Y of YS){if(trackDist(X,Y)<22||R()<.4)continue;const px=X+STREET+.6,py=Y+STREET+.6;if(overlaps(px,py,px,py))continue;
     C.mat(8,150,230).col(45,48,40);const B=C.at(px,-py);B.tube(W(px,py,slabTop),W(px,py,4.6),.08,5,true);
     for(const [dx,dy] of [[-1,0],[0,-1]]){const c=W(px+dx*.3,py+dy*.3,4.2);C.mat(8,160,100).col(30,32,26);B.box(c,[1,0,0],[0,1,0],[0,0,1],[.16,.45,.16]);
-      for(let l=0;l<3;l++){C.mat(15,l).col(255,255,255);B.sphere(W(px+dx*.48,py+dy*.48,4.5-l*.3),.1,6,3);}}
+      for(let l=0;l<3;l++){C.mat(15,l,2).col(255,255,255);B.sphere(W(px+dx*.48,py+dy*.48,4.5-l*.3),.1,6,3);}}
     addLight({type:0,pos:W(px-.8,py-.8,4.3),r:9,col:[9,5,.4],flick:6,src:.1});}
 
   /* ---------- start / finish gantry ---------- */
