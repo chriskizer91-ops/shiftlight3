@@ -283,7 +283,8 @@ export function buildCity(T){
     fac([tx1,ty0],[tx1,ty1],[1,0,0],0,0,Ht);fac([tx0,ty1],[tx0,ty0],[-1,0,0],0,0,Ht);
     roof(tx0,ty0,tx1,ty1,Ht,true);
     /* a big neon word over the north portal, the way in */
-    neonText('NEON LOOP',W(-106-(9*6*.42-.42)/2,ty1+.5,oh+2.4),[1,0,0],[0,1,0],.42,[1,.2,.6],0);
+    /* drivers arrive from the north looking south, so the words run east to west */
+    neonText('NEON LOOP',W(-106+(9*6*.42-.42)/2,ty1+.5,oh+2.4),[-1,0,0],[0,1,0],.42,[1,.2,.6],0);
     addLight({type:2,pos:W(-106,ty1+3,oh+3.9),axis:[11,0,0],r:30,col:[45,9,26],src:.6});
     /* the lights inside: tube fittings down both sides of the ceiling */
     for(let s=info.tunnel[0]+2;s<info.tunnel[1]-1;s+=4.5)for(const d of [-4.2,4.2]){
