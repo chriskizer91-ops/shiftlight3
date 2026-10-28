@@ -26,7 +26,24 @@ drift run, a drag run, and the free-play garage.
 | LED matrix mode | L | — |
 | Time of day | T | — |
 | High beam | H | — |
+| Performance readout | P | — |
 | Menu | Esc | Start |
+
+### Frame rate and resolution
+
+- **Frame rate** (pause menu, Graphics): *Auto* aims for 60–100 fps on any screen, always on an
+  even beat: on a 144 Hz screen that is 72 fps (every other refresh), on 165 Hz 82.5, on 120 Hz
+  60. The other choices are every refresh, every other one, or every third. A cap that doesn't
+  divide the refresh rate (60 fps on 144 Hz) would alternate two- and three-refresh gaps and judder.
+- **Resolution**: *Auto* trades render scale for that frame-rate target; TAA rebuilds full
+  resolution either way. A lower frame-rate target leaves more room for a sharper picture.
+- The physics runs at a fixed 240 Hz and the cars are drawn between steps, so motion is even at
+  any refresh rate.
+- **P** shows the performance readout: frames per second, where each frame's time goes (game
+  logic, drawing, HUD, and the GPU when the browser reports it), the resolution being drawn, and
+  the graphics chip the browser is using. On a laptop with two graphics chips, check that it names
+  the gaming card; if not, set the browser to *High performance* in Windows Settings > System >
+  Display > Graphics and restart the computer.
 
 ### Phones and tablets
 

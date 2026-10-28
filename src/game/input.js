@@ -8,7 +8,7 @@
 const KEYS={
   thr:['ArrowUp','KeyW'],brk:['ArrowDown','KeyS'],left:['ArrowLeft','KeyA'],right:['ArrowRight','KeyD'],
   hb:['Space'],nos:['ShiftLeft','ShiftRight','KeyN'],up:['KeyE','KeyX'],down:['KeyQ','KeyZ'],
-  cam:['KeyC'],reset:['KeyR'],pause:[],led:['KeyL'],high:['KeyH'],look:['KeyB'],env:['KeyT'],hud:['KeyU']
+  cam:['KeyC'],reset:['KeyR'],pause:[],led:['KeyL'],high:['KeyH'],look:['KeyB'],env:['KeyT'],hud:['KeyU'],perf:['KeyP']
 };
 export class Input{
   constructor(target=window,touch=null){
@@ -23,7 +23,7 @@ export class Input{
   /* read everything for this frame */
   poll(dt){
     const pads=navigator.getGamepads?navigator.getGamepads():[];let gp=null;for(const p of pads)if(p&&p.connected){gp=p;break;}
-    const out={steer:0,thr:0,brk:0,hb:0,nos:false,up:false,down:false,cam:false,reset:false,pause:false,led:false,high:false,look:false,env:false,hud:false};
+    const out={steer:0,thr:0,brk:0,hb:0,nos:false,up:false,down:false,cam:false,reset:false,pause:false,led:false,high:false,look:false,env:false,hud:false,perf:false};
     /* keyboard */
     const T=this.touch?this.touch.poll():null;
     const kl=this.key('left')||T&&T.left,kr=this.key('right')||T&&T.right,tgt=(kr?1:0)-(kl?1:0);
@@ -33,7 +33,7 @@ export class Input{
     const kt=this.key('thr')||T&&T.thr?1:0,kb=this.key('brk')||T&&T.brk?1:0;
     this.thr+=Math.max(-8*dt,Math.min(6*dt,kt-this.thr));this.brk+=Math.max(-10*dt,Math.min(8*dt,kb-this.brk));
     out.steer=this.steer;out.thr=this.thr;out.brk=this.brk;out.hb=this.key('hb')||T&&T.hb?1:0;out.nos=this.key('nos')||!!(T&&T.nos);
-    for(const k of ['up','down','cam','reset','pause','led','high','look','env','hud'])out[k]=this.hit(k)||!!(T&&T[k]);
+    for(const k of ['up','down','cam','reset','pause','led','high','look','env','hud','perf'])out[k]=this.hit(k)||!!(T&&T[k]);
     if(this.key('look'))out.look=true;
     /* gamepad (standard mapping): left stick steers, triggers drive, A handbrake, B/X shifts */
     if(gp){

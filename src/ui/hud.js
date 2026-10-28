@@ -14,7 +14,14 @@ const fmtT=t=>{if(!(t>0))return '-:--.---';const m=Math.floor(t/60),s=t-m*60;ret
 
 export class HUD{
   constructor(canvas){this.c=canvas;this.g=canvas.getContext('2d');this.led=null;this.msg=null;this.msgT=0;this.mapPath=null;this.flash=0;
-    this.touch=false;this.ui=1;this.ins={l:0,r:0,t:0,b:0};this.mapRight=0;this.replayBar=0;}
+    this.touch=false;this.ui=1;this.ins={l:0,r:0,t:0,b:0};this.mapRight=0;this.replayBar=0;
+    /* every character is drawn once into a small sprite and reused: drawing each lamp as its own
+       path cost a few milliseconds of every frame. The minimap's outline is cached the same way. */
+    this.sprites=new Map();this.mapCache=null;}
+  sprite(key,w,h,paint){let S=this.sprites.get(key);if(S)return S;
+    if(this.sprites.size>900)this.sprites.clear();
+    const c=document.createElement('canvas');c.width=Math.max(1,Math.ceil(w));c.height=Math.max(1,Math.ceil(h));paint(c.getContext('2d'));
+    S={c};this.sprites.set(key,S);return S;}
   message(text,col=C.white,dur=2.2){this.msg={text,col};this.msgT=dur;}
   /* the minimap outline, normalised to a unit box once */
   /* the minimap: polylines in map coordinates, fitted into a square once */
@@ -29,20 +36,28 @@ export class HUD{
     if(this.pixel){ctx.fillStyle=col;const d=Math.max(1,p-(p>2?1:0));
       for(const ch of str){const g=G5[ch]||G5[ch.toUpperCase()]||G5[' '];for(let row=0;row<7;row++)for(let c=0;c<5;c++)if(g&&((g[row]>>(4-c))&1))ctx.fillRect(x+c*p,y+row*p,d,d);x+=6*p;}
       return w;}
-    const R=p*r;
+    const R=p*r,m=Math.ceil(R*2.1)+2,pk=Math.round(p*8)/8;
     for(const ch of str){const g=G5[ch]||G5[ch.toUpperCase()]||G5[' '];
-      for(let row=0;row<7;row++)for(let c=0;c<5;c++){const on=g&&((g[row]>>(4-c))&1);const cx=x+c*p+p/2,cy=y+row*p+p/2;
-        if(on){if(glow){ctx.fillStyle=col;ctx.globalAlpha=.16;ctx.beginPath();ctx.arc(cx,cy,R*2.1,0,6.283);ctx.fill();ctx.globalAlpha=1;}
-          ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,R,0,6.283);ctx.fill();}
-        else if(unlit){ctx.fillStyle=C.dim;ctx.beginPath();ctx.arc(cx,cy,R*.8,0,6.283);ctx.fill();}}
+      if(g&&(unlit||g.some(v=>v))){
+        const S=this.sprite('d'+ch+'|'+pk+'|'+r+'|'+col+(unlit?'u':'')+(glow?'g':''),5*pk+2*m,7*pk+2*m,sx=>{
+          for(let row=0;row<7;row++)for(let c=0;c<5;c++){const on=(g[row]>>(4-c))&1,cx=m+c*pk+pk/2,cy=m+row*pk+pk/2;
+            if(on){if(glow){sx.fillStyle=col;sx.globalAlpha=.16;sx.beginPath();sx.arc(cx,cy,R*2.1,0,6.283);sx.fill();sx.globalAlpha=1;}
+              sx.fillStyle=col;sx.beginPath();sx.arc(cx,cy,R,0,6.283);sx.fill();}
+            else if(unlit){sx.fillStyle=C.dim;sx.beginPath();sx.arc(cx,cy,R*.8,0,6.283);sx.fill();}}});
+        ctx.drawImage(S.c,Math.round(x-m),Math.round(y-m));}
       x+=6*p;}
     return w;
   }
   small(ctx,str,x,y,p,col,align='l'){/* the 3x5 font as square dots, for labels */
     str=String(str);if(this.pixel){p=Math.max(1,Math.round(p));x=Math.round(x);y=Math.round(y);}let w=0;for(const ch of str){const g=G3[ch]||G3[ch.toUpperCase()];w+=((g?g[0].length:3)+1)*p;}w-=p;
     if(align==='c')x-=w/2;else if(align==='r')x-=w;ctx.fillStyle=col;
+    const pk=Math.round(p*8)/8;
     for(const ch of str){const g=G3[ch]||G3[ch.toUpperCase()];if(!g){x+=4*p;continue;}
-      for(let r=0;r<5;r++){const row=g[r];for(let c=0;c<row.length;c++)if(row.charCodeAt(c)===49)ctx.fillRect(x+c*p,y+r*p,p*.86,p*.86);}
+      if(this.pixel){for(let r=0;r<5;r++){const row=g[r];for(let c=0;c<row.length;c++)if(row.charCodeAt(c)===49)ctx.fillRect(x+c*p,y+r*p,p*.86,p*.86);}}
+      else if(g.some(row=>row.indexOf('1')>=0)){
+        const S=this.sprite('s'+ch+'|'+pk+'|'+col,g[0].length*pk+2,5*pk+2,sx=>{sx.fillStyle=col;
+          for(let r=0;r<5;r++){const row=g[r];for(let c=0;c<row.length;c++)if(row.charCodeAt(c)===49)sx.fillRect(1+c*pk,1+r*pk,pk*.86,pk*.86);}});
+        ctx.drawImage(S.c,Math.round(x-1),Math.round(y-1));}
       x+=(g[0].length+1)*p;}
     return w;
   }
@@ -157,12 +172,17 @@ export class HUD{
       ctx.beginPath();ctx.arc(x,y0,r,0,6.283);ctx.fill();}}
     /* ---- minimap ---- */
     if(this.map&&this.map.paths){const M=this.map,sz=(T?190:230)*s,mx=(T&&this.mapRight?this.mapRight:W-pad-I.r)-sz,my=pad+I.t,P=(x,y)=>[mx+(x-M.x0)*M.sc*sz+(1-M.w)*sz/2,my+sz-((y-M.y0)*M.sc*sz+(1-M.h)*sz/2)];
-      ctx.lineJoin='round';ctx.lineCap='round';
-      const stroke=(pts,closed,w,col,a)=>{ctx.strokeStyle=col;ctx.globalAlpha=a;ctx.lineWidth=w;ctx.beginPath();pts.forEach(([x,y],i)=>{const [u,v]=P(x,y);if(i)ctx.lineTo(u,v);else ctx.moveTo(u,v);});if(closed)ctx.closePath();ctx.stroke();};
-      for(const p of M.paths){stroke(p.pts,p.closed,(this.pixel?1:10*s)*p.w,C.pink,.12);}
-      for(const p of M.paths){stroke(p.pts,p.closed,(this.pixel?1:3.4*s)*p.w,C.pink,.8);}
-      if(M.hwy)stroke(M.hwy,true,this.pixel?1:2.4*s,C.cyan,.85);
-      ctx.globalAlpha=1;
+      const mg=Math.ceil(12*s*Math.max(1,...M.paths.map(p=>p.w||1)))+2,ox=Math.floor(mx-mg),oy=Math.floor(my-mg),key=[M.x0,M.y0,sz,ox,oy,mx,my,this.pixel].join();
+      if(!this.mapCache||this.mapCache.key!==key||this.mapCache.map!==M){
+        const c=document.createElement('canvas');c.width=Math.ceil(sz+2*mg)+2;c.height=Math.ceil(sz+2*mg)+2;const cx=c.getContext('2d');
+        cx.lineJoin='round';cx.lineCap='round';
+        const stroke=(pts,closed,w,col,a)=>{cx.strokeStyle=col;cx.globalAlpha=a;cx.lineWidth=w;cx.beginPath();pts.forEach(([x,y],i)=>{const [u,v]=P(x,y);if(i)cx.lineTo(u-ox,v-oy);else cx.moveTo(u-ox,v-oy);});if(closed)cx.closePath();cx.stroke();};
+        for(const p of M.paths){stroke(p.pts,p.closed,(this.pixel?1:10*s)*p.w,C.pink,.12);}
+        for(const p of M.paths){stroke(p.pts,p.closed,(this.pixel?1:3.4*s)*p.w,C.pink,.8);}
+        if(M.hwy)stroke(M.hwy,true,this.pixel?1:2.4*s,C.cyan,.85);
+        this.mapCache={key,map:M,c};}
+      ctx.drawImage(this.mapCache.c,ox,oy);
+      ctx.lineJoin='round';ctx.lineCap='round';ctx.globalAlpha=1;
       if(M.start){const [sx,sy]=P(M.start[0],M.start[1]);ctx.fillStyle=C.white;ctx.fillRect(sx-1.5*s,sy-7*s,3*s,14*s);}
       if(S.mapDots){ctx.fillStyle='#ffb347';ctx.globalAlpha=.75;const r=this.pixel?.6:2.1*s;for(const d of S.mapDots){const [x,y]=P(d[0],d[1]);ctx.fillRect(x-r,y-r,2*r,2*r);}ctx.globalAlpha=1;}
       if(S.mapCar){const [x,y]=P(S.mapCar[0],S.mapCar[1]);ctx.fillStyle=C.white;ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(x,y,12*s,0,6.283);ctx.fill();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,6*s,0,6.283);ctx.fill();

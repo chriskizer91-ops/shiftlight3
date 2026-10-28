@@ -199,17 +199,19 @@ html.touch #menu,html.touch #screen.results{backdrop-filter:none;-webkit-backdro
   #screen.garage .cats,#screen.career .list{background:rgba(6,5,12,.74);border-radius:6px;padding:4px}
   #screen.garage .c{color:#b9b3cf}
 }
+#perf{position:fixed;left:max(10px,env(safe-area-inset-left));top:44%;z-index:5;pointer-events:none;margin:0;padding:8px 10px;border-radius:6px;background:rgba(6,5,12,.72);color:#d9fbe1;font:600 12px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre;max-width:calc(100vw - 20px);overflow:hidden;text-overflow:ellipsis}
 [hidden]{display:none!important}
 </style>
 <!--@BODY@-->
 <canvas id="view" aria-label="Shiftlight: a street race through a neon city"></canvas>
 <canvas id="hud"></canvas>
+<pre id="perf" hidden></pre>
 <div id="touch" hidden></div>
 <div id="rtouch" hidden><button data-r="left">-5 S</button><button data-r="enter" class="pp">PAUSE</button><button data-r="right">+5 S</button><button data-r="speed" class="spd">X1</button><button data-r="c">CAM</button><button data-r="back">EXIT</button></div>
 <div id="title" hidden><div><div class="logo">SHIFTLIGHT</div><div class="sub" id="titleSub">Neon Loop · Midnight Rain</div>
   <div id="titleMenu"></div>
   <div class="keys"><b>W/↑</b> throttle · <b>S/↓</b> brake &amp; reverse · <b>A D/← →</b> steer · <b>Space</b> handbrake · <b>Shift</b> nitrous<br>
-  <b>Q/E</b> shift (manual) · <b>C</b> camera · <b>B</b> look back · <b>L</b> LED matrix · <b>T</b> time of day · <b>R</b> reset · <b>Esc</b> menu<br>Gamepads work too: triggers, left stick, A handbrake.</div>
+  <b>Q/E</b> shift (manual) · <b>C</b> camera · <b>B</b> look back · <b>L</b> LED matrix · <b>T</b> time of day · <b>R</b> reset · <b>P</b> performance · <b>Esc</b> menu<br>Gamepads work too: triggers, left stick, A handbrake.</div>
   <div class="tkeys"><b>Left thumb</b> slide to steer · <b>Right thumb</b> gas, brake, handbrake · <b>II</b> menu</div></div></div>
 <div id="menu" hidden></div>
 <div id="screen" hidden></div>

@@ -26,7 +26,7 @@ import {ENVS,ENV_IDS} from '../src/render/env.js';
 import {Particles} from '../src/render/particles.js';
 import {DRS} from '../src/render/drs.js';
 import {makeLevel,LEVELS} from '../src/game/levels.js';
-import {Vehicle,ASSISTS} from '../src/physics/vehicle.js';
+import {Vehicle,ASSISTS,interpolateVehicles,restoreVehicles} from '../src/physics/vehicle.js';
 import {CHASSIS,ENGINE_CHOICES} from '../src/game/cars.js';
 import {SIM} from '../src/engine/engine-sim.js';
 import {Input} from '../src/game/input.js';
@@ -40,7 +40,7 @@ import {qmat,mcol,mvec,add,norm,clamp,madd,sub,len,dot} from '../src/physics/mat
 
 const $=id=>document.getElementById(id);
 const Q=new URLSearchParams(location.search);
-const DEFAULTS={event:'race',laps:3,rivals:'racing',level:'city',assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',volume:.8,units:'kmh',sandbox:null,touch:'auto',steer:'slide',device:null};
+const DEFAULTS={event:'race',laps:3,rivals:'racing',level:'city',assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',fps:'auto',perf:false,volume:.8,units:'kmh',sandbox:null,touch:'auto',steer:'slide',device:null};
 const settings=loadSettings(DEFAULTS);
 for(const k of Object.keys(DEFAULTS))if(Q.has(k))settings[k]=isNaN(+Q.get(k))||k==='scale'&&Q.get(k)==='auto'?Q.get(k):+Q.get(k);
 const save=()=>{if(!Q.has('manual'))saveSettings(settings);};
@@ -307,6 +307,11 @@ function menuRows(optionsOnly){
     {type:'choice',label:'Quality',chips:1,get:()=>settings.quality,set:v=>{settings.quality=v;save();location.reload();},options:['mobile','low','medium','high','ultra'].map(q=>opt(q,q[0].toUpperCase()+q.slice(1),q==='mobile'?'For phones and tablets: lighter shadows, haze and reflections, no motion blur, fewer cars. Changing this reloads the page.':'Changing this reloads the page.'))},
     {type:'choice',label:'Resolution',chips:1,get:()=>String(settings.scale),set:v=>{settings.scale=v==='auto'?'auto':+v;save();drs.enabled=v==='auto';if(v!=='auto')R.resize(canvas.width,canvas.height,+v);},
       options:[opt('auto','Auto','Keeps the frame rate by adjusting the render scale; TAA rebuilds full resolution.'),opt('0.5','50%'),opt('0.67','67%'),opt('0.85','85%'),opt('1','100%')]},
+    {type:'choice',label:'Frame rate',chips:1,get:()=>String(settings.fps),set:set('fps'),
+      options:[opt('auto','Auto'+(drs.raw.length>=24?' ('+fpsLabel(drs.divFor('auto'))+')':''),'About 60 to 100 frames a second on any screen, always on an even beat. Whatever the graphics card has left over goes into sharper resolution.'),
+        ...[1,2,3].map(k=>opt(String(k),drs.raw.length>=24?fpsLabel(k)+' fps':['Every refresh','Half','Third'][k-1],['Every refresh of your screen. Smoothest, but the most work: Auto resolution drops further to keep up.','Every other refresh of your screen.','Every third refresh of your screen.'][k-1]))]},
+    {type:'choice',label:'Performance readout',chips:1,get:()=>settings.perf?'on':'off',set:v=>{settings.perf=v==='on';save();},
+      options:[opt('off','Off'),opt('on','On','Frame rate, where each frame\'s time goes, the resolution being drawn and the graphics chip the browser is using. P toggles it.')]},
     {type:'head',label:'Sound'},
     {type:'slider',label:'Volume',min:0,max:1,stepV:.05,get:()=>settings.volume,set:v=>{settings.volume=v;save();audio.setVolume(v);},fmt:v=>Math.round(v*100)+'%'});
   if(!optionsOnly&&!inCareer)rows.push({type:'action',label:'Quit to the title',act:()=>{menu.hide();toTitle();}});
@@ -433,6 +438,7 @@ const fmt=t=>{const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toF
 let camPrev=null,liveViews=[];
 function step(dt){
   const inp=input.poll(dt);lastInp=inp;
+  if(inp.perf){settings.perf=!settings.perf;save();if(menu.open)menu.render();}
   /* gamepad: menus and screens */
   const ui=activeUI();if(ui&&inp.nav)for(const k of inp.nav)ui.key(k);
   if(inp.pause){if(state==='drive')pause(true);else if(state==='pause')pause(false);}
@@ -493,7 +499,7 @@ function render(dt,ev){
   R.render({time:R1?replay.t:time,dt,cam:c,cut:c.cut,env,flicker:flicker(time),probePos:add(subj.p,[0,.4,0]),dyn:L.dyn,headlights:L.headlights,
     occ:[[subj.p[0],subj.p[1],subj.p[2],car.c.hcg,fw[0],fw[2],car.c.body.L/2,car.c.body.W/2]],cars:[you,...others,...extraCars],
     shutter:.5,lensRain:c.lensRain*env.rain*(1-level.shelter(subj)),led:ledS,debug:Q.get('debug'),debugGain:+(Q.get('gain')||1)});
-  hud.draw(led?null:hs,dt);
+  const th=performance.now();hud.draw(led?null:hs,dt);hudMs=performance.now()-th;
   if(R1)replaySound(c);else if(state!=='pause')soundUpdate(c,ev);
 }
 /* the replay's sound: your engine as it was, the road and wind at the speed you were going */
@@ -506,12 +512,44 @@ function replaySound(c){
   const fx={lat:[0,0,0,0],lon:[0,0,0,0],load:[0,0,0,0],wet:env.wet,speed:replay.paused?0:proxy.speed,cabin:0,curb:0,scrape:0,vol:1};
   audio.update(ep,[],fx,[],{tunnel:level.shelter(proxy),cabin:false});
 }
-let last=performance.now(),fps=60;
-function frame(dt){fit();touchUI();if(portrait.matches&&state==='drive')pause(true);const r=step(dt);
+let last=performance.now(),lastRaw=0,fps=60;
+const fpsLabel=k=>{const f=drs.hz/k;return Math.abs(f-Math.round(f))<.05?String(Math.round(f)):f.toFixed(1);};
+/* what each frame costs, for the performance readout */
+const perfAcc={n:0,t:0,worst:0,step:0,draw:0,hud:0,gpu:0,gpuN:0,steps:0,t0:performance.now()};let perfShown=null;
+function frame(dt){fit();touchUI();if(portrait.matches&&state==='drive')pause(true);
+  const t0=performance.now(),acc0=time;const r=step(dt);const t1=performance.now();let t2=t1;
   /* paused, the scene stands still behind the menu: redraw it now and then (settings changes show), not every frame */
-  if(state!=='pause'||frameN%8===0)render(dt,r.ev||{});frameN++;
-  if(settings.scale==='auto'){const sc=drs.update(dt*1000,R.gpuMs);if(Math.abs(sc-R.scale)>.001)R.resize(canvas.width,canvas.height,sc);}}
-function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;fps+=(1/Math.max(dt,1e-3)-fps)*.05;frame(dt);requestAnimationFrame(loop);}
+  if(state!=='pause'||frameN%8===0){
+    /* draw the cars where they are between physics steps, not where the last step left them */
+    interpolateVehicles(acc/DT);try{render(dt,r.ev||{});}finally{restoreVehicles();}t2=performance.now();}
+  frameN++;
+  if(settings.scale==='auto'){const sc=drs.update(dt*1000,R.gpuMs);if(Math.abs(sc-R.scale)>.001)R.resize(canvas.width,canvas.height,sc);}
+  const P=perfAcc;P.n++;P.t+=dt*1000;P.worst=Math.max(P.worst,dt*1000);P.step+=t1-t0;P.draw+=t2-t1-hudMs;P.hud+=hudMs;P.steps+=Math.round((time-acc0)/DT);
+  if(R.gpuMs>0){P.gpu+=R.gpuMs;P.gpuN++;}
+  perfUpdate();}
+function loop(now){requestAnimationFrame(loop);
+  if(lastRaw)drs.noteVsync(now-lastRaw);lastRaw=now;
+  /* show a frame only on the screen refreshes the frame-rate setting targets, so they come at an even beat */
+  const k=drs.divFor(settings.fps);drs.setDivisor(k);const per=1000/drs.hz;
+  if(k>1&&now-last<k*per-per*.5)return;
+  const dt=Math.min(.05,(now-last)/1000);last=now;fps+=(1/Math.max(dt,1e-3)-fps)*.05;frame(dt);}
+/* ---------- the performance readout ---------- */
+let hudMs=0;
+function perfUpdate(){
+  const el=$('perf'),on=!!settings.perf&&(state==='drive'||state==='replay');if(el.hidden===on)el.hidden=!on;
+  const P=perfAcc,now=performance.now();if(now-P.t0<500)return;
+  if(on&&P.n){const f=x=>x.toFixed(1),q=settings.quality;
+    const cpu=(P.step+P.draw+P.hud)/P.n,gpu=P.gpuN?P.gpu/P.gpuN:-1;
+    el.textContent=[
+      `${Math.round(1000*P.n/(now-P.t0))} FPS   target ${fpsLabel(drs.div)} (${drs.hz} Hz screen)`,
+      `frame ${f(P.t/P.n)} ms   worst ${f(P.worst)} ms`,
+      `CPU   ${f(cpu)} ms  (game ${f(P.step/P.n)} · draw ${f(P.draw/P.n)} · HUD ${f(P.hud/P.n)})`,
+      `GPU   ${gpu>0?f(gpu)+' ms':'not reported by this browser'}`,
+      `physics steps / frame ${f(P.steps/P.n)}`,
+      `render ${R.iw}×${R.ih} of ${R.W}×${R.H} (${Math.round(R.iw/R.W*100)}%${settings.scale==='auto'?' auto':''})   ${q[0].toUpperCase()+q.slice(1)}`,
+      `chip  ${R.gpuName}${R.software?'  (SOFTWARE: no graphics card)':''}`].join('\n');
+    el.title=R.gpuRaw;}
+  P.n=0;P.t=0;P.worst=0;P.step=0;P.draw=0;P.hud=0;P.gpu=0;P.gpuN=0;P.steps=0;P.t0=now;}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='drive')pause(true);});
 makeCar();car.pt.start();makeTraffic();
 window.__game={R,CR,extraCars,career,sandbox,hub,garage,results,get traffic(){return traffic;},get mode(){return mode;},get state(){return state;},
@@ -524,5 +562,6 @@ window.__game={R,CR,extraCars,career,sandbox,hub,garage,results,get traffic(){re
   stats:()=>({iw:R.iw,ih:R.ih,gpu:R.gpuMs,drawn:R.drawn,speed:car.vf,gear:car.pt.gear,rpm:car.pt.rpm,s:car.loc&&car.loc.s,d:car.loc&&car.loc.d,state,mode:mode&&mode.kind})};
 /* compile every shader behind the boot screen, then show the title */
 const bootMsg=$('boot').querySelector('div');
+if(R.software&&!Q.has('manual'))setTimeout(()=>hud.message('NO GRAPHICS CARD IN USE','#ff3d5a',6),4000);
 R.G.warmup((d,n)=>{bootMsg.innerHTML=`<b>SHIFTLIGHT</b> &nbsp;warming up the shaders ${d}/${n}`;}).then(()=>{enterTitle();window.__game.ready=true;if(!Q.has('manual'))requestAnimationFrame(loop);})
   .catch(e=>{bootMsg.textContent='Could not start the renderer: '+e.message;console.error(e);});

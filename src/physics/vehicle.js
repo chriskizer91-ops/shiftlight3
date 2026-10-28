@@ -31,6 +31,17 @@ export const ASSISTS={
 };
 const SURF_MU={road:1,curb:.95,shoulder:.9,ground:.7};
 
+/* ---- smooth motion between physics steps ----
+   The physics runs at a fixed 240 Hz. A screen refreshing at 144 Hz shows a frame every 1.67 steps, so
+   without help the car would move one step on some frames and two on others: a steady micro-stutter
+   that no graphics setting fixes. Each step remembers where the car started; just for drawing, the
+   pose is blended between that and the latest step by how far the clock has run past it (alpha), and
+   put back right after. interpolateVehicles(alpha) before drawing, restoreVehicles() after. */
+const LIVE=new Set();let ipGen=0;
+export function interpolateVehicles(alpha){ipGen++;const a=alpha<0?0:alpha>1?1:alpha;
+  for(const v of LIVE){if(ipGen-v._ipGen>3||!v._pp||!v._pp.ok){LIVE.delete(v);continue;}v._ipApply(a);}}
+export function restoreVehicles(){for(const v of LIVE)v._ipRestore();}
+
 export class Vehicle{
   constructor(chassis,spec,world){
     const c=chassis;this.c=c;this.spec=spec;this.world=world;
@@ -66,18 +77,48 @@ export class Vehicle{
   }
   /* put the car at rest on the track at (s, d), facing along it */
   placeOnTrack(T,s,d=0){
+    if(this._pp)this._pp.ok=false;
     const fr=T.frame(s),p=T.pos(s,d);this.q=qlook(fr.f,fr.u);
     this.p=madd(p,fr.u,this.c.hcg);this.v=[0,0,0];this.w=[0,0,0];this.hint=-1;
     for(const wh of this.wheels){wh.w=0;wh.hint=-1;}
     this.pt.gear=1;this.pt.shiftT=0;this.pt.engage=0;this.pt.locked=false;this.rev=false;this.pt.rev=false;this.drift.on=false;
   }
-  place(p,yaw){this.q=qaxis([0,1,0],yaw);this.p=[p[0],p[1]+this.c.hcg,p[2]];this.v=[0,0,0];this.w=[0,0,0];for(const wh of this.wheels){wh.w=0;}}
+  place(p,yaw){if(this._pp)this._pp.ok=false;this.q=qaxis([0,1,0],yaw);this.p=[p[0],p[1]+this.c.hcg,p[2]];this.v=[0,0,0];this.w=[0,0,0];for(const wh of this.wheels){wh.w=0;}}
   setAssists(id){this.aid=ASSISTS[id]||ASSISTS.arcade;this.pt.auto=!!this.aid.auto;this.plus=this.aid.plus||null;}
   /* invert the world-space inertia: I_w^-1 * x */
   invI(M,x){const b=mtvec(M,x);return mvec(M,[b[0]/this.I[0],b[1]/this.I[1],b[2]/this.I[2]]);}
 
   /* inp: {steer -1..1 (+right), thr 0..1, brk 0..1, hb 0..1, nos bool} */
+  /* remember where this step starts, for drawing between steps */
+  _ipSave(){
+    if(this._ipT)this._ipRestore();
+    let P=this._pp;if(!P)P=this._pp={p:[0,0,0],q:[0,0,0,1],ang:[0,0,0,0],len:[0,0,0,0],steer:0,ok:false};
+    for(let k=0;k<3;k++)P.p[k]=this.p[k];for(let k=0;k<4;k++)P.q[k]=this.q[k];
+    this.wheels.forEach((w,i)=>{P.ang[i]=w.ang;P.len[i]=w.len;});P.steer=this.steer;P.ok=true;
+    this._ipGen=ipGen;LIVE.add(this);
+  }
+  _ipApply(a){
+    const P=this._pp,p=this.p,q=this.q,W=this.wheels;
+    if(this._ipT)this._ipRestore();
+    /* a teleport (a reset, a new grid slot) isn't motion: draw it where it is */
+    const dx=p[0]-P.p[0],dy=p[1]-P.p[1],dz=p[2]-P.p[2];if(dx*dx+dy*dy+dz*dz>9)return;
+    const T=this._ipT||(this._ipBuf=this._ipBuf||{pv:[0,0,0],qv:[0,0,0,0],ang:[0,0,0,0],len:[0,0,0,0]});this._ipT=T;
+    T.p=p;T.q=q;T.steer=this.steer;for(let k=0;k<3;k++)T.pv[k]=p[k];for(let k=0;k<4;k++)T.qv[k]=q[k];W.forEach((w,i)=>{T.ang[i]=w.ang;T.len[i]=w.len;});
+    for(let k=0;k<3;k++)p[k]=P.p[k]+(p[k]-P.p[k])*a;
+    const sg=P.q[0]*q[0]+P.q[1]*q[1]+P.q[2]*q[2]+P.q[3]*q[3]<0?-1:1;let n=0;
+    for(let k=0;k<4;k++){q[k]=P.q[k]*(1-a)+q[k]*sg*a;n+=q[k]*q[k];}n=1/Math.sqrt(n||1);for(let k=0;k<4;k++)q[k]*=n;
+    W.forEach((w,i)=>{w.ang=P.ang[i]+(w.ang-P.ang[i])*a;w.len=P.len[i]+(w.len-P.len[i])*a;});
+    this.steer=P.steer+(this.steer-P.steer)*a;
+  }
+  _ipRestore(){
+    const T=this._ipT;if(!T)return;this._ipT=null;
+    if(this.p===T.p)for(let k=0;k<3;k++)this.p[k]=T.pv[k];
+    if(this.q===T.q)for(let k=0;k<4;k++)this.q[k]=T.qv[k];
+    this.wheels.forEach((w,i)=>{w.ang=T.ang[i];w.len=T.len[i];});this.steer=T.steer;
+  }
+
   step(dt,inp){
+    this._ipSave();
     const c=this.c,s=c.susp,m=this.m,R=c.R,pt=this.pt,aid=this.aid,W=this.wheels;
     let M=qmat(this.q);const U=mcol(M,1),p=this.p,v=this.v,w=this.w;
     const vb=mtvec(M,v),wb=mtvec(M,w);this.speed=len(v);this.vf=vb[0];

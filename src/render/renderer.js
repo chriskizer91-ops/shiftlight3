@@ -55,6 +55,11 @@ export class Renderer{
     this.U={uFlick:new Float32Array(16).fill(1),uDyn:new Float32Array(192),uNDyn:0,uHL:new Float32Array(20),uOcc:new Float32Array(64),uNOcc:0,
       uCSMM:new Float32Array(48),uXw:new Float32Array(8).fill(-1),uLightsOn:1,uCSMOn:0,uHLShOn:0};
     this.timer=G.timer();this.gpuMs=-1;
+    /* which graphics chip the browser is drawing with, for the performance readout */
+    {const dbg=gl.getExtension('WEBGL_debug_renderer_info');let n='';try{n=dbg?gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);}catch(e){}
+      this.gpuRaw=String(n||'unknown');const m=/^ANGLE \((?:[^,]+), (.+?)(?: \(0x[0-9a-f]+\))?(?: (?:Direct3D|OpenGL|Vulkan|Metal|D3D).*)?(?:, [^,]*)?\)$/i.exec(this.gpuRaw);
+      this.gpuName=(m&&m[1].length>5?m[1]:this.gpuRaw.replace(/^ANGLE \(/,'').replace(/\)$/,'')).replace(/\s+/g,' ').trim();
+      this.software=/SwiftShader|Basic Render|llvmpipe|softpipe|Software/i.test(this.gpuRaw);}
     this.W=0;this.H=0;this.iw=0;this.ih=0;
   }
   /* the HUD canvas as a texture, for the LED matrix to draw as lamps */
@@ -103,7 +108,7 @@ export class Renderer{
       const hw=Math.max(1,iw>>1),hh=Math.max(1,ih>>1),fd=this.Q.fogDiv;
       this.ssrT=G.texture(hw,hh,'rgba16f');this.ssrFB=G.target([this.ssrT]);
       this.fogT=G.texture(Math.max(1,Math.round(iw/fd)),Math.max(1,Math.round(ih/fd)),'rgba16f');this.fogFB=G.target([this.fogT]);
-      this.resetTAA=true;
+      /* the TAA history lives at screen resolution, so a new render scale keeps it: no flash of jaggies */
     }
   }
 
