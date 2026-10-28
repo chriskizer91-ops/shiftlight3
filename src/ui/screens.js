@@ -21,7 +21,7 @@ const swatch=p=>`rgb(${p.col.map(c=>Math.round(Math.pow(c,1/2.2)*255)).join(',')
 export class TitleMenu{
   constructor(root,items,onPick){this.root=root;this.items=items;this.onPick=onPick;this.sel=0;
     root.addEventListener('click',e=>{const b=e.target.closest('[data-i]');if(!b)return;this.sel=+b.dataset.i;this.render();this.onPick(this.items[this.sel].id);});
-    root.addEventListener('pointermove',e=>{const b=e.target.closest('[data-i]');if(b&&+b.dataset.i!==this.sel){this.sel=+b.dataset.i;this.render();}});}
+    root.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;const b=e.target.closest('[data-i]');if(b&&+b.dataset.i!==this.sel){this.sel=+b.dataset.i;this.render();}});}
   set(items){this.items=items;this.sel=Math.min(this.sel,items.length-1);this.render();}
   key(k){if(k==='up')this.sel=(this.sel-1+this.items.length)%this.items.length;else if(k==='down')this.sel=(this.sel+1)%this.items.length;
     else if(k==='enter'){this.onPick(this.items[this.sel].id);return true;}else return false;this.render();return true;}
@@ -46,7 +46,7 @@ export class CareerHub extends Screen{
     else if(k==='left'||k==='right'){const tiers=Object.keys(TIER_REP),cur=EVENTS[this.sel].cls,ti=(tiers.indexOf(cur)+(k==='left'?-1:1)+tiers.length)%tiers.length;this.sel=EVENTS.findIndex(e=>e.cls===tiers[ti]);}
     else if(k==='enter'){const ev=EVENTS[this.sel],ck=C.check(ev);if(ck.ok){this.G.start(ev);return true;}this.flash=ck.why;}
     else if(k==='g'){this.G.garage();return true;}else if(k==='back'){this.G.back();return true;}
-    else if(k==='x'){if(this.confirm){this.G.wipe();this.confirm=false;}else{this.confirm=true;this.flash='Press X again to start a new career (this one is erased).';}}
+    else if(k==='x'){if(this.confirm){this.G.wipe();this.confirm=false;}else{this.confirm=true;this.flash='Press X (or tap “Erase it?”) again to start a new career. This one is erased.';}}
     else return false;
     if(k!=='x')this.confirm=false;if(this.open)this.render();return true;}
   render(){
@@ -69,7 +69,7 @@ export class CareerHub extends Screen{
           ${best?`<div class="best">${esc(best)}</div>`:''}
           ${r.rank?`<div class="got m${r.rank}">${ev.kind==='race'?['','Won','2nd place','3rd place'][r.rank]:MEDALS[r.rank]}</div>`:''}
           <div class="why">${esc(this.flash||(ck.ok?'':ck.why))}</div>
-          <div class="btns"><button data-act="enter" class="go"${ck.ok?'':' disabled'}>Start</button><button data-act="g">Garage</button><button data-act="back">Back</button></div></div></div>
+          <div class="btns"><button data-act="enter" class="go"${ck.ok?'':' disabled'}>Start</button><button data-act="g">Garage</button><button data-act="back">Back</button><button data-act="x" class="wipe">${this.confirm?'Erase it?':'New career'}</button></div></div></div>
       <div class="foot">↑ ↓ events · ← → tiers · Enter start · G garage · X new career · Esc back</div></div>`;
     this.flash=null;
     const s=this.root.querySelector('.ev.sel');if(s&&s.scrollIntoView)s.scrollIntoView({block:'nearest'});
@@ -101,6 +101,7 @@ export class Garage extends Screen{
   preview(){const k=this.cat(),S=this.C.setup,o=this.opts()[this.oi];if(!o||k==='tune'||k==='paint'||k==='dyno')return null;
     if(k!=='engine'&&!o.fits)return null;const P=JSON.parse(JSON.stringify(S));P[k]=o.id;return P;}
   key(k){const O=this.opts();
+    if(k==='done'){this.G.back();return true;}
     if(this.col===0){
       if(k==='up'){this.ci=(this.ci-1+GCATS.length)%GCATS.length;this.oi=this.cur();}else if(k==='down'){this.ci=(this.ci+1)%GCATS.length;this.oi=this.cur();}
       else if(k==='right'||k==='enter'){this.col=1;this.oi=this.cur();}else if(k==='back'){this.G.back();return true;}else if(k==='d'){this.pull(false);}else return false;}
@@ -143,7 +144,7 @@ export class Garage extends Screen{
       ['Grip',`${cur.chassis.tyre.mu.toFixed(2)} μ`,nb?d(cur.chassis.tyre.mu,nb.chassis.tyre.mu,x=>x.toFixed(2)+' μ'):''],
       ['Est. lap',fmtT(cur.lap),nb?d(cur.lap,nb.lap,fmtT,true):'']];
     this.root.innerHTML=`<div class="panel">
-      <div class="top"><b class="ttl">GARAGE</b><span class="money">${C.free?'FREE PLAY':money(C.money)}</span>${C.rep!==undefined?`<span class="rep">REP ${C.rep}</span>`:''}<span class="car">${esc(cur.spec.name)} · ${cur.spec.drv} · ${badge(cur.cls,cur.pi)}</span></div>
+      <div class="top"><b class="ttl">GARAGE</b><span class="money">${C.free?'FREE PLAY':money(C.money)}</span>${C.rep!==undefined?`<span class="rep">REP ${C.rep}</span>`:''}<span class="car">${esc(cur.spec.name)} · ${cur.spec.drv} · ${badge(cur.cls,cur.pi)}</span><span class="btns"><button data-act="done" class="go">Done</button></span></div>
       <div class="body"><div class="cats">${cats}</div><div class="opts">${opts}</div></div>
       <div class="info"><div class="stats">${st.map(([a,b,c])=>`<div><span>${a}</span><b>${b}</b>${c||''}</div>`).join('')}</div>
         <div class="chart"><canvas width="900" height="260"></canvas><div class="legend">${this.legend()}</div></div></div>

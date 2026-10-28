@@ -14,7 +14,7 @@ float linz(float d){float z=d*2.-1.;return 2.*uNear*uFar/(uFar+uNear-z*(uFar-uNe
 /* ---------------- screen-space reflections, half resolution ---------------- */
 export const SSR_FS=FRAME+NOISE+PACK+DEPTH+`
 in vec2 vT;out vec4 o;
-uniform sampler2D uNrm;uniform sampler2D uPrev;uniform samplerCube uProbe;uniform float uResScale;uniform float uProbeLod;uniform float uPrevLod;uniform float uHasPrev;
+uniform sampler2D uNrm;uniform sampler2D uPrev;uniform samplerCube uProbe;uniform float uResScale;uniform float uProbeLod;uniform float uPrevLod;uniform float uHasPrev;uniform int uSteps;
 void main(){
   vec2 uv=vT;vec4 nr=texture(uNrm,uv);
   if(nr.w<=0.0){o=vec4(0);return;}
@@ -29,7 +29,7 @@ void main(){
   vec3 env=textureLod(uProbe,R,rough*uProbeLod).rgb;
   /* march: steps grow as the ray gets longer */
   float t=.12+.25*ign(gl_FragCoord.xy+vec2(7.,3.),uFrame+11),dt=.2;vec2 huv=vec2(-1);float hitT=0.0;vec4 ch=vec4(1);
-  for(int i=0;i<30;i++){
+  for(int i=0;i<30;i++){if(i>=uSteps)break;
     vec3 X=P+R*t;vec4 c=uVP*vec4(X,1.);if(c.w<uNear)break;vec2 s=c.xy/c.w*.5+.5;
     if(any(lessThan(s,vec2(0)))||any(greaterThan(s,vec2(1))))break;
     float sz=linz(texture(uDepth,s).r),rz=c.w,th=max(.25,t*.06);

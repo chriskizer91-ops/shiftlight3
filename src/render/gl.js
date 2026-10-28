@@ -7,13 +7,14 @@ export function createGL(canvas){
   const gl=canvas.getContext('webgl2',{antialias:false,alpha:false,depth:false,stencil:false,powerPreference:'high-performance',preserveDrawingBuffer:false});
   if(!gl)throw new Error('This game needs WebGL2.');
   const ext={
-    cbf:gl.getExtension('EXT_color_buffer_float'),
+    /* every render target is 16-bit float, so phones that only offer the half-float extension work too */
+    cbf:gl.getExtension('EXT_color_buffer_float')||gl.getExtension('EXT_color_buffer_half_float'),
     flt:gl.getExtension('OES_texture_float_linear'),
     aniso:gl.getExtension('EXT_texture_filter_anisotropic'),
     timer:gl.getExtension('EXT_disjoint_timer_query_webgl2'),
     par:gl.getExtension('KHR_parallel_shader_compile')
   };
-  if(!ext.cbf)throw new Error('This game needs floating-point render targets (EXT_color_buffer_float).');
+  if(!ext.cbf)throw new Error('This game needs floating-point render targets (EXT_color_buffer_float or EXT_color_buffer_half_float).');
   const G={gl,ext,maxAniso:ext.aniso?gl.getParameter(ext.aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT):1};
 
   /* ---------- programs ---------- */

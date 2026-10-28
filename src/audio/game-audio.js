@@ -35,13 +35,14 @@ class ShiftlightFX extends AudioWorkletProcessor{
 registerProcessor('shiftlight-fx',ShiftlightFX);`;
 
 export class GameAudio{
-  constructor(){this.ready=false;this.starting=null;this.vol=.8;this.muted=false;this.cfg=null;this.tunnel=0;}
+  /* ctx: AudioContext options; phones get a lower sample rate and a roomier buffer so the synths keep up */
+  constructor({ctx={}}={}){this.ready=false;this.starting=null;this.vol=.8;this.muted=false;this.cfg=null;this.tunnel=0;this.ctxOpts=ctx;}
   /* call from a user gesture */
   start(){
     if(this.starting)return this.starting;
     this.starting=(async()=>{
       const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-      const ctx=new AC({latencyHint:'interactive'});this.ctx=ctx;
+      let ctx;try{ctx=new AC(Object.assign({latencyHint:'interactive'},this.ctxOpts));}catch(e){ctx=new AC();}this.ctx=ctx;
       const master=ctx.createGain();master.gain.value=this.muted?0:this.vol;this.master=master;
       const comp=ctx.createDynamicsCompressor();comp.threshold.value=-10;comp.knee.value=6;comp.ratio.value=4;comp.attack.value=.003;comp.release.value=.2;
       master.connect(comp);comp.connect(ctx.destination);

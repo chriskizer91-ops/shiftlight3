@@ -16,11 +16,15 @@ const HALTON=(i,b)=>{let f=1,r=0;while(i>0){f/=b;r+=f*(i%b);i=Math.floor(i/b);}r
 const JIT=Array.from({length:8},(_,i)=>[HALTON(i+1,2)-.5,HALTON(i+1,3)-.5]);
 const CUBE=[[[1,0,0],[0,-1,0]],[[-1,0,0],[0,-1,0]],[[0,1,0],[0,0,1]],[[0,-1,0],[0,0,-1]],[[0,0,1],[0,-1,0]],[[0,0,-1],[0,-1,0]]];
 
+/* csm/hl/probe: shadow and reflection map sizes; fog*: the volumetric haze; ssr: reflection ray steps;
+   mb: motion blur on/off; maxScale: the most the render scale may reach; dpr: the most device pixels per
+   CSS pixel; probeEvery / farCSM: frames between reflection-probe faces / far shadow cascade updates */
 export const QUALITY={
-  low:{csm:1024,hl:512,probe:128,fogSteps:10,fogLights:6,fogDiv:4,ssr:1,mb:1,maxScale:.75},
-  medium:{csm:1536,hl:768,probe:192,fogSteps:14,fogLights:10,fogDiv:2,ssr:1,mb:1,maxScale:1},
-  high:{csm:2048,hl:1024,probe:256,fogSteps:20,fogLights:14,fogDiv:2,ssr:1,mb:1,maxScale:1},
-  ultra:{csm:3072,hl:1536,probe:256,fogSteps:28,fogLights:20,fogDiv:2,ssr:1,mb:1,maxScale:1.25}
+  mobile:{csm:1024,hl:512,probe:64,fogSteps:6,fogLights:3,fogDiv:4,ssr:12,mb:0,maxScale:.75,dpr:1.25,probeEvery:3,farCSM:4},
+  low:{csm:1024,hl:512,probe:128,fogSteps:10,fogLights:6,fogDiv:4,ssr:20,mb:1,maxScale:.75,dpr:1.5,probeEvery:1,farCSM:2},
+  medium:{csm:1536,hl:768,probe:192,fogSteps:14,fogLights:10,fogDiv:2,ssr:30,mb:1,maxScale:1,dpr:2,probeEvery:1,farCSM:2},
+  high:{csm:2048,hl:1024,probe:256,fogSteps:20,fogLights:14,fogDiv:2,ssr:30,mb:1,maxScale:1,dpr:2,probeEvery:1,farCSM:2},
+  ultra:{csm:3072,hl:1536,probe:256,fogSteps:28,fogLights:20,fogDiv:2,ssr:30,mb:1,maxScale:1.25,dpr:2,probeEvery:1,farCSM:2}
 };
 
 export class Renderer{
@@ -154,7 +158,7 @@ export class Renderer{
     gl.disable(gl.CULL_FACE);
     G.use(P);G.uni(P,'uModel',M4.ident());
     const sun=U.uCSMOn>0;
-    if(sun){for(let k=0;k<3;k++){if(k>0&&(this.frameN+k)%2)continue;
+    if(sun){const fe=this.Q.farCSM||2;for(let k=0;k<3;k++){if(k===1&&(this.frameN+1)%2)continue;if(k===2&&(this.frameN+2)%fe)continue;
       G.bind(this.csmFB[k]);gl.clear(gl.DEPTH_BUFFER_BIT);G.uni(P,'uVP',this.csmM[k]);
       this.drawWorld(P,M4.planes(this.csmM[k]));for(const h of this.extra)h.shadow&&h.shadow(this,P,this.csmM[k],'sun',k);}}
     if(U.uHLShOn>0){G.bind(this.hlFB);gl.clear(gl.DEPTH_BUFFER_BIT);G.uni(P,'uVP',this.hlM);
@@ -200,7 +204,7 @@ export class Renderer{
     for(const h of this.extra)h.prepare&&h.prepare(this,S);
     /* shadows and the probe */
     this.shadowPass(S);
-    if(S.probePos)this.probePass(S);
+    if(S.probePos&&(this.frameN%(Q.probeEvery||1)===0||this.probeFilled<1))this.probePass(S);
     /* ---------- the scene ---------- */
     G.bind(this.mainFB);gl.clearColor(0,0,0,0);gl.clearDepth(1);gl.depthMask(true);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.CULL_FACE);gl.cullFace(gl.BACK);gl.disable(gl.BLEND);
@@ -216,7 +220,7 @@ export class Renderer{
     gl.disable(gl.BLEND);gl.depthMask(true);gl.disable(gl.DEPTH_TEST);
     /* ---------- reflections and fog ---------- */
     const Pr=G.use(this.P.ssr);G.bind(this.ssrFB);G.set(Pr,U);
-    G.uni(Pr,'uHasPrev',this.hasPrev?1:0);G.uni(Pr,'uResScale',this.iw/this.W);G.uni(Pr,'uPrevLod',this.pyr.levels-1);G.uni(Pr,'uProbeLod',U.uProbeLod);
+    G.uni(Pr,'uHasPrev',this.hasPrev?1:0);G.uni(Pr,'uResScale',this.iw/this.W);G.uni(Pr,'uPrevLod',this.pyr.levels-1);G.uni(Pr,'uProbeLod',U.uProbeLod);G.uni(Pr,'uSteps',Q.ssr|0);
     G.tex(Pr,{uNrm:this.nT,uDepth:this.dT,uPrev:this.pyr,uProbe:this.probe});G.fullscreen();
     const Pf=G.use(this.P.fog);G.bind(this.fogFB);G.set(Pf,U);G.tex(Pf,Object.assign({uDepth:this.dT},texs));G.fullscreen();
     const Pc=G.use(this.P.comp);G.bind(this.litFB);G.set(Pc,U);G.tex(Pc,{uCol:this.cT,uNrm:this.nT,uSSR:this.ssrT,uFog:this.fogT,uDepth:this.dT});G.fullscreen();
@@ -231,9 +235,10 @@ export class Renderer{
     gl.bindTexture(gl.TEXTURE_2D,this.pyr.t);gl.generateMipmap(gl.TEXTURE_2D);
     this.hasPrev=true;
     /* ---------- motion blur ---------- */
-    const Pm=G.use(this.P.mb);G.bind(this.mbFB);
-    G.set(Pm,{uShutter:S.shutter??.5,uOutRes:[this.W,this.H],uNear:this.near,uFar:this.far,uFrame:this.frameN});
-    G.tex(Pm,{uSrc:this.hist[ho],uVel:this.vT,uDepth:this.dT});G.fullscreen();
+    if(Q.mb){const Pm=G.use(this.P.mb);G.bind(this.mbFB);
+      G.set(Pm,{uShutter:S.shutter??.5,uOutRes:[this.W,this.H],uNear:this.near,uFar:this.far,uFrame:this.frameN});
+      G.tex(Pm,{uSrc:this.hist[ho],uVel:this.vT,uDepth:this.dT});G.fullscreen();}
+    else{const Pc2=G.use(this.P.copy);G.bind(this.mbFB);G.uni(Pc2,'uLod',0);G.tex(Pc2,{uSrc:this.hist[ho]});G.fullscreen();}
     /* particles go over the finished scene, depth-tested by hand */
     if(this.extra.some(h=>h.particles)){G.bind(this.mbFB);gl.enable(gl.BLEND);for(const h of this.extra)h.particles&&h.particles(this,U,texs);gl.disable(gl.BLEND);}
     /* ---------- bloom ---------- */

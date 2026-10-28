@@ -2,6 +2,10 @@
    HUD — drawn in LED dots, the HyperDot way: every readout is the 5x7 font made of round
    lamps (unlit lamps show faintly, like a real panel). In LED mode the same layout is drawn
    one pixel per dot into the matrix so the dot pass turns it into lamps itself.
+   With touch controls on (this.touch) the layout moves out of the thumbs' way: the tachometer
+   goes to the bottom middle, the minimap steps left of the buttons, the assist lamps go.
+   this.ins: the screen's safe-area insets (the notch); this.ui: a scale-up for small screens;
+   this.mapRight / this.replayBar: where the touch buttons start, top right and along the bottom.
    ===================================================================================== */
 import {G5,G3} from './font.js';
 
@@ -9,7 +13,8 @@ const C={white:'#f4f2ff',cyan:'#4fe3ff',pink:'#ff4fa0',amber:'#ffb040',red:'#ff3
 const fmtT=t=>{if(!(t>0))return '-:--.---';const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(3);};
 
 export class HUD{
-  constructor(canvas){this.c=canvas;this.g=canvas.getContext('2d');this.led=null;this.msg=null;this.msgT=0;this.mapPath=null;this.flash=0;}
+  constructor(canvas){this.c=canvas;this.g=canvas.getContext('2d');this.led=null;this.msg=null;this.msgT=0;this.mapPath=null;this.flash=0;
+    this.touch=false;this.ui=1;this.ins={l:0,r:0,t:0,b:0};this.mapRight=0;this.replayBar=0;}
   message(text,col=C.white,dur=2.2){this.msg={text,col};this.msgT=dur;}
   /* the minimap outline, normalised to a unit box once */
   /* the minimap: polylines in map coordinates, fitted into a square once */
@@ -45,20 +50,23 @@ export class HUD{
   draw(S,dt){
     const ctx=this.g,W=this.c.width,H=this.c.height;ctx.clearRect(0,0,W,H);
     if(!S||S.hidden)return;
-    const s=Math.min(W/1920,H/1080)*(this.pixel?1.25:1),pad=44*s;ctx.imageSmoothingEnabled=!this.pixel;
+    const T=this.touch,I=this.ins,s=Math.min(W/1920,H/1080)*(this.pixel?1.25:1)*(T&&!this.pixel?this.ui:1),pad=44*s;ctx.imageSmoothingEnabled=!this.pixel;
     this.flash+=dt;if(this.msgT>0)this.msgT-=dt;
     ctx.save();
     if(S.replay){/* the replay: what's playing, a timeline, the keys */
       const R=S.replay,mm=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
-      if((this.flash*2|0)%2===0||R.paused){ctx.fillStyle=C.red;ctx.beginPath();ctx.arc(pad+10*s,pad+12*s,9*s,0,6.283);ctx.fill();}
-      this.small(ctx,'REPLAY',pad+30*s,pad+3*s,5*s,C.white);
-      this.small(ctx,R.cam.toUpperCase()+' CAMERA  X'+(R.speed<1?R.speed.toFixed(2).replace(/0$/,''):R.speed)+(R.paused?'  PAUSED':''),pad+30*s,pad+40*s,3*s,C.faint);
-      const bw=W-2*pad-200*s,bx=pad+100*s,by=H-pad-40*s;ctx.fillStyle='rgba(200,190,230,.15)';ctx.fillRect(bx,by,bw,8*s);ctx.fillStyle=C.pink;ctx.fillRect(bx,by,bw*Math.min(1,R.t/Math.max(.1,R.dur)),8*s);
+      const px=pad+I.l,py=pad+I.t;
+      if((this.flash*2|0)%2===0||R.paused){ctx.fillStyle=C.red;ctx.beginPath();ctx.arc(px+10*s,py+12*s,9*s,0,6.283);ctx.fill();}
+      this.small(ctx,'REPLAY',px+30*s,py+3*s,5*s,C.white);
+      this.small(ctx,R.cam.toUpperCase()+' CAMERA  X'+(R.speed<1?R.speed.toFixed(2).replace(/0$/,''):R.speed)+(R.paused?'  PAUSED':''),px+30*s,py+40*s,3*s,C.faint);
+      const bw=W-2*pad-200*s-I.l-I.r,bx=pad+100*s+I.l,by=T&&this.replayBar?H-this.replayBar-26*s:H-pad-40*s;ctx.fillStyle='rgba(200,190,230,.15)';ctx.fillRect(bx,by,bw,8*s);ctx.fillStyle=C.pink;ctx.fillRect(bx,by,bw*Math.min(1,R.t/Math.max(.1,R.dur)),8*s);
       this.small(ctx,mm(R.t),bx-14*s,by-1*s,3*s,C.ink,'r');this.small(ctx,mm(R.dur),bx+bw+14*s,by-1*s,3*s,C.ink);
-      this.small(ctx,'SPACE PLAY/PAUSE · LEFT/RIGHT 5 S · UP/DOWN SPEED · C CAMERA · ESC BACK',W/2,by+24*s,3*s,C.faint,'c');
+      if(!T)this.small(ctx,'SPACE PLAY/PAUSE · LEFT/RIGHT 5 S · UP/DOWN SPEED · C CAMERA · ESC BACK',W/2,by+24*s,3*s,C.faint,'c');
       ctx.restore();return;}
     /* ---- tachometer: an arc of LED segments, the shift light at the top ---- */
-    const cx=W-pad-250*s,cy=H-pad-150*s,Rr=210*s,n=34;
+    const sT=T?s*.72:s;
+    {const s=sT;
+    const nb=(S.boostMax>0)+(S.nosMax>0),cx=T?W/2+12*s:W-pad-250*s-I.r,cy=T?H-Math.max(pad*.45,I.b)-(64+nb*24)*s:H-pad-150*s,Rr=210*s,n=34;
     const frac=S.rpm/S.limiter,shift=S.rpm>S.shiftRpm*.985;
     const a0=Math.PI*1.08,a1=Math.PI*1.92;
     for(let i=0;i<n;i++){const t=i/(n-1),a=a0+(a1-a0)*t,lit=t<=frac;
@@ -81,9 +89,9 @@ export class HUD{
       ctx.fillStyle='rgba(200,190,230,.12)';ctx.fillRect(cx-70*s,by,bw,12*s);ctx.fillStyle=C.violet;ctx.fillRect(cx-70*s,by,bw*Math.min(1,b/S.boostMax),12*s);
       this.small(ctx,(b*1).toFixed(1)+' BAR',cx+170*s,by,3*s,C.faint);by+=24*s;}
     if(S.nosMax>0){this.small(ctx,'N2O',cx-130*s,by,3*s,C.faint);const bw=230*s;ctx.fillStyle='rgba(200,190,230,.12)';ctx.fillRect(cx-70*s,by,bw,12*s);
-      ctx.fillStyle=S.nosOn?C.white:C.cyan;ctx.fillRect(cx-70*s,by,bw*S.nos,12*s);}
+      ctx.fillStyle=S.nosOn?C.white:C.cyan;ctx.fillRect(cx-70*s,by,bw*S.nos,12*s);}}
     /* ---- laps, or where you are ---- */
-    const lx=pad,ly=pad;
+    const lx=pad+I.l,ly=pad+I.t;
     this.small(ctx,S.levelName||'NEON LOOP',lx,ly,4*s,C.pink);
     if(S.race){
       /* the race: position big at the top, laps, the order down the left */
@@ -131,7 +139,7 @@ export class HUD{
       this.small(ctx,'ET',lx,ly+34*s,4*s,C.faint);this.dots(ctx,S.et.toFixed(3),lx,ly+60*s,6*s,C.white,{unlit:false});
       this.small(ctx,'RT',lx,ly+118*s,3*s,C.faint);this.small(ctx,S.rt===null||S.rt===undefined?'-.---':S.rt<0?'RED':S.rt.toFixed(3),lx+60*s,ly+118*s,3*s,S.rt<0?C.red:C.ink);
       /* who's ahead: two bars to the finish */
-      const bw=520*s,bx=W/2-bw/2,by=H-pad-110*s;for(const [k,v,col,name] of [[0,S.you,C.pink,'YOU'],[1,S.opp,C.cyan,S.oppName]]){const y=by+k*26*s;
+      const bw=T?300*s:520*s,bx=T?lx+70*s:W/2-bw/2,by=T?ly+170*s:H-pad-110*s;for(const [k,v,col,name] of [[0,S.you,C.pink,'YOU'],[1,S.opp,C.cyan,S.oppName]]){const y=by+k*26*s;
         ctx.fillStyle='rgba(200,190,230,.1)';ctx.fillRect(bx,y,bw,10*s);ctx.fillStyle=col;ctx.fillRect(bx,y,bw*Math.min(1,v),10*s);this.small(ctx,name,bx-12*s,y-2*s,3*s,col,'r');}
       ctx.fillStyle=C.white;ctx.fillRect(bx+bw,by-6*s,3*s,48*s);
     }
@@ -148,7 +156,7 @@ export class HUD{
       ctx.fillStyle=S.go?C.green:on?C.red:'rgba(200,190,230,.08)';if(on){ctx.globalAlpha=.35;ctx.beginPath();ctx.arc(x,y0,r*1.7,0,6.283);ctx.fill();ctx.globalAlpha=1;}
       ctx.beginPath();ctx.arc(x,y0,r,0,6.283);ctx.fill();}}
     /* ---- minimap ---- */
-    if(this.map&&this.map.paths){const M=this.map,sz=230*s,mx=W-pad-sz,my=pad,P=(x,y)=>[mx+(x-M.x0)*M.sc*sz+(1-M.w)*sz/2,my+sz-((y-M.y0)*M.sc*sz+(1-M.h)*sz/2)];
+    if(this.map&&this.map.paths){const M=this.map,sz=(T?190:230)*s,mx=(T&&this.mapRight?this.mapRight:W-pad-I.r)-sz,my=pad+I.t,P=(x,y)=>[mx+(x-M.x0)*M.sc*sz+(1-M.w)*sz/2,my+sz-((y-M.y0)*M.sc*sz+(1-M.h)*sz/2)];
       ctx.lineJoin='round';ctx.lineCap='round';
       const stroke=(pts,closed,w,col,a)=>{ctx.strokeStyle=col;ctx.globalAlpha=a;ctx.lineWidth=w;ctx.beginPath();pts.forEach(([x,y],i)=>{const [u,v]=P(x,y);if(i)ctx.lineTo(u,v);else ctx.moveTo(u,v);});if(closed)ctx.closePath();ctx.stroke();};
       for(const p of M.paths){stroke(p.pts,p.closed,(this.pixel?1:10*s)*p.w,C.pink,.12);}
@@ -160,18 +168,18 @@ export class HUD{
       if(S.mapCar){const [x,y]=P(S.mapCar[0],S.mapCar[1]);ctx.fillStyle=C.white;ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(x,y,12*s,0,6.283);ctx.fill();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,6*s,0,6.283);ctx.fill();
         if(S.mapHead!==undefined){ctx.strokeStyle=C.white;ctx.lineWidth=2*s;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(S.mapHead)*16*s,y-Math.sin(S.mapHead)*16*s);ctx.stroke();}}}
     /* ---- assists ---- */
-    const ax=pad,ay=H-pad-30*s;
-    this.small(ctx,S.assistName||'',ax,ay-40*s,3*s,C.faint);
+    const ax=pad+I.l,ay=H-pad-30*s-I.b;
+    if(!T){this.small(ctx,S.assistName||'',ax,ay-40*s,3*s,C.faint);
     const lamps=[['TC',S.tc],['ABS',S.abs],['ESC',S.esc],['DRIFT',S.drift]];if(S.guide)lamps.push(['GUIDE',S.guide>.9]);
     lamps.forEach(([t,on],i)=>{const x=ax+i*86*s;
       ctx.strokeStyle=on?C.amber:'rgba(200,190,230,.18)';ctx.lineWidth=2*s;ctx.strokeRect(x,ay,74*s,26*s);
       if(on){ctx.fillStyle='rgba(255,176,64,.22)';ctx.fillRect(x,ay,74*s,26*s);}
-      this.small(ctx,t,x+37*s,ay+7*s,3*s,on?C.amber:'rgba(200,190,230,.35)','c');});
+      this.small(ctx,t,x+37*s,ay+7*s,3*s,on?C.amber:'rgba(200,190,230,.35)','c');});}
     /* a drift chain while roaming */
     if(S.freeChain>0){ctx.globalAlpha=S.freeGap?1-S.freeGap*.6:1;this.dots(ctx,'+'+S.freeChain,W/2,H*.2,6*s,C.pink,{align:'c',unlit:false});this.small(ctx,'DRIFT X'+S.freeMult.toFixed(2).replace(/\.?0+$/,''),W/2,H*.2+50*s,4*s,C.cyan,'c');ctx.globalAlpha=1;}
     /* ---- messages ---- */
     if(this.msg&&this.msgT>0){ctx.globalAlpha=Math.min(1,this.msgT*2);this.dots(ctx,this.msg.text,W/2,H*.32,9*s,this.msg.col,{align:'c',unlit:false});ctx.globalAlpha=1;}
-    if(S.hint){ctx.globalAlpha=.85;this.small(ctx,S.hint,W/2,H-pad-20*s,4*s,C.faint,'c');ctx.globalAlpha=1;}
+    if(S.hint){ctx.globalAlpha=.85;this.small(ctx,S.hint,W/2,T?H*.5:H-pad-20*s,4*s,C.faint,'c');ctx.globalAlpha=1;}
     ctx.restore();
   }
 }

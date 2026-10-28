@@ -2,11 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#05040a">
+<meta name="screen-orientation" content="landscape">
 <title>Shiftlight</title>
 <style>
 :root{color-scheme:dark;--pink:#ff4fa0;--cyan:#4fe3ff;--ink:#ece8f6;--dim:#9a94b2;--panel:rgba(10,8,18,.82);--edge:rgba(255,255,255,.09)}
 html,body{margin:0;height:100%;background:#000;overflow:hidden;color:var(--ink);font:14px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#safe{position:fixed;inset:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);visibility:hidden;pointer-events:none}
 #view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:none}
 #hud{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
 #boot,#title{position:fixed;inset:0;display:grid;place-items:center;text-align:center}
@@ -134,18 +142,90 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;color:var(--ink);
 #screen.results .btns{justify-content:center}
 @media (max-height:760px){#title .keys{display:none}#title .logo{font-size:clamp(40px,7vw,90px)}#titleMenu{margin-top:16px}#titleMenu .ti{padding:7px 16px}#screen.garage .chart canvas{max-height:24vh}}
 @media (max-width:900px){#screen .panel{width:100vw}#screen.career .body,#screen.garage .info{grid-template-columns:1fr}#screen.garage .body{grid-template-columns:130px 1fr}}
+/* ---- touch controls ---- */
+#touch,#rtouch{--r:max(14px,env(safe-area-inset-right));--l:max(14px,env(safe-area-inset-left));--bt:max(12px,env(safe-area-inset-bottom));--t:max(10px,env(safe-area-inset-top));
+  --pw:100px;--ph:132px;--bw:88px;--bh:100px;--sh:52px;--g:10px;--tw:58px}
+#touch{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-select:none}
+#touch .b{position:absolute;box-sizing:border-box;display:grid;place-items:center;border:1.5px solid rgba(236,232,246,.26);background:rgba(10,8,18,.30);border-radius:16px;
+  color:rgba(236,232,246,.82);font:800 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.16em;pointer-events:none;transition:background .06s,border-color .06s,box-shadow .06s}
+#touch .b.on{background:rgba(255,79,160,.34);border-color:var(--pink);color:#fff;box-shadow:0 0 18px rgba(255,79,160,.45)}
+#touch .k-thr{right:var(--r);bottom:var(--bt);width:var(--pw);height:var(--ph);border-color:rgba(93,255,122,.45);color:#c9ffd3}
+#touch .k-thr.on{background:rgba(93,255,122,.30);border-color:#5dff7a;box-shadow:0 0 18px rgba(93,255,122,.45)}
+#touch .k-nos{right:var(--r);bottom:calc(var(--bt) + var(--ph) + var(--g));width:var(--pw);height:var(--sh);border-color:rgba(79,227,255,.45);color:#cff6ff}
+#touch .k-nos.on{background:rgba(79,227,255,.3);border-color:var(--cyan);box-shadow:0 0 18px rgba(79,227,255,.45)}
+#touch .k-brk{right:calc(var(--r) + var(--pw) + var(--g));bottom:var(--bt);width:var(--bw);height:var(--bh);border-color:rgba(255,61,90,.45);color:#ffd0d8}
+#touch .k-brk.on{background:rgba(255,61,90,.32);border-color:#ff3d5a;box-shadow:0 0 18px rgba(255,61,90,.45)}
+#touch .k-hb{right:calc(var(--r) + var(--pw) + var(--g));bottom:calc(var(--bt) + var(--bh) + var(--g));width:var(--bw);height:var(--sh)}
+#touch .sh{right:calc(var(--r) + var(--pw) + var(--bw) + 2*var(--g));width:56px;height:50px;font-size:22px;border-radius:12px}
+#touch .k-up{bottom:calc(var(--bt) + 50px + var(--g))}#touch .k-down{bottom:var(--bt)}
+#touch .tb{top:var(--t);width:var(--tw);height:40px;border-radius:10px;font-size:10px;letter-spacing:.12em}
+#touch .k-pause{right:var(--r);font-size:14px;letter-spacing:.05em}#touch .k-reset{right:calc(var(--r) + var(--tw) + 8px)}#touch .k-cam{right:calc(var(--r) + 2*var(--tw) + 16px)}
+#touch .st{left:var(--l);bottom:var(--bt);width:104px;height:96px;font-size:26px}#touch .k-right{left:calc(var(--l) + 104px + 12px)}
+#touch .knob{position:absolute;left:0;top:0;pointer-events:none}
+#touch .knob::before{content:'';position:absolute;left:-80px;top:-3px;width:160px;height:6px;border-radius:3px;background:rgba(236,232,246,.2)}
+#touch .knob i{position:absolute;left:-28px;top:-28px;width:56px;height:56px;box-sizing:border-box;border-radius:50%;border:2px solid rgba(79,227,255,.75);background:rgba(79,227,255,.18);box-shadow:0 0 16px rgba(79,227,255,.4)}
+#touch .shint{position:absolute;left:calc(var(--l) + 24px);bottom:calc(var(--bt) + 54px);color:rgba(236,232,246,.55);font:700 11px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.22em;pointer-events:none;transition:opacity .8s}
+#touch .shint.gone{opacity:0}
+#rtouch{position:fixed;left:0;right:0;bottom:var(--bt);display:flex;justify-content:center;gap:8px;padding:0 var(--r) 0 var(--l)}
+#rtouch button{min-width:64px;height:44px;padding:0 12px;border-radius:10px;border:1.5px solid rgba(236,232,246,.26);background:rgba(10,8,18,.5);color:var(--ink);font:800 11px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;touch-action:manipulation}
+#rtouch button:active{background:rgba(255,79,160,.3);border-color:var(--pink)}
+@media (max-height:360px){#touch,#rtouch{--ph:112px;--bh:86px;--sh:44px;--pw:92px;--bw:80px}}
+@media (min-height:600px) and (pointer:coarse){#touch,#rtouch{--pw:120px;--ph:160px;--bw:104px;--bh:120px;--sh:60px;--tw:68px}}
+#title .tkeys{display:none;margin-top:20px;color:var(--dim);font-size:12px;line-height:1.8;letter-spacing:.06em}#title .tkeys b{color:var(--ink)}
+html.touch #title .keys{display:none}html.touch #title .tkeys{display:block}
+html.touch #menu .foot,html.touch #screen .foot{display:none}
+html.touch #menu .chip{padding:8px 12px;font-size:12px}
+html.touch #menu .arr{width:40px;height:36px}
+html.touch #screen.garage .tv button{width:38px;height:32px}
+html.touch #menu .row{cursor:default}
+html.touch #menu,html.touch #screen.results{backdrop-filter:none;-webkit-backdrop-filter:none}
+/* ---- turn the phone sideways ---- */
+#rotate{position:fixed;inset:0;z-index:50;background:#05040a;display:none;place-items:center;text-align:center;color:var(--dim);letter-spacing:.16em;text-transform:uppercase;font-size:13px;font-weight:700}
+#rotate b{display:block;color:#fff;font-size:22px;letter-spacing:.18em;margin:22px 0 8px;text-shadow:0 0 14px var(--pink)}
+#rotate i{display:block;margin:0 auto;width:46px;height:80px;border:3px solid var(--pink);border-radius:9px;box-shadow:0 0 18px rgba(255,79,160,.5);animation:turn 2.4s ease-in-out infinite}
+@keyframes turn{0%,20%{transform:rotate(0)}55%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+@media (orientation:portrait) and (pointer:coarse){#rotate{display:grid}}
+/* ---- short landscape screens (phones) ---- */
+@media (max-height:500px){
+  #title .logo{font-size:clamp(30px,6.5vw,58px)}#title .sub{margin-top:6px;font-size:10px;letter-spacing:.3em}
+  #titleMenu{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;width:min(660px,92vw);gap:6px}
+  #titleMenu .ti{padding:7px 12px;flex-direction:column;align-items:flex-start;gap:1px}#titleMenu .ti b{font-size:12px}#titleMenu .ti span{font-size:10px}
+  #title .keys,#title .tkeys{display:none!important}
+  #menu .panel{max-height:94vh;max-height:94dvh;width:min(860px,96vw)}#menu .ttl{padding:10px 18px 4px}
+  #menu .row{padding:6px 10px;grid-template-columns:118px 1fr}#menu .head{margin:10px 10px 4px}#menu .foot{display:none}#menu .desc{font-size:11px}
+  #screen .panel{width:100vw;height:100vh;height:100dvh;padding:8px max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left));gap:8px}
+  #screen{background:linear-gradient(90deg,rgba(3,2,8,0) 0%,rgba(3,2,8,.55) 22%,rgba(3,2,8,.86) 42%)}
+  #screen .top{gap:10px;padding-bottom:6px}#screen .ttl{font-size:14px}#screen .foot{display:none}#screen .car{font-size:11px}
+  #screen.career .body{grid-template-columns:1fr 1.15fr}#screen.career .detail{padding:10px 14px;gap:6px}#screen.career .detail h2{font-size:18px}
+  #screen.career .detail p{font-size:12px;line-height:1.4}#screen.career .ev{padding:6px 8px;grid-template-columns:70px 1fr auto}#screen.career .tier{margin:8px 4px 4px}
+  .btns{gap:6px}.btns button{padding:8px 12px;font-size:11px}
+  #screen.garage .panel{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:auto minmax(0,1fr) auto;column-gap:12px;row-gap:6px}
+  #screen.garage .top{grid-column:1/3}#screen.garage .body{grid-template-columns:110px 1fr;min-height:0;grid-row:2;grid-column:1}
+  #screen.garage .info{grid-row:2;grid-column:2;grid-template-columns:1fr;align-content:start;overflow:auto;min-height:0}
+  #screen.garage .msg{grid-column:1/3;min-height:0}#screen.garage .chart canvas{max-height:none}
+  #screen.garage .o{padding:6px 10px}#screen.garage .c{padding:6px 8px}#screen.garage .bar{width:90px}#screen.garage .o.tune{grid-template-columns:1fr auto 70px}
+  #screen.results .panel{max-height:96vh;max-height:96dvh;padding:12px 18px;gap:6px}#screen.results h2{font-size:20px}#screen.results .medal{font-size:30px}
+  #screen.results .rows{font-size:11px;line-height:1.5}
+  #screen.garage .cats,#screen.career .list{background:rgba(6,5,12,.74);border-radius:6px;padding:4px}
+  #screen.garage .c{color:#b9b3cf}
+}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <canvas id="view" aria-label="Shiftlight: a street race through a neon city"></canvas>
 <canvas id="hud"></canvas>
+<div id="touch" hidden></div>
+<div id="rtouch" hidden><button data-r="left">-5 S</button><button data-r="enter" class="pp">PAUSE</button><button data-r="right">+5 S</button><button data-r="speed" class="spd">X1</button><button data-r="c">CAM</button><button data-r="back">EXIT</button></div>
 <div id="title" hidden><div><div class="logo">SHIFTLIGHT</div><div class="sub" id="titleSub">Neon Loop · Midnight Rain</div>
   <div id="titleMenu"></div>
   <div class="keys"><b>W/↑</b> throttle · <b>S/↓</b> brake &amp; reverse · <b>A D/← →</b> steer · <b>Space</b> handbrake · <b>Shift</b> nitrous<br>
-  <b>Q/E</b> shift (manual) · <b>C</b> camera · <b>B</b> look back · <b>L</b> LED matrix · <b>T</b> time of day · <b>R</b> reset · <b>Esc</b> menu<br>Gamepads work too: triggers, left stick, A handbrake.</div></div></div>
+  <b>Q/E</b> shift (manual) · <b>C</b> camera · <b>B</b> look back · <b>L</b> LED matrix · <b>T</b> time of day · <b>R</b> reset · <b>Esc</b> menu<br>Gamepads work too: triggers, left stick, A handbrake.</div>
+  <div class="tkeys"><b>Left thumb</b> slide to steer · <b>Right thumb</b> gas, brake, handbrake · <b>II</b> menu</div></div></div>
 <div id="menu" hidden></div>
 <div id="screen" hidden></div>
+<div id="rotate"><div><i></i><b>Turn your phone sideways</b>Shiftlight plays in landscape</div></div>
+<div id="safe"></div>
 <div id="boot"><div><b>SHIFTLIGHT</b> &nbsp;building the city…</div></div>
 <script>(() => {
   // src/render/gl.js
@@ -153,13 +233,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;color:var(--ink);
     let gl = canvas2.getContext("webgl2", { antialias: !1, alpha: !1, depth: !1, stencil: !1, powerPreference: "high-performance", preserveDrawingBuffer: !1 });
     if (!gl) throw new Error("This game needs WebGL2.");
     let ext = {
-      cbf: gl.getExtension("EXT_color_buffer_float"),
+      /* every render target is 16-bit float, so phones that only offer the half-float extension work too */
+      cbf: gl.getExtension("EXT_color_buffer_float") || gl.getExtension("EXT_color_buffer_half_float"),
       flt: gl.getExtension("OES_texture_float_linear"),
       aniso: gl.getExtension("EXT_texture_filter_anisotropic"),
       timer: gl.getExtension("EXT_disjoint_timer_query_webgl2"),
       par: gl.getExtension("KHR_parallel_shader_compile")
     };
-    if (!ext.cbf) throw new Error("This game needs floating-point render targets (EXT_color_buffer_float).");
+    if (!ext.cbf) throw new Error("This game needs floating-point render targets (EXT_color_buffer_float or EXT_color_buffer_half_float).");
     let G4 = { gl, ext, maxAniso: ext.aniso ? gl.getParameter(ext.aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 1 }, SAMPLER_TYPES = /* @__PURE__ */ new Set([
       gl.SAMPLER_2D,
       gl.SAMPLER_3D,
@@ -1197,7 +1278,7 @@ vec3 wpos(vec2 uv,float d){vec4 q=uInvVP*vec4(uv*2.-1.,d*2.-1.,1.);return q.xyz/
 float linz(float d){float z=d*2.-1.;return 2.*uNear*uFar/(uFar+uNear-z*(uFar-uNear));}
 `, SSR_FS = FRAME + NOISE + PACK + DEPTH + `
 in vec2 vT;out vec4 o;
-uniform sampler2D uNrm;uniform sampler2D uPrev;uniform samplerCube uProbe;uniform float uResScale;uniform float uProbeLod;uniform float uPrevLod;uniform float uHasPrev;
+uniform sampler2D uNrm;uniform sampler2D uPrev;uniform samplerCube uProbe;uniform float uResScale;uniform float uProbeLod;uniform float uPrevLod;uniform float uHasPrev;uniform int uSteps;
 void main(){
   vec2 uv=vT;vec4 nr=texture(uNrm,uv);
   if(nr.w<=0.0){o=vec4(0);return;}
@@ -1212,7 +1293,7 @@ void main(){
   vec3 env=textureLod(uProbe,R,rough*uProbeLod).rgb;
   /* march: steps grow as the ray gets longer */
   float t=.12+.25*ign(gl_FragCoord.xy+vec2(7.,3.),uFrame+11),dt=.2;vec2 huv=vec2(-1);float hitT=0.0;vec4 ch=vec4(1);
-  for(int i=0;i<30;i++){
+  for(int i=0;i<30;i++){if(i>=uSteps)break;
     vec3 X=P+R*t;vec4 c=uVP*vec4(X,1.);if(c.w<uNear)break;vec2 s=c.xy/c.w*.5+.5;
     if(any(lessThan(s,vec2(0)))||any(greaterThan(s,vec2(1))))break;
     float sz=linz(texture(uDepth,s).r),rz=c.w,th=max(.25,t*.06);
@@ -1436,10 +1517,11 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
       f2 /= b, r += f2 * (i % b), i = Math.floor(i / b);
     return r;
   }, JIT = Array.from({ length: 8 }, (_, i) => [HALTON(i + 1, 2) - 0.5, HALTON(i + 1, 3) - 0.5]), CUBE = [[[1, 0, 0], [0, -1, 0]], [[-1, 0, 0], [0, -1, 0]], [[0, 1, 0], [0, 0, 1]], [[0, -1, 0], [0, 0, -1]], [[0, 0, 1], [0, -1, 0]], [[0, 0, -1], [0, -1, 0]]], QUALITY = {
-    low: { csm: 1024, hl: 512, probe: 128, fogSteps: 10, fogLights: 6, fogDiv: 4, ssr: 1, mb: 1, maxScale: 0.75 },
-    medium: { csm: 1536, hl: 768, probe: 192, fogSteps: 14, fogLights: 10, fogDiv: 2, ssr: 1, mb: 1, maxScale: 1 },
-    high: { csm: 2048, hl: 1024, probe: 256, fogSteps: 20, fogLights: 14, fogDiv: 2, ssr: 1, mb: 1, maxScale: 1 },
-    ultra: { csm: 3072, hl: 1536, probe: 256, fogSteps: 28, fogLights: 20, fogDiv: 2, ssr: 1, mb: 1, maxScale: 1.25 }
+    mobile: { csm: 1024, hl: 512, probe: 64, fogSteps: 6, fogLights: 3, fogDiv: 4, ssr: 12, mb: 0, maxScale: 0.75, dpr: 1.25, probeEvery: 3, farCSM: 4 },
+    low: { csm: 1024, hl: 512, probe: 128, fogSteps: 10, fogLights: 6, fogDiv: 4, ssr: 20, mb: 1, maxScale: 0.75, dpr: 1.5, probeEvery: 1, farCSM: 2 },
+    medium: { csm: 1536, hl: 768, probe: 192, fogSteps: 14, fogLights: 10, fogDiv: 2, ssr: 30, mb: 1, maxScale: 1, dpr: 2, probeEvery: 1, farCSM: 2 },
+    high: { csm: 2048, hl: 1024, probe: 256, fogSteps: 20, fogLights: 14, fogDiv: 2, ssr: 30, mb: 1, maxScale: 1, dpr: 2, probeEvery: 1, farCSM: 2 },
+    ultra: { csm: 3072, hl: 1536, probe: 256, fogSteps: 28, fogLights: 20, fogDiv: 2, ssr: 30, mb: 1, maxScale: 1.25, dpr: 2, probeEvery: 1, farCSM: 2 }
   }, Renderer = class {
     constructor(canvas2, { quality = "high" } = {}) {
       this.canvas = canvas2;
@@ -1559,8 +1641,9 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
     shadowPass(S) {
       let G4 = this.G, gl = this.gl, U = this.U, P = this.P.depth;
       if (gl.enable(gl.DEPTH_TEST), gl.depthFunc(gl.LESS), gl.depthMask(!0), gl.enable(gl.POLYGON_OFFSET_FILL), gl.polygonOffset(1.5, 3), gl.disable(gl.CULL_FACE), G4.use(P), G4.uni(P, "uModel", M4.ident()), U.uCSMOn > 0) {
+        let fe = this.Q.farCSM || 2;
         for (let k = 0; k < 3; k++)
-          if (!(k > 0 && (this.frameN + k) % 2)) {
+          if (!(k === 1 && (this.frameN + 1) % 2) && !(k === 2 && (this.frameN + 2) % fe)) {
             G4.bind(this.csmFB[k]), gl.clear(gl.DEPTH_BUFFER_BIT), G4.uni(P, "uVP", this.csmM[k]), this.drawWorld(P, M4.planes(this.csmM[k]));
             for (let h of this.extra) h.shadow && h.shadow(this, P, this.csmM[k], "sun", k);
           }
@@ -1628,7 +1711,7 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
         U.uHL[3] = 0, U.uHLShOn = 0;
       U.uNOcc = Math.min(8, (S.occ || []).length), (S.occ || []).slice(0, 8).forEach((o, i) => U.uOcc.set(o, i * 8)), U.uCSMOn = Math.max(...E.sunCol) > 2e-3 ? 1 : 0, U.uCSMOn && this.cascades(S);
       for (let h of this.extra) h.prepare && h.prepare(this, S);
-      this.shadowPass(S), S.probePos && this.probePass(S), G4.bind(this.mainFB), gl.clearColor(0, 0, 0, 0), gl.clearDepth(1), gl.depthMask(!0), gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT), gl.enable(gl.DEPTH_TEST), gl.depthFunc(gl.LEQUAL), gl.enable(gl.CULL_FACE), gl.cullFace(gl.BACK), gl.disable(gl.BLEND);
+      this.shadowPass(S), S.probePos && (this.frameN % (Q2.probeEvery || 1) === 0 || this.probeFilled < 1) && this.probePass(S), G4.bind(this.mainFB), gl.clearColor(0, 0, 0, 0), gl.clearDepth(1), gl.depthMask(!0), gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT), gl.enable(gl.DEPTH_TEST), gl.depthFunc(gl.LEQUAL), gl.enable(gl.CULL_FACE), gl.cullFace(gl.BACK), gl.disable(gl.BLEND);
       let texs = Object.assign(this.lights.bindings(), { uCSM: this.csm, uHLSh: this.hlSh, uProbe: this.probe });
       for (let h of this.extra) h.opaque && h.opaque(this, U, texs);
       let Pw = G4.use(this.P.world);
@@ -1638,7 +1721,7 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
       for (let h of this.extra) h.glass && h.glass(this, U, texs);
       gl.disable(gl.BLEND), gl.depthMask(!0), gl.disable(gl.DEPTH_TEST);
       let Pr = G4.use(this.P.ssr);
-      G4.bind(this.ssrFB), G4.set(Pr, U), G4.uni(Pr, "uHasPrev", this.hasPrev ? 1 : 0), G4.uni(Pr, "uResScale", this.iw / this.W), G4.uni(Pr, "uPrevLod", this.pyr.levels - 1), G4.uni(Pr, "uProbeLod", U.uProbeLod), G4.tex(Pr, { uNrm: this.nT, uDepth: this.dT, uPrev: this.pyr, uProbe: this.probe }), G4.fullscreen();
+      G4.bind(this.ssrFB), G4.set(Pr, U), G4.uni(Pr, "uHasPrev", this.hasPrev ? 1 : 0), G4.uni(Pr, "uResScale", this.iw / this.W), G4.uni(Pr, "uPrevLod", this.pyr.levels - 1), G4.uni(Pr, "uProbeLod", U.uProbeLod), G4.uni(Pr, "uSteps", Q2.ssr | 0), G4.tex(Pr, { uNrm: this.nT, uDepth: this.dT, uPrev: this.pyr, uProbe: this.probe }), G4.fullscreen();
       let Pf = G4.use(this.P.fog);
       G4.bind(this.fogFB), G4.set(Pf, U), G4.tex(Pf, Object.assign({ uDepth: this.dT }, texs)), G4.fullscreen();
       let Pc = G4.use(this.P.comp);
@@ -1648,9 +1731,14 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
       let Pt = G4.use(this.P.taa);
       G4.bind(this.histFB[ho]), G4.set(Pt, { uInRes: [this.iw, this.ih], uOutRes: [this.W, this.H], uJit: this.jit, uReset: this.resetTAA || S.cut ? 1 : 0 }), G4.tex(Pt, { uCur: this.litT, uHist: this.hist[hi], uVel: this.vT, uDepth: this.dT }), G4.fullscreen(), this.resetTAA = !1;
       let Pd = G4.use(this.P.down4);
-      G4.bind(this.pyrFB), G4.uni(Pd, "uPx", [1 / this.W, 1 / this.H]), G4.tex(Pd, { uSrc: this.hist[ho] }), G4.fullscreen(), gl.bindTexture(gl.TEXTURE_2D, this.pyr.t), gl.generateMipmap(gl.TEXTURE_2D), this.hasPrev = !0;
-      let Pm = G4.use(this.P.mb);
-      if (G4.bind(this.mbFB), G4.set(Pm, { uShutter: S.shutter ?? 0.5, uOutRes: [this.W, this.H], uNear: this.near, uFar: this.far, uFrame: this.frameN }), G4.tex(Pm, { uSrc: this.hist[ho], uVel: this.vT, uDepth: this.dT }), G4.fullscreen(), this.extra.some((h) => h.particles)) {
+      if (G4.bind(this.pyrFB), G4.uni(Pd, "uPx", [1 / this.W, 1 / this.H]), G4.tex(Pd, { uSrc: this.hist[ho] }), G4.fullscreen(), gl.bindTexture(gl.TEXTURE_2D, this.pyr.t), gl.generateMipmap(gl.TEXTURE_2D), this.hasPrev = !0, Q2.mb) {
+        let Pm = G4.use(this.P.mb);
+        G4.bind(this.mbFB), G4.set(Pm, { uShutter: S.shutter ?? 0.5, uOutRes: [this.W, this.H], uNear: this.near, uFar: this.far, uFrame: this.frameN }), G4.tex(Pm, { uSrc: this.hist[ho], uVel: this.vT, uDepth: this.dT }), G4.fullscreen();
+      } else {
+        let Pc2 = G4.use(this.P.copy);
+        G4.bind(this.mbFB), G4.uni(Pc2, "uLod", 0), G4.tex(Pc2, { uSrc: this.hist[ho] }), G4.fullscreen();
+      }
+      if (this.extra.some((h) => h.particles)) {
         G4.bind(this.mbFB), gl.enable(gl.BLEND);
         for (let h of this.extra) h.particles && h.particles(this, U, texs);
         gl.disable(gl.BLEND);
@@ -7703,8 +7791,8 @@ void main(){
     env: ["KeyT"],
     hud: ["KeyU"]
   }, Input = class {
-    constructor(target = window) {
-      this.down = /* @__PURE__ */ new Set(), this.pressed = /* @__PURE__ */ new Set(), this.steer = 0, this.thr = 0, this.brk = 0, this.pad = null, this.usingPad = !1, target.addEventListener("keydown", (e) => {
+    constructor(target = window, touch2 = null) {
+      this.touch = touch2, this.down = /* @__PURE__ */ new Set(), this.pressed = /* @__PURE__ */ new Set(), this.steer = 0, this.thr = 0, this.brk = 0, this.pad = null, this.usingPad = !1, target.addEventListener("keydown", (e) => {
         e.repeat || (this.down.add(e.code), this.pressed.add(e.code), (e.code.startsWith("Arrow") || e.code === "Space") && e.preventDefault(), this.usingPad = !1);
       }), target.addEventListener("keyup", (e) => {
         this.down.delete(e.code);
@@ -7726,11 +7814,16 @@ void main(){
         gp = p;
         break;
       }
-      let out = { steer: 0, thr: 0, brk: 0, hb: 0, nos: !1, up: !1, down: !1, cam: !1, reset: !1, pause: !1, led: !1, high: !1, look: !1, env: !1, hud: !1 }, kl = this.key("left"), kr = this.key("right"), tgt = (kr ? 1 : 0) - (kl ? 1 : 0), rate2 = tgt === 0 ? 6.5 : Math.sign(tgt) !== Math.sign(this.steer) && this.steer !== 0 ? 9 : 3.2;
-      this.steer += Math.max(-rate2 * dt, Math.min(rate2 * dt, tgt - this.steer));
-      let kt = this.key("thr") ? 1 : 0, kb = this.key("brk") ? 1 : 0;
-      this.thr += Math.max(-8 * dt, Math.min(6 * dt, kt - this.thr)), this.brk += Math.max(-10 * dt, Math.min(8 * dt, kb - this.brk)), out.steer = this.steer, out.thr = this.thr, out.brk = this.brk, out.hb = this.key("hb") ? 1 : 0, out.nos = this.key("nos");
-      for (let k of ["up", "down", "cam", "reset", "pause", "led", "high", "look", "env", "hud"]) out[k] = this.hit(k);
+      let out = { steer: 0, thr: 0, brk: 0, hb: 0, nos: !1, up: !1, down: !1, cam: !1, reset: !1, pause: !1, led: !1, high: !1, look: !1, env: !1, hud: !1 }, T2 = this.touch ? this.touch.poll() : null, kl = this.key("left") || T2 && T2.left, kr = this.key("right") || T2 && T2.right, tgt = (kr ? 1 : 0) - (kl ? 1 : 0);
+      if (T2 && T2.steer !== null)
+        this.steer += (T2.steer - this.steer) * Math.min(1, dt * 28);
+      else {
+        let rate2 = tgt === 0 ? 6.5 : Math.sign(tgt) !== Math.sign(this.steer) && this.steer !== 0 ? 9 : 3.2;
+        this.steer += Math.max(-rate2 * dt, Math.min(rate2 * dt, tgt - this.steer));
+      }
+      let kt = this.key("thr") || T2 && T2.thr ? 1 : 0, kb = this.key("brk") || T2 && T2.brk ? 1 : 0;
+      this.thr += Math.max(-8 * dt, Math.min(6 * dt, kt - this.thr)), this.brk += Math.max(-10 * dt, Math.min(8 * dt, kb - this.brk)), out.steer = this.steer, out.thr = this.thr, out.brk = this.brk, out.hb = this.key("hb") || T2 && T2.hb ? 1 : 0, out.nos = this.key("nos") || !!(T2 && T2.nos);
+      for (let k of ["up", "down", "cam", "reset", "pause", "led", "high", "look", "env", "hud"]) out[k] = this.hit(k) || !!(T2 && T2[k]);
       if (this.key("look") && (out.look = !0), gp) {
         let sx = ((v, d = 0.08) => Math.abs(v) < d ? 0 : (v - Math.sign(v) * d) / (1 - d))(gp.axes[0] || 0), rt = gp.buttons[7] ? gp.buttons[7].value : 0, lt = gp.buttons[6] ? gp.buttons[6].value : 0;
         (Math.abs(sx) > 0 || rt > 0.02 || lt > 0.02 || gp.buttons.some((b) => b.pressed)) && (this.usingPad = !0), this.usingPad && (out.steer = Math.sign(sx) * Math.pow(Math.abs(sx), 1.35), out.thr = rt, out.brk = lt, out.hb = gp.buttons[0] && gp.buttons[0].pressed ? 1 : out.hb, out.nos = out.nos || !!(gp.buttons[5] && gp.buttons[5].pressed));
@@ -8275,15 +8368,21 @@ class ShiftlightFX extends AudioWorkletProcessor{
   constructor(){super();this.d=new FXDSP(sampleRate);this.port.onmessage=e=>{const m=e.data;if(m.t==='p')this.d.set(m.p);else if(m.t==='ev')this.d.event(m.ev);};}
   process(i,o){const out=o[0];this.d.process(out[0],out[1]||out[0],out[0].length);return true;}}
 registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
-    constructor() {
-      this.ready = !1, this.starting = null, this.vol = 0.8, this.muted = !1, this.cfg = null, this.tunnel = 0;
+    /* ctx: AudioContext options; phones get a lower sample rate and a roomier buffer so the synths keep up */
+    constructor({ ctx = {} } = {}) {
+      this.ready = !1, this.starting = null, this.vol = 0.8, this.muted = !1, this.cfg = null, this.tunnel = 0, this.ctxOpts = ctx;
     }
     /* call from a user gesture */
     start() {
       return this.starting ? this.starting : (this.starting = (async () => {
         let AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
-        let ctx = new AC({ latencyHint: "interactive" });
+        let ctx;
+        try {
+          ctx = new AC(Object.assign({ latencyHint: "interactive" }, this.ctxOpts));
+        } catch {
+          ctx = new AC();
+        }
         this.ctx = ctx;
         let master = ctx.createGain();
         master.gain.value = this.muted ? 0 : this.vol, this.master = master;
@@ -8376,7 +8475,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     return m + ":" + (s < 10 ? "0" : "") + s.toFixed(3);
   }, HUD = class {
     constructor(canvas2) {
-      this.c = canvas2, this.g = canvas2.getContext("2d"), this.led = null, this.msg = null, this.msgT = 0, this.mapPath = null, this.flash = 0;
+      this.c = canvas2, this.g = canvas2.getContext("2d"), this.led = null, this.msg = null, this.msgT = 0, this.mapPath = null, this.flash = 0, this.touch = !1, this.ui = 1, this.ins = { l: 0, r: 0, t: 0, b: 0 }, this.mapRight = 0, this.replayBar = 0;
     }
     message(text, col = C.white, dur = 2.2) {
       this.msg = { text, col }, this.msgT = dur;
@@ -8441,40 +8540,43 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     draw(S, dt) {
       let ctx = this.g, W3 = this.c.width, H = this.c.height;
       if (ctx.clearRect(0, 0, W3, H), !S || S.hidden) return;
-      let s = Math.min(W3 / 1920, H / 1080) * (this.pixel ? 1.25 : 1), pad = 44 * s;
+      let T2 = this.touch, I = this.ins, s = Math.min(W3 / 1920, H / 1080) * (this.pixel ? 1.25 : 1) * (T2 && !this.pixel ? this.ui : 1), pad = 44 * s;
       if (ctx.imageSmoothingEnabled = !this.pixel, this.flash += dt, this.msgT > 0 && (this.msgT -= dt), ctx.save(), S.replay) {
-        let R2 = S.replay, mm = (t) => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
-        ((this.flash * 2 | 0) % 2 === 0 || R2.paused) && (ctx.fillStyle = C.red, ctx.beginPath(), ctx.arc(pad + 10 * s, pad + 12 * s, 9 * s, 0, 6.283), ctx.fill()), this.small(ctx, "REPLAY", pad + 30 * s, pad + 3 * s, 5 * s, C.white), this.small(ctx, R2.cam.toUpperCase() + " CAMERA  X" + (R2.speed < 1 ? R2.speed.toFixed(2).replace(/0$/, "") : R2.speed) + (R2.paused ? "  PAUSED" : ""), pad + 30 * s, pad + 40 * s, 3 * s, C.faint);
-        let bw = W3 - 2 * pad - 200 * s, bx = pad + 100 * s, by2 = H - pad - 40 * s;
-        ctx.fillStyle = "rgba(200,190,230,.15)", ctx.fillRect(bx, by2, bw, 8 * s), ctx.fillStyle = C.pink, ctx.fillRect(bx, by2, bw * Math.min(1, R2.t / Math.max(0.1, R2.dur)), 8 * s), this.small(ctx, mm(R2.t), bx - 14 * s, by2 - 1 * s, 3 * s, C.ink, "r"), this.small(ctx, mm(R2.dur), bx + bw + 14 * s, by2 - 1 * s, 3 * s, C.ink), this.small(ctx, "SPACE PLAY/PAUSE · LEFT/RIGHT 5 S · UP/DOWN SPEED · C CAMERA · ESC BACK", W3 / 2, by2 + 24 * s, 3 * s, C.faint, "c"), ctx.restore();
+        let R2 = S.replay, mm = (t) => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0"), px = pad + I.l, py = pad + I.t;
+        ((this.flash * 2 | 0) % 2 === 0 || R2.paused) && (ctx.fillStyle = C.red, ctx.beginPath(), ctx.arc(px + 10 * s, py + 12 * s, 9 * s, 0, 6.283), ctx.fill()), this.small(ctx, "REPLAY", px + 30 * s, py + 3 * s, 5 * s, C.white), this.small(ctx, R2.cam.toUpperCase() + " CAMERA  X" + (R2.speed < 1 ? R2.speed.toFixed(2).replace(/0$/, "") : R2.speed) + (R2.paused ? "  PAUSED" : ""), px + 30 * s, py + 40 * s, 3 * s, C.faint);
+        let bw = W3 - 2 * pad - 200 * s - I.l - I.r, bx = pad + 100 * s + I.l, by = T2 && this.replayBar ? H - this.replayBar - 26 * s : H - pad - 40 * s;
+        ctx.fillStyle = "rgba(200,190,230,.15)", ctx.fillRect(bx, by, bw, 8 * s), ctx.fillStyle = C.pink, ctx.fillRect(bx, by, bw * Math.min(1, R2.t / Math.max(0.1, R2.dur)), 8 * s), this.small(ctx, mm(R2.t), bx - 14 * s, by - 1 * s, 3 * s, C.ink, "r"), this.small(ctx, mm(R2.dur), bx + bw + 14 * s, by - 1 * s, 3 * s, C.ink), T2 || this.small(ctx, "SPACE PLAY/PAUSE · LEFT/RIGHT 5 S · UP/DOWN SPEED · C CAMERA · ESC BACK", W3 / 2, by + 24 * s, 3 * s, C.faint, "c"), ctx.restore();
         return;
       }
-      let cx = W3 - pad - 250 * s, cy = H - pad - 150 * s, Rr = 210 * s, n = 34, frac = S.rpm / S.limiter, shift = S.rpm > S.shiftRpm * 0.985, a0 = Math.PI * 1.08, a1 = Math.PI * 1.92;
-      for (let i = 0; i < n; i++) {
-        let t = i / (n - 1), a = a0 + (a1 - a0) * t, lit = t <= frac, col = t > S.shiftRpm / S.limiter ? C.red : t > S.shiftRpm / S.limiter * 0.86 ? C.amber : C.cyan, x0 = cx + Math.cos(a) * Rr, y0 = cy + Math.sin(a) * Rr, x1 = cx + Math.cos(a) * (Rr - 26 * s), y1 = cy + Math.sin(a) * (Rr - 26 * s);
-        ctx.lineCap = "round", lit ? (ctx.strokeStyle = col, ctx.globalAlpha = 0.25, ctx.lineWidth = 13 * s, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke(), ctx.globalAlpha = 1, ctx.lineWidth = 6 * s, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke()) : (ctx.strokeStyle = "rgba(200,190,230,.10)", ctx.lineWidth = 6 * s, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke());
+      let sT = T2 ? s * 0.72 : s;
+      {
+        let s2 = sT, nb = (S.boostMax > 0) + (S.nosMax > 0), cx = T2 ? W3 / 2 + 12 * s2 : W3 - pad - 250 * s2 - I.r, cy = T2 ? H - Math.max(pad * 0.45, I.b) - (64 + nb * 24) * s2 : H - pad - 150 * s2, Rr = 210 * s2, n = 34, frac = S.rpm / S.limiter, shift = S.rpm > S.shiftRpm * 0.985, a0 = Math.PI * 1.08, a1 = Math.PI * 1.92;
+        for (let i = 0; i < n; i++) {
+          let t = i / (n - 1), a = a0 + (a1 - a0) * t, lit = t <= frac, col = t > S.shiftRpm / S.limiter ? C.red : t > S.shiftRpm / S.limiter * 0.86 ? C.amber : C.cyan, x0 = cx + Math.cos(a) * Rr, y0 = cy + Math.sin(a) * Rr, x1 = cx + Math.cos(a) * (Rr - 26 * s2), y1 = cy + Math.sin(a) * (Rr - 26 * s2);
+          ctx.lineCap = "round", lit ? (ctx.strokeStyle = col, ctx.globalAlpha = 0.25, ctx.lineWidth = 13 * s2, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke(), ctx.globalAlpha = 1, ctx.lineWidth = 6 * s2, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke()) : (ctx.strokeStyle = "rgba(200,190,230,.10)", ctx.lineWidth = 6 * s2, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke());
+        }
+        if (shift && (this.flash * 12 | 0) % 2 === 0) {
+          ctx.fillStyle = C.red, ctx.globalAlpha = 0.85;
+          for (let d of [-1, 1])
+            ctx.beginPath(), ctx.arc(cx + d * 36 * s2, cy - Rr - 26 * s2, 9 * s2, 0, 6.283), ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        let kmh = Math.round(Math.abs(S.speed) * 3.6), sp = String(kmh).padStart(3, " ");
+        this.dots(ctx, sp, cx - 12 * s2, cy - 74 * s2, 15 * s2, C.white, { align: "c" }), this.small(ctx, S.units || "KM/H", cx - 12 * s2, cy + 42 * s2, 4 * s2, C.faint, "c");
+        let gear = S.rev ? "R" : S.gear === 0 ? "N" : String(S.gear);
+        this.dots(ctx, gear, cx + 150 * s2, cy - 60 * s2, 11 * s2, S.shiftLamp ? C.red : C.pink, { align: "c" }), this.small(ctx, S.auto ? "AUTO" : "MAN", cx + 150 * s2, cy + 30 * s2, 3 * s2, C.faint, "c");
+        let by = cy + 72 * s2;
+        if (S.boostMax > 0) {
+          let b = Math.max(0, S.boost), bw = 230 * s2;
+          this.small(ctx, "BOOST", cx - 130 * s2, by, 3 * s2, C.faint), ctx.fillStyle = "rgba(200,190,230,.12)", ctx.fillRect(cx - 70 * s2, by, bw, 12 * s2), ctx.fillStyle = C.violet, ctx.fillRect(cx - 70 * s2, by, bw * Math.min(1, b / S.boostMax), 12 * s2), this.small(ctx, (b * 1).toFixed(1) + " BAR", cx + 170 * s2, by, 3 * s2, C.faint), by += 24 * s2;
+        }
+        if (S.nosMax > 0) {
+          this.small(ctx, "N2O", cx - 130 * s2, by, 3 * s2, C.faint);
+          let bw = 230 * s2;
+          ctx.fillStyle = "rgba(200,190,230,.12)", ctx.fillRect(cx - 70 * s2, by, bw, 12 * s2), ctx.fillStyle = S.nosOn ? C.white : C.cyan, ctx.fillRect(cx - 70 * s2, by, bw * S.nos, 12 * s2);
+        }
       }
-      if (shift && (this.flash * 12 | 0) % 2 === 0) {
-        ctx.fillStyle = C.red, ctx.globalAlpha = 0.85;
-        for (let d of [-1, 1])
-          ctx.beginPath(), ctx.arc(cx + d * 36 * s, cy - Rr - 26 * s, 9 * s, 0, 6.283), ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-      let kmh = Math.round(Math.abs(S.speed) * 3.6), sp = String(kmh).padStart(3, " ");
-      this.dots(ctx, sp, cx - 12 * s, cy - 74 * s, 15 * s, C.white, { align: "c" }), this.small(ctx, S.units || "KM/H", cx - 12 * s, cy + 42 * s, 4 * s, C.faint, "c");
-      let gear = S.rev ? "R" : S.gear === 0 ? "N" : String(S.gear);
-      this.dots(ctx, gear, cx + 150 * s, cy - 60 * s, 11 * s, S.shiftLamp ? C.red : C.pink, { align: "c" }), this.small(ctx, S.auto ? "AUTO" : "MAN", cx + 150 * s, cy + 30 * s, 3 * s, C.faint, "c");
-      let by = cy + 72 * s;
-      if (S.boostMax > 0) {
-        let b = Math.max(0, S.boost), bw = 230 * s;
-        this.small(ctx, "BOOST", cx - 130 * s, by, 3 * s, C.faint), ctx.fillStyle = "rgba(200,190,230,.12)", ctx.fillRect(cx - 70 * s, by, bw, 12 * s), ctx.fillStyle = C.violet, ctx.fillRect(cx - 70 * s, by, bw * Math.min(1, b / S.boostMax), 12 * s), this.small(ctx, (b * 1).toFixed(1) + " BAR", cx + 170 * s, by, 3 * s, C.faint), by += 24 * s;
-      }
-      if (S.nosMax > 0) {
-        this.small(ctx, "N2O", cx - 130 * s, by, 3 * s, C.faint);
-        let bw = 230 * s;
-        ctx.fillStyle = "rgba(200,190,230,.12)", ctx.fillRect(cx - 70 * s, by, bw, 12 * s), ctx.fillStyle = S.nosOn ? C.white : C.cyan, ctx.fillRect(cx - 70 * s, by, bw * S.nos, 12 * s);
-      }
-      let lx = pad, ly = pad;
+      let lx = pad + I.l, ly = pad + I.t;
       if (this.small(ctx, S.levelName || "NEON LOOP", lx, ly, 4 * s, C.pink), S.race) {
         this.dots(ctx, "P" + S.pos, W3 / 2 - 40 * s, pad, 11 * s, S.pos === 1 ? C.green : C.white, { align: "c" }), this.small(ctx, "/" + S.n, W3 / 2 + 60 * s, pad + 46 * s, 4 * s, C.faint), this.small(ctx, "LAP " + S.lap + "/" + S.laps, lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, fmtT(S.lapT), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "BEST", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.best), lx + 70 * s, ly + 118 * s, 3 * s, S.best > 0 ? C.green : C.faint), this.small(ctx, "LAST", lx, ly + 140 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.last), lx + 70 * s, ly + 140 * s, 3 * s, C.ink);
         let ty = ly + 190 * s;
@@ -8489,9 +8591,9 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
           let d = S.delta;
           this.dots(ctx, (d >= 0 ? "+" : "-") + Math.abs(d).toFixed(2), W3 / 2, pad, 7 * s, d > 0 ? C.red : C.green, { align: "c", unlit: !1 }), this.small(ctx, "GHOST", W3 / 2, pad + 58 * s, 3 * s, C.faint, "c");
         }
-        S.medals && [["GOLD", "#ffd23f"], ["SILVER", "#c8d0dc"], ["BRONZE", "#d88b4a"]].forEach(([n2, c], i) => {
+        S.medals && [["GOLD", "#ffd23f"], ["SILVER", "#c8d0dc"], ["BRONZE", "#d88b4a"]].forEach(([n, c], i) => {
           let got = S.best > 0 && S.best <= S.medals[i];
-          this.small(ctx, n2, lx, ly + 180 * s + i * 24 * s, 3 * s, got ? c : C.faint), this.small(ctx, fmtT(S.medals[i]), lx + 100 * s, ly + 180 * s + i * 24 * s, 3 * s, got ? c : C.ink);
+          this.small(ctx, n, lx, ly + 180 * s + i * 24 * s, 3 * s, got ? c : C.faint), this.small(ctx, fmtT(S.medals[i]), lx + 100 * s, ly + 180 * s + i * 24 * s, 3 * s, got ? c : C.ink);
         });
       } else if (S.drift) {
         let m = Math.floor(S.timeLeft / 60), sec = Math.floor(S.timeLeft % 60);
@@ -8500,9 +8602,9 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
           let cxA = W3 / 2, cyA = H * 0.22 + 150 * s, r = 70 * s, a = Math.max(-70, Math.min(70, S.driftAngle)) * Math.PI / 180;
           ctx.strokeStyle = "rgba(200,190,230,.18)", ctx.lineWidth = 5 * s, ctx.beginPath(), ctx.arc(cxA, cyA, r, Math.PI * 1.11, Math.PI * 1.89), ctx.stroke(), S.driftOn && (ctx.strokeStyle = C.pink, ctx.lineWidth = 5 * s, ctx.beginPath(), ctx.arc(cxA, cyA, r, -Math.PI / 2, -Math.PI / 2 + a, a < 0), ctx.stroke());
         }
-        S.targets && [["GOLD", "#ffd23f"], ["SILVER", "#c8d0dc"], ["BRONZE", "#d88b4a"]].forEach(([n2, c], i) => {
+        S.targets && [["GOLD", "#ffd23f"], ["SILVER", "#c8d0dc"], ["BRONZE", "#d88b4a"]].forEach(([n, c], i) => {
           let got = S.driftTotal >= S.targets[i];
-          this.small(ctx, n2, lx, ly + 120 * s + i * 24 * s, 3 * s, got ? c : C.faint), this.small(ctx, String(S.targets[i]), lx + 100 * s, ly + 120 * s + i * 24 * s, 3 * s, got ? c : C.ink);
+          this.small(ctx, n, lx, ly + 120 * s + i * 24 * s, 3 * s, got ? c : C.faint), this.small(ctx, String(S.targets[i]), lx + 100 * s, ly + 120 * s + i * 24 * s, 3 * s, got ? c : C.ink);
         });
       } else if (S.drag) {
         let tx = W3 / 2, ty = pad + 10 * s, b = (y, col, on, r = 15 * s) => {
@@ -8511,12 +8613,12 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         b(ty, "#fff7cc", S.tree >= 1 || S.staged, 9 * s), b(ty + 28 * s, "#fff7cc", S.tree >= 1, 9 * s);
         for (let i = 0; i < 3; i++) b(ty + 66 * s + i * 40 * s, "#ffb040", S.tree === 2);
         b(ty + 66 * s + 120 * s, C.green, S.tree === 3 && !S.foul), b(ty + 66 * s + 160 * s, C.red, S.foul), S.stagePrompt && this.small(ctx, "HOLD THE BRAKE TO STAGE · ADD THROTTLE FOR REVS · LET GO ON GREEN", W3 / 2, ty + 290 * s, 4 * s, C.amber, "c"), this.small(ctx, "ET", lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, S.et.toFixed(3), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "RT", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, S.rt === null || S.rt === void 0 ? "-.---" : S.rt < 0 ? "RED" : S.rt.toFixed(3), lx + 60 * s, ly + 118 * s, 3 * s, S.rt < 0 ? C.red : C.ink);
-        let bw = 520 * s, bx = W3 / 2 - bw / 2, by2 = H - pad - 110 * s;
+        let bw = T2 ? 300 * s : 520 * s, bx = T2 ? lx + 70 * s : W3 / 2 - bw / 2, by = T2 ? ly + 170 * s : H - pad - 110 * s;
         for (let [k, v, col, name] of [[0, S.you, C.pink, "YOU"], [1, S.opp, C.cyan, S.oppName]]) {
-          let y = by2 + k * 26 * s;
+          let y = by + k * 26 * s;
           ctx.fillStyle = "rgba(200,190,230,.1)", ctx.fillRect(bx, y, bw, 10 * s), ctx.fillStyle = col, ctx.fillRect(bx, y, bw * Math.min(1, v), 10 * s), this.small(ctx, name, bx - 12 * s, y - 2 * s, 3 * s, col, "r");
         }
-        ctx.fillStyle = C.white, ctx.fillRect(bx + bw, by2 - 6 * s, 3 * s, 48 * s);
+        ctx.fillStyle = C.white, ctx.fillRect(bx + bw, by - 6 * s, 3 * s, 48 * s);
       } else if (S.laps !== !1) {
         if (this.small(ctx, "LAP " + Math.max(1, S.lap), lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, fmtT(S.lapT), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "BEST", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.best), lx + 70 * s, ly + 118 * s, 3 * s, S.best > 0 ? C.green : C.faint), this.small(ctx, "LAST", lx, ly + 140 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.last), lx + 70 * s, ly + 140 * s, 3 * s, C.ink), S.delta !== null && S.delta !== void 0 && S.best > 0) {
           let d = S.delta;
@@ -8531,7 +8633,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         }
       }
       if (this.map && this.map.paths) {
-        let M = this.map, sz = 230 * s, mx = W3 - pad - sz, my = pad, P = (x, y) => [mx + (x - M.x0) * M.sc * sz + (1 - M.w) * sz / 2, my + sz - ((y - M.y0) * M.sc * sz + (1 - M.h) * sz / 2)];
+        let M = this.map, sz = (T2 ? 190 : 230) * s, mx = (T2 && this.mapRight ? this.mapRight : W3 - pad - I.r) - sz, my = pad + I.t, P = (x, y) => [mx + (x - M.x0) * M.sc * sz + (1 - M.w) * sz / 2, my + sz - ((y - M.y0) * M.sc * sz + (1 - M.h) * sz / 2)];
         ctx.lineJoin = "round", ctx.lineCap = "round";
         let stroke = (pts, closed, w, col, a) => {
           ctx.strokeStyle = col, ctx.globalAlpha = a, ctx.lineWidth = w, ctx.beginPath(), pts.forEach(([x, y], i) => {
@@ -8561,13 +8663,16 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
           ctx.fillStyle = C.white, ctx.globalAlpha = 0.3, ctx.beginPath(), ctx.arc(x, y, 12 * s, 0, 6.283), ctx.fill(), ctx.globalAlpha = 1, ctx.beginPath(), ctx.arc(x, y, 6 * s, 0, 6.283), ctx.fill(), S.mapHead !== void 0 && (ctx.strokeStyle = C.white, ctx.lineWidth = 2 * s, ctx.beginPath(), ctx.moveTo(x, y), ctx.lineTo(x + Math.cos(S.mapHead) * 16 * s, y - Math.sin(S.mapHead) * 16 * s), ctx.stroke());
         }
       }
-      let ax = pad, ay = H - pad - 30 * s;
-      this.small(ctx, S.assistName || "", ax, ay - 40 * s, 3 * s, C.faint);
-      let lamps = [["TC", S.tc], ["ABS", S.abs], ["ESC", S.esc], ["DRIFT", S.drift]];
-      S.guide && lamps.push(["GUIDE", S.guide > 0.9]), lamps.forEach(([t, on], i) => {
-        let x = ax + i * 86 * s;
-        ctx.strokeStyle = on ? C.amber : "rgba(200,190,230,.18)", ctx.lineWidth = 2 * s, ctx.strokeRect(x, ay, 74 * s, 26 * s), on && (ctx.fillStyle = "rgba(255,176,64,.22)", ctx.fillRect(x, ay, 74 * s, 26 * s)), this.small(ctx, t, x + 37 * s, ay + 7 * s, 3 * s, on ? C.amber : "rgba(200,190,230,.35)", "c");
-      }), S.freeChain > 0 && (ctx.globalAlpha = S.freeGap ? 1 - S.freeGap * 0.6 : 1, this.dots(ctx, "+" + S.freeChain, W3 / 2, H * 0.2, 6 * s, C.pink, { align: "c", unlit: !1 }), this.small(ctx, "DRIFT X" + S.freeMult.toFixed(2).replace(/\.?0+$/, ""), W3 / 2, H * 0.2 + 50 * s, 4 * s, C.cyan, "c"), ctx.globalAlpha = 1), this.msg && this.msgT > 0 && (ctx.globalAlpha = Math.min(1, this.msgT * 2), this.dots(ctx, this.msg.text, W3 / 2, H * 0.32, 9 * s, this.msg.col, { align: "c", unlit: !1 }), ctx.globalAlpha = 1), S.hint && (ctx.globalAlpha = 0.85, this.small(ctx, S.hint, W3 / 2, H - pad - 20 * s, 4 * s, C.faint, "c"), ctx.globalAlpha = 1), ctx.restore();
+      let ax = pad + I.l, ay = H - pad - 30 * s - I.b;
+      if (!T2) {
+        this.small(ctx, S.assistName || "", ax, ay - 40 * s, 3 * s, C.faint);
+        let lamps = [["TC", S.tc], ["ABS", S.abs], ["ESC", S.esc], ["DRIFT", S.drift]];
+        S.guide && lamps.push(["GUIDE", S.guide > 0.9]), lamps.forEach(([t, on], i) => {
+          let x = ax + i * 86 * s;
+          ctx.strokeStyle = on ? C.amber : "rgba(200,190,230,.18)", ctx.lineWidth = 2 * s, ctx.strokeRect(x, ay, 74 * s, 26 * s), on && (ctx.fillStyle = "rgba(255,176,64,.22)", ctx.fillRect(x, ay, 74 * s, 26 * s)), this.small(ctx, t, x + 37 * s, ay + 7 * s, 3 * s, on ? C.amber : "rgba(200,190,230,.35)", "c");
+        });
+      }
+      S.freeChain > 0 && (ctx.globalAlpha = S.freeGap ? 1 - S.freeGap * 0.6 : 1, this.dots(ctx, "+" + S.freeChain, W3 / 2, H * 0.2, 6 * s, C.pink, { align: "c", unlit: !1 }), this.small(ctx, "DRIFT X" + S.freeMult.toFixed(2).replace(/\.?0+$/, ""), W3 / 2, H * 0.2 + 50 * s, 4 * s, C.cyan, "c"), ctx.globalAlpha = 1), this.msg && this.msgT > 0 && (ctx.globalAlpha = Math.min(1, this.msgT * 2), this.dots(ctx, this.msg.text, W3 / 2, H * 0.32, 9 * s, this.msg.col, { align: "c", unlit: !1 }), ctx.globalAlpha = 1), S.hint && (ctx.globalAlpha = 0.85, this.small(ctx, S.hint, W3 / 2, T2 ? H * 0.5 : H - pad - 20 * s, 4 * s, C.faint, "c"), ctx.globalAlpha = 1), ctx.restore();
     }
   };
 
@@ -8732,6 +8837,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         let b = e.target.closest("[data-i]");
         b && (this.sel = +b.dataset.i, this.render(), this.onPick(this.items[this.sel].id));
       }), root.addEventListener("pointermove", (e) => {
+        if (e.pointerType !== "mouse") return;
         let b = e.target.closest("[data-i]");
         b && +b.dataset.i !== this.sel && (this.sel = +b.dataset.i, this.render());
       });
@@ -8791,7 +8897,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         if (k === "back")
           return this.G.back(), !0;
         if (k === "x")
-          this.confirm ? (this.G.wipe(), this.confirm = !1) : (this.confirm = !0, this.flash = "Press X again to start a new career (this one is erased).");
+          this.confirm ? (this.G.wipe(), this.confirm = !1) : (this.confirm = !0, this.flash = "Press X (or tap “Erase it?”) again to start a new career. This one is erased.");
         else return !1;
       }
       return k !== "x" && (this.confirm = !1), this.open && this.render(), !0;
@@ -8817,7 +8923,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
           ${best ? `<div class="best">${esc(best)}</div>` : ""}
           ${r.rank ? `<div class="got m${r.rank}">${ev.kind === "race" ? ["", "Won", "2nd place", "3rd place"][r.rank] : MEDALS[r.rank]}</div>` : ""}
           <div class="why">${esc(this.flash || (ck.ok ? "" : ck.why))}</div>
-          <div class="btns"><button data-act="enter" class="go"${ck.ok ? "" : " disabled"}>Start</button><button data-act="g">Garage</button><button data-act="back">Back</button></div></div></div>
+          <div class="btns"><button data-act="enter" class="go"${ck.ok ? "" : " disabled"}>Start</button><button data-act="g">Garage</button><button data-act="back">Back</button><button data-act="x" class="wipe">${this.confirm ? "Erase it?" : "New career"}</button></div></div></div>
       <div class="foot">↑ ↓ events · ← → tiers · Enter start · G garage · X new career · Esc back</div></div>`, this.flash = null;
       let s = this.root.querySelector(".ev.sel");
       s && s.scrollIntoView && s.scrollIntoView({ block: "nearest" });
@@ -8873,6 +8979,8 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }
     key(k) {
       let O = this.opts();
+      if (k === "done")
+        return this.G.back(), !0;
       if (this.col === 0)
         if (k === "up")
           this.ci = (this.ci - 1 + GCATS.length) % GCATS.length, this.oi = this.cur();
@@ -8961,7 +9069,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         ["Est. lap", fmtT2(cur.lap), nb ? d(cur.lap, nb.lap, fmtT2, !0) : ""]
       ];
       this.root.innerHTML = `<div class="panel">
-      <div class="top"><b class="ttl">GARAGE</b><span class="money">${C2.free ? "FREE PLAY" : money(C2.money)}</span>${C2.rep !== void 0 ? `<span class="rep">REP ${C2.rep}</span>` : ""}<span class="car">${esc(cur.spec.name)} · ${cur.spec.drv} · ${badge(cur.cls, cur.pi)}</span></div>
+      <div class="top"><b class="ttl">GARAGE</b><span class="money">${C2.free ? "FREE PLAY" : money(C2.money)}</span>${C2.rep !== void 0 ? `<span class="rep">REP ${C2.rep}</span>` : ""}<span class="car">${esc(cur.spec.name)} · ${cur.spec.drv} · ${badge(cur.cls, cur.pi)}</span><span class="btns"><button data-act="done" class="go">Done</button></span></div>
       <div class="body"><div class="cats">${cats}</div><div class="opts">${opts}</div></div>
       <div class="info"><div class="stats">${st.map(([a, b, c]) => `<div><span>${a}</span><b>${b}</b>${c || ""}</div>`).join("")}</div>
         <div class="chart"><canvas width="900" height="260"></canvas><div class="legend">${this.legend()}</div></div></div>
@@ -9033,24 +9141,190 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }
   };
 
+  // src/ui/touch.js
+  var HELD = /* @__PURE__ */ new Set(["thr", "brk", "hb", "nos", "left", "right"]), PEDALS = ["thr", "brk", "hb", "nos"], PADS = [
+    ["pause", "II", "tb"],
+    ["cam", "CAM", "tb"],
+    ["reset", "RESET", "tb"],
+    ["thr", "GAS", "pd"],
+    ["brk", "BRAKE", "pd"],
+    ["hb", "HAND", "pd"],
+    ["nos", "N2O", "pd"],
+    ["up", "+", "pd sh"],
+    ["down", "−", "pd sh"],
+    ["left", "◀", "st"],
+    ["right", "▶", "st"]
+  ], TouchControls = class {
+    constructor(root) {
+      this.root = root, this.visible = !1, this.ptr = /* @__PURE__ */ new Map(), this.taps = /* @__PURE__ */ new Set(), this.cfg = { nos: !1, manual: !1, steer: "slide" }, this.steerV = 0, this.steerOn = !1, this.tilt = { on: !1, roll: 0, ok: !1 }, this.used = !1, root.innerHTML = PADS.map(([k, l, c]) => `<div class="b ${c} k-${k}" data-k="${k}"><span>${l}</span></div>`).join("") + '<div class="knob" hidden><i></i></div><div class="shint">SLIDE TO STEER</div>', this.el = {};
+      for (let d of root.querySelectorAll("[data-k]")) this.el[d.dataset.k] = d;
+      this.knob = root.querySelector(".knob"), this.nub = this.knob.querySelector("i"), this.hintEl = root.querySelector(".shint");
+      let opt = { passive: !1 };
+      root.addEventListener("pointerdown", (e) => this.down(e), opt), root.addEventListener("pointermove", (e) => this.move(e), opt);
+      for (let t of ["pointerup", "pointercancel", "lostpointercapture"]) root.addEventListener(t, (e) => this.up(e), opt);
+      root.addEventListener("contextmenu", (e) => e.preventDefault()), addEventListener("resize", () => {
+        this.rects = null;
+      });
+    }
+    /* what to show: nitrous only if the car has it, the paddles only with the manual gearbox */
+    configure(c) {
+      Object.assign(this.cfg, c), this.el.nos.hidden = !this.cfg.nos, this.el.up.hidden = this.el.down.hidden = !this.cfg.manual;
+      let btn = this.cfg.steer === "buttons";
+      this.el.left.hidden = this.el.right.hidden = !btn, this.hintEl.hidden = !this.slides(), this.root.dataset.steer = this.cfg.steer, this.root.classList.toggle("manual", this.cfg.manual), this.rects = null;
+    }
+    show(on) {
+      on !== this.visible && (this.visible = on, this.root.hidden = !on, on || this.release(), this.rects = null);
+    }
+    release() {
+      for (let id of this.ptr.keys())
+        try {
+          this.root.releasePointerCapture(id);
+        } catch {
+        }
+      this.ptr.clear(), this.steerOn = !1, this.knob.hidden = !0, this.paint();
+    }
+    /* pad rectangles, measured when the layout may have changed */
+    layout() {
+      if (this.rects) return this.rects;
+      this.rects = [];
+      for (let [k] of PADS) {
+        let d = this.el[k];
+        if (d.hidden) continue;
+        let r = d.getBoundingClientRect();
+        r.width > 0 && this.rects.push({ k, r });
+      }
+      return this.rects;
+    }
+    hit(x, y, keys, m = 0) {
+      let best = null, bd = 1e9;
+      for (let { k, r } of this.layout()) {
+        if (keys && !keys.includes(k)) continue;
+        let dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom), d = Math.hypot(dx, dy);
+        d <= m && d < bd && (bd = d, best = k);
+      }
+      return best;
+    }
+    steerRange() {
+      return Math.max(44, Math.min(80, innerWidth * 0.075));
+    }
+    /* slide steering, also while tilt has no sensor data (some embedded pages never get motion events) */
+    slides() {
+      return this.cfg.steer === "slide" || this.cfg.steer === "tilt" && !this.tilt.ok;
+    }
+    down(e) {
+      e.preventDefault(), this.used = !0;
+      try {
+        this.root.setPointerCapture(e.pointerId);
+      } catch {
+      }
+      let x = e.clientX, y = e.clientY, k = this.hit(x, y, null, 6);
+      if (k) {
+        let P = { role: "pad", k };
+        if (this.ptr.set(e.pointerId, P), HELD.has(k) || this.taps.add(k), navigator.vibrate && !HELD.has(k)) try {
+          navigator.vibrate(8);
+        } catch {
+        }
+      } else if (this.slides() && x < innerWidth * 0.55) {
+        for (let [id, p] of this.ptr) p.role === "steer" && this.ptr.delete(id);
+        this.ptr.set(e.pointerId, { role: "steer", x0: x, y0: y, x }), this.steerOn = !0, this.hintEl.classList.add("gone"), this.knob.hidden = !1, this.knob.style.transform = `translate(${x}px,${y}px)`;
+      } else this.ptr.set(e.pointerId, { role: "none" });
+      this.paint();
+    }
+    move(e) {
+      let P = this.ptr.get(e.pointerId);
+      if (!P) return;
+      e.preventDefault();
+      let x = e.clientX, y = e.clientY;
+      if (P.role === "steer") {
+        let R2 = this.steerRange(), dx = x - P.x0;
+        Math.abs(dx) > R2 && (P.x0 = x - Math.sign(dx) * R2, dx = Math.sign(dx) * R2, this.knob.style.transform = `translate(${P.x0}px,${P.y0}px)`), P.x = x, this.nub.style.transform = `translateX(${dx}px)`;
+      } else if (P.role === "pad" && PEDALS.includes(P.k)) {
+        let k = this.hit(x, y, PEDALS, 22);
+        k && k !== P.k && (P.k = k, this.paint());
+      } else if (P.role === "pad" && (P.k === "left" || P.k === "right")) {
+        let k = this.hit(x, y, ["left", "right"], 30);
+        k && k !== P.k && (P.k = k, this.paint());
+      }
+    }
+    up(e) {
+      let P = this.ptr.get(e.pointerId);
+      P && (this.ptr.delete(e.pointerId), P.role === "steer" && (this.steerOn = [...this.ptr.values()].some((p) => p.role === "steer"), this.steerOn || (this.knob.hidden = !0, this.nub.style.transform = "")), this.paint());
+    }
+    held(k) {
+      for (let p of this.ptr.values()) if (p.role === "pad" && p.k === k) return !0;
+      return !1;
+    }
+    paint() {
+      for (let k of HELD) this.el[k].classList.toggle("on", this.held(k));
+    }
+    /* ---- tilt: needs a tap to ask permission on iOS ---- */
+    async enableTilt() {
+      if (this.tilt.listening) return !0;
+      try {
+        if (typeof DeviceMotionEvent < "u" && DeviceMotionEvent.requestPermission && await DeviceMotionEvent.requestPermission() !== "granted")
+          return !1;
+      } catch {
+        return !1;
+      }
+      return this.tilt.listening = !0, addEventListener("devicemotion", (e) => {
+        let g = e.accelerationIncludingGravity;
+        if (!g || g.x === null) return;
+        let ang = screen.orientation && typeof screen.orientation.angle == "number" ? screen.orientation.angle : typeof window.orientation == "number" ? window.orientation : 0, ux = -g.x, uy = -g.y, r, d, a = (ang % 360 + 360) % 360;
+        if (a === 90 ? (r = uy, d = ux) : a === 270 ? (r = -uy, d = -ux) : a === 180 ? (r = -ux, d = uy) : (r = ux, d = -uy), Math.hypot(r, d) < 1.5) return;
+        let roll = Math.atan2(r, d);
+        roll > Math.PI / 2 ? roll -= Math.PI : roll < -Math.PI / 2 && (roll += Math.PI), this.tilt.roll += (roll - this.tilt.roll) * 0.35, this.tilt.ok = !0;
+      }), !0;
+    }
+    /* ---- read for this frame ---- */
+    poll() {
+      let out = {
+        active: this.visible,
+        steer: null,
+        thr: this.held("thr"),
+        brk: this.held("brk"),
+        hb: this.held("hb"),
+        nos: this.held("nos"),
+        left: this.held("left"),
+        right: this.held("right"),
+        up: this.taps.has("up"),
+        down: this.taps.has("down"),
+        cam: this.taps.has("cam"),
+        reset: this.taps.has("reset"),
+        pause: this.taps.has("pause")
+      };
+      if (this.taps.clear(), !this.visible) return out;
+      if (this.slides() && this.steerOn) {
+        let R2 = this.steerRange(), t = 0;
+        for (let p of this.ptr.values()) p.role === "steer" && (t = Math.max(-1, Math.min(1, (p.x - p.x0) / R2)));
+        out.steer = Math.sign(t) * Math.pow(Math.abs(t), 1.25);
+      } else if (this.cfg.steer === "tilt" && this.tilt.ok) {
+        let deg = this.tilt.roll * 57.3, dz = 2, v = Math.abs(deg) < dz ? 0 : (deg - Math.sign(deg) * dz) / (26 - dz);
+        out.steer = Math.max(-1, Math.min(1, v));
+      }
+      return out;
+    }
+  };
+
   // game/main.js
-  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { event: "race", laps: 3, rivals: "racing", level: "city", assist: "easy", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", volume: 0.8, units: "kmh", sandbox: null }, settings = loadSettings(DEFAULTS);
+  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { event: "race", laps: 3, rivals: "racing", level: "city", assist: "easy", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", volume: 0.8, units: "kmh", sandbox: null, touch: "auto", steer: "slide", device: null }, settings = loadSettings(DEFAULTS);
   for (let k of Object.keys(DEFAULTS)) Q.has(k) && (settings[k] = isNaN(+Q.get(k)) || k === "scale" && Q.get(k) === "auto" ? Q.get(k) : +Q.get(k));
   var save = () => {
     Q.has("manual") || saveSettings(settings);
-  }, canvas = $("view"), hudC = $("hud"), R = new Renderer(canvas, { quality: settings.quality }), level = makeLevel(settings.level);
+  }, COARSE = matchMedia("(pointer: coarse)").matches;
+  settings.device || (settings.device = COARSE ? "touch" : "desktop", COARSE && !Q.has("quality") && (settings.quality = "mobile"), save());
+  var canvas = $("view"), hudC = $("hud"), R = new Renderer(canvas, { quality: settings.quality }), level = makeLevel(settings.level);
   R.loadWorld(level.geo, level.T);
   var CR = new CarRenderer(R, CHASSIS);
   for (let d of ["sl3_lip", "sl3_wing"]) CR.addDesign(Object.assign({}, CHASSIS.sl3, { design: d }));
-  var AERO_DESIGN = ["sl3", "sl3_lip", "sl3_wing"], extraCars = [], PS = new Particles(R, level.mask, { rainN: { low: 4e3, medium: 6500, high: 9e3, ultra: 12e3 }[settings.quality] || 9e3 }), drs = new DRS({ min: 0.5, max: R.Q.maxScale, start: settings.scale === "auto" ? 0.85 : +settings.scale });
+  var AERO_DESIGN = ["sl3", "sl3_lip", "sl3_wing"], extraCars = [], PS = new Particles(R, level.mask, { rainN: { mobile: 2500, low: 4e3, medium: 6500, high: 9e3, ultra: 12e3 }[settings.quality] || 9e3 }), drs = new DRS({ min: 0.5, max: R.Q.maxScale, start: settings.scale === "auto" ? 0.85 : +settings.scale });
   drs.enabled = settings.scale === "auto";
   var hud = new HUD(hudC);
   hud.setMap(level.map);
   var ledHud = document.createElement("canvas"), ledHudView = new HUD(ledHud);
   ledHudView.setMap(level.map);
-  var audio = new GameAudio();
+  var audio = new GameAudio({ ctx: settings.quality === "mobile" ? { sampleRate: 32e3, latencyHint: "balanced" } : {} });
   audio.setVolume(settings.volume);
-  var input = new Input(window), cam = new CameraRig(level), menu = new Menu($("menu")), env = ENVS[settings.env] || ENVS.rain;
+  var touch = new TouchControls($("touch")), input = new Input(window, touch), cam = new CameraRig(level), menu = new Menu($("menu")), env = ENVS[settings.env] || ENVS.rain;
   cam.mode = Math.max(0, CAM_MODES.indexOf(settings.cam));
   if (Q.get("orbit")) {
     let o = Q.get("orbit").split(",").map(Number);
@@ -9074,7 +9348,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   function loadLevel(kind) {
     level.kind !== kind && (settings.level = kind, save(), level = makeLevel(kind), R.loadWorld(level.geo, level.T), PS.setMask(level.mask), hud.setMap(level.map), ledHudView.setMap(level.map), cam.setLevel(level), car.world = level.world, level.spawn(car), car.pt.start(), guide = level.guide(car), botFn = level.bot(car), mode = null, makeTraffic());
   }
-  var TRAFFIC_N = { low: 28, medium: 42, high: 56, ultra: 76 }, SL3_BOX = carBox({ xF: 2.25, xR: -2.3, hw: 0.966, H: 1.28 }, CHASSIS.sl3.hcg), traffic = null, trafficInit = !1, camLast = { pos: [0, 0, 0], fwd: [1, 0, 0] };
+  var TRAFFIC_N = { mobile: 16, low: 28, medium: 42, high: 56, ultra: 76 }, SL3_BOX = carBox({ xF: 2.25, xR: -2.3, hw: 0.966, H: 1.28 }, CHASSIS.sl3.hcg), traffic = null, trafficInit = !1, camLast = { pos: [0, 0, 0], fwd: [1, 0, 0] };
   function makeTraffic() {
     traffic = level.kind === "city" && !Q.has("notraffic") && !(mode && mode.kind === "drag") ? new Traffic(level, { count: +(Q.get("traffic") || TRAFFIC_N[settings.quality] || 56) }) : null, level.traffic = traffic, trafficInit = !0;
   }
@@ -9166,7 +9440,54 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }
     state === "drive" && (e.key === "Escape" || e.key === "p" || e.key === "P") && (pause(!0), e.preventDefault());
   });
-  window.addEventListener("pointerdown", () => audio.start());
+  for (let t of ["pointerdown", "touchend", "click"]) window.addEventListener(t, () => audio.start());
+  var touchSeen = COARSE, touchCfgKey = "", touchLayoutKey = "", fsTried = !1;
+  addEventListener("pointerdown", (e) => {
+    e.pointerType === "touch" && (touchSeen = !0), settings.steer === "tilt" && !touch.tilt.listening && touch.enableTilt();
+  }, !0);
+  addEventListener("keydown", () => {
+    settings.touch === "auto" && (touchSeen = !1);
+  }, !0);
+  document.addEventListener("gesturestart", (e) => e.preventDefault());
+  var touchOn = () => settings.touch === "on" || settings.touch === "auto" && touchSeen, portrait = matchMedia("(orientation: portrait) and (pointer: coarse)");
+  function goFullscreen() {
+    let d = document.documentElement, f2 = d.requestFullscreen || d.webkitRequestFullscreen;
+    if (!(!f2 || document.fullscreenElement || document.webkitFullscreenElement))
+      try {
+        let p = f2.call(d, { navigationUI: "hide" });
+        p && p.then && p.then(() => {
+          try {
+            screen.orientation.lock("landscape").catch(() => {
+            });
+          } catch {
+          }
+        }).catch(() => {
+        });
+      } catch {
+      }
+  }
+  function toggleFullscreen() {
+    document.fullscreenElement || document.webkitFullscreenElement ? (document.exitFullscreen || document.webkitExitFullscreen).call(document) : goFullscreen();
+  }
+  function touchUI() {
+    let on = touchOn(), rt = $("rtouch");
+    document.documentElement.classList.toggle("touch", on), touch.show(on && state === "drive"), rt.hidden = !(on && state === "replay" && replay);
+    let k = [!!spec.nosKw, !car.pt.auto, settings.steer, touch.tilt.ok].join();
+    k !== touchCfgKey && (touchCfgKey = k, touch.configure({ nos: !!spec.nosKw, manual: !car.pt.auto, steer: settings.steer })), rt.hidden || (rt.querySelector(".pp").textContent = replay.paused || replay.t >= replay.t1 ? "PLAY" : "PAUSE", rt.querySelector(".spd").textContent = "X" + (replay.speed < 1 ? String(replay.speed).replace(/^0/, "") : replay.speed));
+    let lk = [on, state, canvas.width, canvas.height, innerWidth, innerHeight, settings.ledRes, touch.cfg.nos, touch.cfg.manual].join();
+    if (lk === touchLayoutKey) return;
+    touchLayoutKey = lk;
+    let dpr = canvas.width / Math.max(1, innerWidth), cs = getComputedStyle($("safe")), px = (v) => (parseFloat(v) || 0) * dpr, ins = { l: px(cs.paddingLeft), r: px(cs.paddingRight), t: px(cs.paddingTop), b: px(cs.paddingBottom) }, cam2 = on && state === "drive" ? touch.el.cam.getBoundingClientRect() : null, bar = on && state === "replay" ? rt.getBoundingClientRect() : null;
+    Object.assign(hud, { touch: on, ui: Math.max(1, Math.min(1.45, 0.46 / Math.min(innerWidth / 1920, innerHeight / 1080))), ins, mapRight: cam2 && cam2.width ? (cam2.left - 18) * dpr : 0, replayBar: bar && bar.height ? (innerHeight - bar.top + 4) * dpr : 0 });
+    let k2 = ledHud.width / Math.max(1, canvas.width);
+    Object.assign(ledHudView, { touch: on, ui: 1, ins: { l: ins.l * k2, r: ins.r * k2, t: ins.t * k2, b: ins.b * k2 }, mapRight: hud.mapRight * k2, replayBar: hud.replayBar * k2 });
+  }
+  $("rtouch").addEventListener("click", (e) => {
+    let b = e.target.closest("[data-r]");
+    if (!b || !replay) return;
+    let k = b.dataset.r;
+    k === "speed" ? replay.speed = replay.speed >= 4 ? 0.25 : replay.speed * 2 : replayUI.key(k), touchLayoutKey = "";
+  });
   var ORBIT = (shift = 0) => ({ yaw: 2.4, pitch: 0.12, dist: 7.2, fov: 0.62, y: 0.25, shift });
   function hideAll() {
     $("title").hidden = !0, $("screen").hidden = !0, hub.open = garage.open = results.open = !1, menu.hide();
@@ -9182,7 +9503,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     hideAll(), session = { kind: "free", ev: null, play: "title" }, mode = null, env = ENVS[settings.env] || ENVS.rain, makeCar(), level.botStart && level.botStart(car), car.pt.start(), level.kind === "city" && !traffic && makeTraffic(), state = "title", $("title").hidden = !1, cam.orbit = { yaw: 2.5, pitch: 0.1, dist: 7.6, fov: 0.72, y: 0.2 }, $("titleSub").textContent = level.name + " · " + env.name, titleMenu.set(titleItems());
   }
   function pickTitle(id) {
-    if (id === "career") return enterHub();
+    if (touchOn() && !fsTried && id !== "options" && (fsTried = !0, goFullscreen()), id === "career") return enterHub();
     if (id === "options") {
       menuBack = () => {
         menu.hide(), menuBack = () => pause(!1);
@@ -9264,8 +9585,29 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       ] },
       { type: "choice", label: "Gearbox", chips: 1, get: () => settings.gearbox, set: set("gearbox", (v) => {
         car.pt.auto = v === "auto";
-      }), options: [opt("auto", "Automatic"), opt("manual", "Manual", "Q / E or the B / X buttons to shift.")] }
-    ), free && rows.push(
+      }), options: [opt("auto", "Automatic"), opt("manual", "Manual", "Q / E or the B / X buttons to shift; on a touch screen, the + and − pads.")] }
+    ), (COARSE || touchSeen || navigator.maxTouchPoints > 0 || settings.touch !== "auto") && (rows.push(
+      { type: "head", label: "Touch" },
+      { type: "choice", label: "Touch pads", chips: 1, get: () => settings.touch, set: set("touch"), options: [opt("auto", "Auto", "On when you touch the screen, off again when you press a key."), opt("on", "Always"), opt("off", "Off")] },
+      {
+        type: "choice",
+        label: "Steering",
+        chips: 1,
+        get: () => settings.steer,
+        set: (v) => {
+          settings.steer = v, save(), v === "tilt" && touch.enableTilt().then((ok) => {
+            ok ? setTimeout(() => {
+              touch.tilt.ok || hud.message("NO TILT DATA · SLIDE TO STEER", "#ffb040", 3);
+            }, 1500) : (settings.steer = "slide", save(), hud.message("NO TILT ACCESS", "#ff3d5a", 2), menu.open && menu.render());
+          });
+        },
+        options: [opt("slide", "Slide", "Put your left thumb down anywhere on the left and slide it sideways. Past full lock the centre follows your thumb."), opt("buttons", "Buttons", "Two pads, left and right; steering builds up like on a keyboard."), opt("tilt", "Tilt", "Turn the phone like a steering wheel.")]
+      }
+    ), (document.fullscreenEnabled || document.webkitFullscreenEnabled) && rows.push({ type: "action", label: document.fullscreenElement || document.webkitFullscreenElement ? "Leave full screen" : "Full screen", act: () => {
+      toggleFullscreen(), setTimeout(() => {
+        menu.open && menu.render();
+      }, 300);
+    } })), free && rows.push(
       { type: "head", label: "Car" },
       { type: "choice", label: "Engine", get: () => sandbox.setup.engine, set: (v) => swapEngine(v), options: ENGINE_CHOICES.concat(["street4", "three", "oddv6", "rotary2", "eight", "flat6"]).filter((v, i, a) => a.indexOf(v) === i).map((id) => {
         let p = SIM.PRESETS.find((q) => q.id === id);
@@ -9287,7 +9629,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       { type: "head", label: "Graphics" },
       { type: "choice", label: "Quality", chips: 1, get: () => settings.quality, set: (v) => {
         settings.quality = v, save(), location.reload();
-      }, options: ["low", "medium", "high", "ultra"].map((q) => opt(q, q[0].toUpperCase() + q.slice(1), "Changing this reloads the page.")) },
+      }, options: ["mobile", "low", "medium", "high", "ultra"].map((q) => opt(q, q[0].toUpperCase() + q.slice(1), q === "mobile" ? "For phones and tablets: lighter shadows, haze and reflections, no motion blur, fewer cars. Changing this reloads the page." : "Changing this reloads the page.")) },
       {
         type: "choice",
         label: "Resolution",
@@ -9332,7 +9674,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     return !0;
   } };
   function fit() {
-    let dpr = Math.min(2, devicePixelRatio || 1), w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
+    let dpr = Math.min(R.Q.dpr || 2, devicePixelRatio || 1), w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
     (canvas.width !== w || canvas.height !== h) && (canvas.width = w, canvas.height = h, hudC.width = w, hudC.height = h), R.resize(w, h, R.iw ? R.scale : settings.scale === "auto" ? drs.scale : +settings.scale);
   }
   function carView(c = car) {
@@ -9421,7 +9763,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         p.vol = listener === 1 ? 0.45 : 0.8, list.push({ id: o.id, cfg: SIM.dspCfg(o.car.spec), p, ev: o.car.pt.takeEvents() });
       }
       for (let { o } of near.slice(2)) o.car.pt.takeEvents();
-      audio.rivals(list, { low: 1, medium: 1, high: 2, ultra: 2 }[settings.quality] ?? 2);
+      audio.rivals(list, { mobile: 1, low: 1, medium: 1, high: 2, ultra: 2 }[settings.quality] ?? 2);
     } else audio.rivals([]);
     if (traffic) {
       let cv = camLast.pos, rt = right, near = [];
@@ -9475,7 +9817,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         let p = t.view && t.view.p || traffic.worldPos(t);
         return [p[0], -p[2]];
       }) : null,
-      hint: state === "drive" && time < 6 && !mode ? "ESC FOR THE MENU · C CAMERA · L LED MATRIX" : null
+      hint: state === "drive" && time < 6 && !mode ? touchOn() ? "II FOR THE MENU · CAM CAMERA · RESET BACK ON THE ROAD" : "ESC FOR THE MENU · C CAMERA · L LED MATRIX" : null
     };
     if (mode && Object.assign(S, mode.hud(time)), freeDrift) {
       let d = freeDrift.hud();
@@ -9492,7 +9834,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     lastInp = inp;
     let ui = activeUI();
     if (ui && inp.nav) for (let k of inp.nav) ui.key(k);
-    if (inp.pause && (state === "drive" ? pause(!0) : state === "pause" && pause(!1)), cam.orbit && state !== "drive" && (cam.orbit.yaw += dt * (state === "title" ? 0.11 : 0.07)), state === "drive" && settings.scale === "auto" && drs.scale <= drs.min + 1e-3 && dt > drs.period / 1e3 * 1.45 ? (slowT += dt, slowT > 6 && !slowHinted && (slowHinted = !0, hud.message(settings.quality === "low" ? "LOW FRAME RATE" : "TRY QUALITY: " + (settings.quality === "ultra" ? "HIGH" : settings.quality === "high" ? "MEDIUM" : "LOW"), "#ffb040", 4))) : slowT = Math.max(0, slowT - dt), state === "pause" || state === "boot") return { ev: {} };
+    if (inp.pause && (state === "drive" ? pause(!0) : state === "pause" && pause(!1)), cam.orbit && state !== "drive" && (cam.orbit.yaw += dt * (state === "title" ? 0.11 : 0.07)), state === "drive" && settings.scale === "auto" && drs.scale <= drs.min + 1e-3 && dt > drs.period / 1e3 * 1.45 ? (slowT += dt, slowT > 6 && !slowHinted && (slowHinted = !0, hud.message(settings.quality === "low" || settings.quality === "mobile" ? "LOW FRAME RATE" : "TRY QUALITY: " + (settings.quality === "ultra" ? "HIGH" : settings.quality === "high" ? "MEDIUM" : "LOW"), "#ffb040", 4))) : slowT = Math.max(0, slowT - dt), state === "pause" || state === "boot") return { ev: {} };
     if (state === "replay") {
       if (replay.step(dt), replay.you(proxy), level.T) {
         let L = level.T.locate(proxy.p[0], proxy.p[2], proxy.loc ? proxy.loc.i : -1);
@@ -9521,20 +9863,20 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     camLast = { pos: c.pos, fwd: c.fwd };
     let you = carView(subj), others;
     if (R1) {
-      if (others = replay.others(), env.night > 0.3) for (let o of others.slice(0, { low: 0, medium: 2, high: 4, ultra: 6 }[settings.quality] ?? 4)) {
+      if (others = replay.others(), env.night > 0.3) for (let o of others.slice(0, { mobile: 0, low: 0, medium: 2, high: 4, ultra: 6 }[settings.quality] ?? 4)) {
         if (o.ghost) continue;
         let Mo = qmat(o.q), Fo = mcol(Mo, 0), Uo = mcol(Mo, 1);
         L.dyn.push({ pos: add(o.p, [Fo[0] * 2.1, 0.1, Fo[2] * 2.1]), r: 30, col: [150, 145, 130], type: 1, dir: [Fo[0] - Uo[0] * 0.08, Fo[1] - Uo[1] * 0.08 - 0.04, Fo[2] - Uo[2] * 0.08], cosO: Math.cos(0.6) });
       }
     } else {
       if (mode && env.night > 0.3) {
-        let near = mode.others().map((o) => ({ o, d: Math.hypot(o.car.p[0] - c.pos[0], o.car.p[2] - c.pos[2]) })).sort((a, b) => a.d - b.d).slice(0, { low: 0, medium: 2, high: 3, ultra: 4 }[settings.quality] ?? 3);
+        let near = mode.others().map((o) => ({ o, d: Math.hypot(o.car.p[0] - c.pos[0], o.car.p[2] - c.pos[2]) })).sort((a, b) => a.d - b.d).slice(0, { mobile: 0, low: 0, medium: 2, high: 3, ultra: 4 }[settings.quality] ?? 3);
         for (let { o } of near) {
           let Mr = qmat(o.car.q), Fr = mcol(Mr, 0), Ur = mcol(Mr, 1), hr = o.car.c.hcg, pos = add(o.car.p, mvec(Mr, [2.1, 0.62 - hr, 0]));
           L.dyn.push({ pos, r: 30, col: [150, 145, 130], type: 1, dir: [Fr[0] - Ur[0] * 0.08, Fr[1] - Ur[1] * 0.08 - 0.04, Fr[2] - Ur[2] * 0.08], cosO: Math.cos(0.6) });
         }
       }
-      traffic && L.dyn.push(...traffic.lights({ night: env.night, cam: c }, Math.min(16 - L.dyn.length, { low: 0, medium: 2, high: 4, ultra: 6 }[settings.quality] ?? 4))), others = liveViews;
+      traffic && L.dyn.push(...traffic.lights({ night: env.night, cam: c }, Math.min(16 - L.dyn.length, { mobile: 0, low: 0, medium: 2, high: 4, ultra: 6 }[settings.quality] ?? 4))), others = liveViews;
     }
     let camVel = camPrev && !c.cut ? sub2(c.pos, camPrev).map((x) => x / Math.max(dt, 1e-3)) : [0, 0, 0];
     camPrev = c.pos.slice(), PS.rain.on = env.rain, PS.rain.camVel = camVel, PS.update(dt, c.pos);
@@ -9588,9 +9930,9 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   }
   var last = performance.now(), fps = 60;
   function frame2(dt) {
-    fit();
+    fit(), touchUI(), portrait.matches && state === "drive" && pause(!0);
     let r = step(dt);
-    if (render(dt, r.ev || {}), frameN++, settings.scale === "auto") {
+    if ((state !== "pause" || frameN % 8 === 0) && render(dt, r.ev || {}), frameN++, settings.scale === "auto") {
       let sc = drs.update(dt * 1e3, R.gpuMs);
       Math.abs(sc - R.scale) > 1e-3 && R.resize(canvas.width, canvas.height, sc);
     }
@@ -9636,6 +9978,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     },
     cam,
     input,
+    touch,
     frame: frame2,
     audio,
     menu,

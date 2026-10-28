@@ -1,7 +1,9 @@
 /* =====================================================================================
    INPUT — keyboard and gamepad, merged into one set of driving controls.
    Keyboard steering ramps like a hand on a wheel (and springs back faster than it turns in);
-   triggers and sticks are read as they are, with a small dead zone.
+   triggers and sticks are read as they are, with a small dead zone. On-screen touch controls
+   (src/ui/touch.js) feed in here too: their pedals and steer pads ramp like keys, a sliding
+   thumb or a tilted phone steers directly.
    ===================================================================================== */
 const KEYS={
   thr:['ArrowUp','KeyW'],brk:['ArrowDown','KeyS'],left:['ArrowLeft','KeyA'],right:['ArrowRight','KeyD'],
@@ -9,8 +11,8 @@ const KEYS={
   cam:['KeyC'],reset:['KeyR'],pause:[],led:['KeyL'],high:['KeyH'],look:['KeyB'],env:['KeyT'],hud:['KeyU']
 };
 export class Input{
-  constructor(target=window){
-    this.down=new Set();this.pressed=new Set();this.steer=0;this.thr=0;this.brk=0;this.pad=null;this.usingPad=false;
+  constructor(target=window,touch=null){
+    this.touch=touch;this.down=new Set();this.pressed=new Set();this.steer=0;this.thr=0;this.brk=0;this.pad=null;this.usingPad=false;
     target.addEventListener('keydown',e=>{if(e.repeat)return;this.down.add(e.code);this.pressed.add(e.code);if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();this.usingPad=false;});
     target.addEventListener('keyup',e=>{this.down.delete(e.code);});
     target.addEventListener('blur',()=>this.down.clear());
@@ -23,13 +25,15 @@ export class Input{
     const pads=navigator.getGamepads?navigator.getGamepads():[];let gp=null;for(const p of pads)if(p&&p.connected){gp=p;break;}
     const out={steer:0,thr:0,brk:0,hb:0,nos:false,up:false,down:false,cam:false,reset:false,pause:false,led:false,high:false,look:false,env:false,hud:false};
     /* keyboard */
-    const kl=this.key('left'),kr=this.key('right'),tgt=(kr?1:0)-(kl?1:0);
-    const rate=tgt===0?6.5:(Math.sign(tgt)!==Math.sign(this.steer)&&this.steer!==0?9:3.2);
-    this.steer+=Math.max(-rate*dt,Math.min(rate*dt,tgt-this.steer));
-    const kt=this.key('thr')?1:0,kb=this.key('brk')?1:0;
+    const T=this.touch?this.touch.poll():null;
+    const kl=this.key('left')||T&&T.left,kr=this.key('right')||T&&T.right,tgt=(kr?1:0)-(kl?1:0);
+    if(T&&T.steer!==null){/* a thumb or the tilt steers directly, lightly smoothed */this.steer+=(T.steer-this.steer)*Math.min(1,dt*28);}
+    else{const rate=tgt===0?6.5:(Math.sign(tgt)!==Math.sign(this.steer)&&this.steer!==0?9:3.2);
+      this.steer+=Math.max(-rate*dt,Math.min(rate*dt,tgt-this.steer));}
+    const kt=this.key('thr')||T&&T.thr?1:0,kb=this.key('brk')||T&&T.brk?1:0;
     this.thr+=Math.max(-8*dt,Math.min(6*dt,kt-this.thr));this.brk+=Math.max(-10*dt,Math.min(8*dt,kb-this.brk));
-    out.steer=this.steer;out.thr=this.thr;out.brk=this.brk;out.hb=this.key('hb')?1:0;out.nos=this.key('nos');
-    for(const k of ['up','down','cam','reset','pause','led','high','look','env','hud'])out[k]=this.hit(k);
+    out.steer=this.steer;out.thr=this.thr;out.brk=this.brk;out.hb=this.key('hb')||T&&T.hb?1:0;out.nos=this.key('nos')||!!(T&&T.nos);
+    for(const k of ['up','down','cam','reset','pause','led','high','look','env','hud'])out[k]=this.hit(k)||!!(T&&T[k]);
     if(this.key('look'))out.look=true;
     /* gamepad (standard mapping): left stick steers, triggers drive, A handbrake, B/X shifts */
     if(gp){

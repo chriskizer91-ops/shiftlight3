@@ -9,7 +9,8 @@ self-contained HTML file you can open straight from disk or send to someone.
 
 ## Play
 
-Open `dist/shiftlight.html` in a desktop browser (Chrome, Edge, Firefox or Safari with WebGL2).
+Open `dist/shiftlight.html` in a desktop browser (Chrome, Edge, Firefox or Safari with WebGL2),
+or on a phone or tablet held sideways (see **Phones and tablets** below).
 The title menu has the career, and free play: roam Shift City, race or practice on Neon Loop, a
 drift run, a drag run, and the free-play garage.
 
@@ -26,6 +27,24 @@ drift run, a drag run, and the free-play garage.
 | Time of day | T | — |
 | High beam | H | — |
 | Menu | Esc | Start |
+
+### Phones and tablets
+
+On a touch screen the game starts on the **Mobile** graphics tier and shows on-screen controls
+while you drive. Hold the phone sideways (upright, it pauses and asks you to turn it).
+
+- **Left thumb steers.** *Slide* (default): put your thumb down anywhere on the left and slide it
+  sideways; past full lock the centre follows your thumb, so reversing the wheel is instant.
+  *Buttons*: two pads. *Tilt*: turn the phone like a wheel (iPhone asks for motion access).
+- **Right thumb drives.** GAS, BRAKE (hold it stopped to reverse), HAND brake, N2O when the car
+  has nitrous, and + / − paddles with the manual gearbox. Roll a thumb between pedals without
+  lifting it.
+- **Top right**: CAM, RESET, and II for the menu. Replays get their own button bar.
+- The pause menu's **Touch** section switches the pads (Auto / Always / Off), the steering style
+  and full screen. Auto turns the pads on when you touch the screen and off when you press a key.
+- The **Mobile** tier has smaller shadow and reflection maps, a lighter haze, shorter reflection
+  rays, no motion blur, at most 1.25 device pixels per CSS pixel, 16 traffic cars, and lighter
+  rain. Dynamic resolution still runs on top. A strong tablet can try Low or Medium in Graphics.
 
 ### Career
 
@@ -125,7 +144,8 @@ src/world/            Neon Loop track and town, Shift City map, geometry kit, la
 src/game/             levels, cameras, input, traffic, race, career, setup, dyno, drift, drag,
                       time trials, ghosts, replays, guide, bots
 src/audio/            engine synth, effects synth, game audio graph
-src/ui/               HUD (LED dot font), menu, title / career / garage / results screens
+src/ui/               HUD (LED dot font), menu, title / career / garage / results screens,
+                      touch controls
 lab/                  Engine Lab page
 tools/build.mjs       bundles a page into dist/*.html
 test/                 headless tests and screenshot harness
@@ -141,6 +161,8 @@ npm run test:traffic   # traffic flow, signals, deadlocks, physics near you, sto
 npm run test:race      # a three-lap race: the grid holds, everyone finishes, places change
 npm run test:career    # buying, class limits, rewards, tiers, saves; every build still drives
 npm run test:events    # drag runs and red lights, a time trial and its ghost, a drift run
+npm run test:mobile    # an emulated phone: touch pads drive, screens tap through, portrait
+npm run test:cpu       # game-logic time per frame (physics, traffic, rivals) per quality tier
 SHOTS='[{"name":"x","js":"__game.begin()"}]' node test/shot.mjs test/out   # screenshots (headless GPU)
 ```
 
@@ -150,4 +172,4 @@ SHOTS='[{"name":"x","js":"__game.begin()"}]' node test/shot.mjs test/out   # scr
 2. **City and traffic**: Shift City, the expressway and ramps, traffic with personality, rivals and
    races on Neon Loop. Done.
 3. **Career**: parts, tuning, dyno, drift, drag, ghosts, replays. Done.
-4. **Polish and performance tiers.**
+4. **Polish and performance tiers.** Started: phones and tablets (touch controls, the Mobile tier).

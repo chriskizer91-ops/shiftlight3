@@ -29,7 +29,7 @@ for(const [name,p] of Object.entries(PAGES)){
   const page=tpl.replace('/*@BUNDLE@*/',()=>js);
   const split=page.indexOf('<!--@BODY@-->')>=0?page.indexOf('<!--@BODY@-->'):page.indexOf('<div class="app">');
   const head=page.slice(0,split).trim(),body=page.slice(split).replace('<!--@BODY@-->','').trim();
-  const full=`<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n${head}\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
+  const full=`<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">\n<meta name="mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n<meta name="theme-color" content="#05040a">\n<meta name="screen-orientation" content="landscape">\n${head}\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
   writeFileSync(join(root,'dist',p.out),full);
   if(frag){mkdirSync(frag,{recursive:true});writeFileSync(join(frag,p.out),page);}
   console.log(`dist/${p.out}  ${(full.length/1024).toFixed(1)} KB`);

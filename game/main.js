@@ -35,14 +35,18 @@ import {GameAudio} from '../src/audio/game-audio.js';
 import {HUD} from '../src/ui/hud.js';
 import {Menu,loadSettings,saveSettings} from '../src/ui/menu.js';
 import {TitleMenu,CareerHub,Garage,Results} from '../src/ui/screens.js';
+import {TouchControls} from '../src/ui/touch.js';
 import {qmat,mcol,mvec,add,norm,clamp,madd,sub,len,dot} from '../src/physics/math3.js';
 
 const $=id=>document.getElementById(id);
 const Q=new URLSearchParams(location.search);
-const DEFAULTS={event:'race',laps:3,rivals:'racing',level:'city',assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',volume:.8,units:'kmh',sandbox:null};
+const DEFAULTS={event:'race',laps:3,rivals:'racing',level:'city',assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',volume:.8,units:'kmh',sandbox:null,touch:'auto',steer:'slide',device:null};
 const settings=loadSettings(DEFAULTS);
 for(const k of Object.keys(DEFAULTS))if(Q.has(k))settings[k]=isNaN(+Q.get(k))||k==='scale'&&Q.get(k)==='auto'?Q.get(k):+Q.get(k);
 const save=()=>{if(!Q.has('manual'))saveSettings(settings);};
+/* phones and tablets: the first time, start on the mobile graphics tier with the touch controls */
+const COARSE=matchMedia('(pointer: coarse)').matches;
+if(!settings.device){settings.device=COARSE?'touch':'desktop';if(COARSE&&!Q.has('quality'))settings.quality='mobile';save();}
 
 /* ---------- the world ---------- */
 const canvas=$('view'),hudC=$('hud');
@@ -51,12 +55,13 @@ let level=makeLevel(settings.level);R.loadWorld(level.geo,level.T);
 const CR=new CarRenderer(R,CHASSIS);for(const d of ['sl3_lip','sl3_wing'])CR.addDesign(Object.assign({},CHASSIS.sl3,{design:d}));
 const AERO_DESIGN=['sl3','sl3_lip','sl3_wing'];
 const extraCars=[];   /* other cars to draw (tests can add some) */
-const PS=new Particles(R,level.mask,{rainN:{low:4000,medium:6500,high:9000,ultra:12000}[settings.quality]||9000});
+const PS=new Particles(R,level.mask,{rainN:{mobile:2500,low:4000,medium:6500,high:9000,ultra:12000}[settings.quality]||9000});
 const drs=new DRS({min:.5,max:R.Q.maxScale,start:settings.scale==='auto'?.85:+settings.scale});drs.enabled=settings.scale==='auto';
 const hud=new HUD(hudC);hud.setMap(level.map);
 const ledHud=document.createElement('canvas');const ledHudView=new HUD(ledHud);ledHudView.setMap(level.map);
-const audio=new GameAudio();audio.setVolume(settings.volume);
-const input=new Input(window),cam=new CameraRig(level);
+const audio=new GameAudio({ctx:settings.quality==='mobile'?{sampleRate:32000,latencyHint:'balanced'}:{}});audio.setVolume(settings.volume);
+const touch=new TouchControls($('touch'));
+const input=new Input(window,touch),cam=new CameraRig(level);
 const menu=new Menu($('menu'));
 let env=ENVS[settings.env]||ENVS.rain;
 cam.mode=Math.max(0,CAM_MODES.indexOf(settings.cam));
@@ -92,7 +97,7 @@ function loadLevel(kind){
 }
 
 /* ---------- the traffic ---------- */
-const TRAFFIC_N={low:28,medium:42,high:56,ultra:76},SL3_BOX=carBox({xF:2.25,xR:-2.30,hw:.966,H:1.28},CHASSIS.sl3.hcg);
+const TRAFFIC_N={mobile:16,low:28,medium:42,high:56,ultra:76},SL3_BOX=carBox({xF:2.25,xR:-2.30,hw:.966,H:1.28},CHASSIS.sl3.hcg);
 let traffic=null,trafficInit=false,camLast={pos:[0,0,0],fwd:[1,0,0]};
 function makeTraffic(){traffic=level.kind==='city'&&!Q.has('notraffic')&&!(mode&&mode.kind==='drag')?new Traffic(level,{count:+(Q.get('traffic')||TRAFFIC_N[settings.quality]||56)}):null;level.traffic=traffic;trafficInit=true;}
 const playerBody=()=>({p:car.p,v:car.v,hcg:car.c.hcg,veh:car,box:SL3_BOX});
@@ -160,7 +165,34 @@ window.addEventListener('keydown',e=>{
   if(ui){const k=keyName(e);if(k&&ui.key(k))e.preventDefault();return;}
   if(state==='drive'&&(e.key==='Escape'||e.key==='p'||e.key==='P')){pause(true);e.preventDefault();}
 });
-window.addEventListener('pointerdown',()=>audio.start());
+for(const t of ['pointerdown','touchend','click'])window.addEventListener(t,()=>audio.start());
+
+/* ---------- touch: shown while you drive when this is a touch screen (or you asked for it) ---------- */
+let touchSeen=COARSE,touchCfgKey='',touchLayoutKey='',fsTried=false;
+addEventListener('pointerdown',e=>{if(e.pointerType==='touch')touchSeen=true;if(settings.steer==='tilt'&&!touch.tilt.listening)touch.enableTilt();},true);
+addEventListener('keydown',()=>{if(settings.touch==='auto')touchSeen=false;},true);
+document.addEventListener('gesturestart',e=>e.preventDefault());
+const touchOn=()=>settings.touch==='on'||settings.touch==='auto'&&touchSeen;
+const portrait=matchMedia('(orientation: portrait) and (pointer: coarse)');
+function goFullscreen(){const d=document.documentElement,f=d.requestFullscreen||d.webkitRequestFullscreen;if(!f||document.fullscreenElement||document.webkitFullscreenElement)return;
+  try{const p=f.call(d,{navigationUI:'hide'});if(p&&p.then)p.then(()=>{try{screen.orientation.lock('landscape').catch(()=>{});}catch(e){}}).catch(()=>{});}catch(e){}}
+function toggleFullscreen(){if(document.fullscreenElement||document.webkitFullscreenElement)(document.exitFullscreen||document.webkitExitFullscreen).call(document);else goFullscreen();}
+function touchUI(){
+  const on=touchOn(),rt=$('rtouch');document.documentElement.classList.toggle('touch',on);
+  touch.show(on&&state==='drive');rt.hidden=!(on&&state==='replay'&&replay);
+  const k=[!!spec.nosKw,!car.pt.auto,settings.steer,touch.tilt.ok].join();if(k!==touchCfgKey){touchCfgKey=k;touch.configure({nos:!!spec.nosKw,manual:!car.pt.auto,steer:settings.steer});}
+  if(!rt.hidden){rt.querySelector('.pp').textContent=replay.paused||replay.t>=replay.t1?'PLAY':'PAUSE';rt.querySelector('.spd').textContent='X'+(replay.speed<1?String(replay.speed).replace(/^0/,''):replay.speed);}
+  /* where the HUD can draw: the notch, the buttons */
+  const lk=[on,state,canvas.width,canvas.height,innerWidth,innerHeight,settings.ledRes,touch.cfg.nos,touch.cfg.manual].join();if(lk===touchLayoutKey)return;touchLayoutKey=lk;
+  const dpr=canvas.width/Math.max(1,innerWidth),cs=getComputedStyle($('safe')),px=v=>(parseFloat(v)||0)*dpr;
+  const ins={l:px(cs.paddingLeft),r:px(cs.paddingRight),t:px(cs.paddingTop),b:px(cs.paddingBottom)};
+  const cam=on&&state==='drive'?touch.el.cam.getBoundingClientRect():null,bar=on&&state==='replay'?rt.getBoundingClientRect():null;
+  Object.assign(hud,{touch:on,ui:Math.max(1,Math.min(1.45,.46/Math.min(innerWidth/1920,innerHeight/1080))),ins,mapRight:cam&&cam.width?(cam.left-18)*dpr:0,replayBar:bar&&bar.height?(innerHeight-bar.top+4)*dpr:0});
+  const k2=ledHud.width/Math.max(1,canvas.width);
+  Object.assign(ledHudView,{touch:on,ui:1,ins:{l:ins.l*k2,r:ins.r*k2,t:ins.t*k2,b:ins.b*k2},mapRight:hud.mapRight*k2,replayBar:hud.replayBar*k2});
+}
+$('rtouch').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(!b||!replay)return;const k=b.dataset.r;
+  if(k==='speed')replay.speed=replay.speed>=4?.25:replay.speed*2;else replayUI.key(k);touchLayoutKey='';});
 
 /* ---------- moving between screens ---------- */
 const ORBIT=(shift=0)=>({yaw:2.4,pitch:.12,dist:7.2,fov:.62,y:.25,shift});
@@ -178,6 +210,7 @@ function toTitle(){
   $('titleSub').textContent=level.name+' · '+env.name;titleMenu.set(titleItems());
 }
 function pickTitle(id){
+  if(touchOn()&&!fsTried&&id!=='options'){fsTried=true;goFullscreen();}
   if(id==='career')return enterHub();
   if(id==='options'){menuBack=()=>{menu.hide();menuBack=()=>pause(false);};menu.show(menuRows(true),'OPTIONS');return;}
   if(id==='garage'){session={kind:'free',ev:null,play:'garage'};hideAll();makeCar();parkCar();return openGarage();}
@@ -254,7 +287,12 @@ function menuRows(optionsOnly){
       opt('arcade','Arcade','Steering, stability and drift help. Handbrake into a corner and hold the angle with the stick.'),
       opt('sport','Sport','Less steering help, a looser stability net. The car moves around more.'),
       opt('sim','Simulation','Just the car: no steering or stability help. ABS stays on.')]},
-    {type:'choice',label:'Gearbox',chips:1,get:()=>settings.gearbox,set:set('gearbox',v=>{car.pt.auto=v==='auto';}),options:[opt('auto','Automatic'),opt('manual','Manual','Q / E or the B / X buttons to shift.')]});
+    {type:'choice',label:'Gearbox',chips:1,get:()=>settings.gearbox,set:set('gearbox',v=>{car.pt.auto=v==='auto';}),options:[opt('auto','Automatic'),opt('manual','Manual','Q / E or the B / X buttons to shift; on a touch screen, the + and − pads.')]});
+  if(COARSE||touchSeen||navigator.maxTouchPoints>0||settings.touch!=='auto'){rows.push({type:'head',label:'Touch'},
+    {type:'choice',label:'Touch pads',chips:1,get:()=>settings.touch,set:set('touch'),options:[opt('auto','Auto','On when you touch the screen, off again when you press a key.'),opt('on','Always'),opt('off','Off')]},
+    {type:'choice',label:'Steering',chips:1,get:()=>settings.steer,set:v=>{settings.steer=v;save();if(v==='tilt')touch.enableTilt().then(ok=>{if(!ok){settings.steer='slide';save();hud.message('NO TILT ACCESS','#ff3d5a',2);if(menu.open)menu.render();}else setTimeout(()=>{if(!touch.tilt.ok)hud.message('NO TILT DATA · SLIDE TO STEER','#ffb040',3);},1500);});},
+      options:[opt('slide','Slide','Put your left thumb down anywhere on the left and slide it sideways. Past full lock the centre follows your thumb.'),opt('buttons','Buttons','Two pads, left and right; steering builds up like on a keyboard.'),opt('tilt','Tilt','Turn the phone like a steering wheel.')]});
+    if(document.fullscreenEnabled||document.webkitFullscreenEnabled)rows.push({type:'action',label:document.fullscreenElement||document.webkitFullscreenElement?'Leave full screen':'Full screen',act:()=>{toggleFullscreen();setTimeout(()=>{if(menu.open)menu.render();},300);}});}
   if(free){rows.push({type:'head',label:'Car'},
     {type:'choice',label:'Engine',get:()=>sandbox.setup.engine,set:v=>swapEngine(v),options:ENGINE_CHOICES.concat(['street4','three','oddv6','rotary2','eight','flat6']).filter((v,i,a)=>a.indexOf(v)===i).map(id=>{const p=SIM.PRESETS.find(q=>q.id===id);return opt(id,p.name,p.tag);})},
     {type:'choice',label:'Paint',chips:1,get:()=>sandbox.setup.paint,set:v=>sandbox.paint(v),options:Object.entries(PAINTS).map(([id,p])=>opt(id,p.name,'',{swatch:`rgb(${p.col.map(c=>Math.round(Math.pow(c,1/2.2)*255)).join(',')})`}))},
@@ -266,7 +304,7 @@ function menuRows(optionsOnly){
     {type:'choice',label:'LED density',chips:1,get:()=>settings.ledRes,set:set('ledRes'),options:[opt('classic','Classic 320 × 180'),opt('fine','Fine 480 × 270')]},
     {type:'choice',label:'Speed units',chips:1,get:()=>settings.units,set:set('units'),options:[opt('kmh','km/h'),opt('mph','mph')]},
     {type:'head',label:'Graphics'},
-    {type:'choice',label:'Quality',chips:1,get:()=>settings.quality,set:v=>{settings.quality=v;save();location.reload();},options:['low','medium','high','ultra'].map(q=>opt(q,q[0].toUpperCase()+q.slice(1),'Changing this reloads the page.'))},
+    {type:'choice',label:'Quality',chips:1,get:()=>settings.quality,set:v=>{settings.quality=v;save();location.reload();},options:['mobile','low','medium','high','ultra'].map(q=>opt(q,q[0].toUpperCase()+q.slice(1),q==='mobile'?'For phones and tablets: lighter shadows, haze and reflections, no motion blur, fewer cars. Changing this reloads the page.':'Changing this reloads the page.'))},
     {type:'choice',label:'Resolution',chips:1,get:()=>String(settings.scale),set:v=>{settings.scale=v==='auto'?'auto':+v;save();drs.enabled=v==='auto';if(v!=='auto')R.resize(canvas.width,canvas.height,+v);},
       options:[opt('auto','Auto','Keeps the frame rate by adjusting the render scale; TAA rebuilds full resolution.'),opt('0.5','50%'),opt('0.67','67%'),opt('0.85','85%'),opt('1','100%')]},
     {type:'head',label:'Sound'},
@@ -296,7 +334,7 @@ const replayUI={key:k=>{if(!replay)return false;
   else if(k==='c'){replayCam=(replayCam+1)%REPLAY_CAMS.length;setReplayCam();}else return false;return true;}};
 
 /* ---------- per-frame pieces ---------- */
-function fit(){const dpr=Math.min(2,devicePixelRatio||1),w=Math.round(innerWidth*dpr),h=Math.round(innerHeight*dpr);
+function fit(){const dpr=Math.min(R.Q.dpr||2,devicePixelRatio||1),w=Math.round(innerWidth*dpr),h=Math.round(innerHeight*dpr);
   if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;hudC.width=w;hudC.height=h;}
   R.resize(w,h,R.iw?R.scale:(settings.scale==='auto'?drs.scale:+settings.scale));}
 function carView(c=car){
@@ -355,7 +393,7 @@ function soundUpdate(c,ev){
       const p=o.car.pt.soundParams(2,len(o.car.v),{dist:Math.max(2,d),pan:clamp(dot(u,right),-1,1)*.85,rear:clamp(.5+.5*dot(u,Fr),0,1)*.6+.4});p.vol=listener===1?.45:.8;
       list.push({id:o.id,cfg:SIM.dspCfg(o.car.spec),p,ev:o.car.pt.takeEvents()});}
     for(const {o} of near.slice(2))o.car.pt.takeEvents();
-    audio.rivals(list,{low:1,medium:1,high:2,ultra:2}[settings.quality]??2);}
+    audio.rivals(list,{mobile:1,low:1,medium:1,high:2,ultra:2}[settings.quality]??2);}
   else audio.rivals([]);
   /* the traffic: the nearest engines, their horns, crashes down the street */
   if(traffic){const cv=camLast.pos,rt=right,near=[];
@@ -381,7 +419,7 @@ function hudState(){
     levelName:(session.ev?session.ev.name:level.name).toUpperCase(),laps:false,place:level.laps?null:level.place(car),mapHead:Math.atan2(-mcol(qmat(car.q),0)[2],mcol(qmat(car.q),0)[0]),
     assistName:ASSISTS[settings.assist].name.toUpperCase()+' · '+(pt.auto?'AUTO':'MANUAL'),
     tc:pt.tcOn,abs:car.absOn,esc:car.escOn,drift:car.drift.on,guide:car.aid.guide?(guide&&(guide.state.brake>.05||Math.abs(guide.state.steer)>.05)?1:.5):0,mapCar:[car.p[0],-car.p[2]],mapDots:traffic?traffic.cars.filter(t=>t.dist<520).map(t=>{const p=t.view&&t.view.p||traffic.worldPos(t);return [p[0],-p[2]];}):null,
-    hint:state==='drive'&&time<6&&!mode?'ESC FOR THE MENU · C CAMERA · L LED MATRIX':null};
+    hint:state==='drive'&&time<6&&!mode?(touchOn()?'II FOR THE MENU · CAM CAMERA · RESET BACK ON THE ROAD':'ESC FOR THE MENU · C CAMERA · L LED MATRIX'):null};
   if(mode)Object.assign(S,mode.hud(time));
   if(freeDrift){const d=freeDrift.hud();S.freeChain=d.driftChain;S.freeMult=d.driftMult;S.freeGap=d.driftGap;}
   return S;
@@ -400,7 +438,7 @@ function step(dt){
   if(inp.pause){if(state==='drive')pause(true);else if(state==='pause')pause(false);}
   if(cam.orbit&&state!=='drive')cam.orbit.yaw+=dt*(state==='title'?.11:.07);
   /* if this machine can't keep up even at the lowest render scale, say what to change */
-  if(state==='drive'&&settings.scale==='auto'&&drs.scale<=drs.min+.001&&dt>drs.period/1000*1.45){slowT+=dt;if(slowT>6&&!slowHinted){slowHinted=true;hud.message(settings.quality==='low'?'LOW FRAME RATE':'TRY QUALITY: '+(settings.quality==='ultra'?'HIGH':settings.quality==='high'?'MEDIUM':'LOW'),'#ffb040',4);}}else slowT=Math.max(0,slowT-dt);
+  if(state==='drive'&&settings.scale==='auto'&&drs.scale<=drs.min+.001&&dt>drs.period/1000*1.45){slowT+=dt;if(slowT>6&&!slowHinted){slowHinted=true;hud.message(settings.quality==='low'||settings.quality==='mobile'?'LOW FRAME RATE':'TRY QUALITY: '+(settings.quality==='ultra'?'HIGH':settings.quality==='high'?'MEDIUM':'LOW'),'#ffb040',4);}}else slowT=Math.max(0,slowT-dt);
   if(state==='pause'||state==='boot')return {ev:{}};
   if(state==='replay'){replay.step(dt);replay.you(proxy);if(level.T){const L=level.T.locate(proxy.p[0],proxy.p[2],proxy.loc?proxy.loc.i:-1);proxy.loc=L;}return {ev:{}};}
   if(state==='drive'){
@@ -438,11 +476,11 @@ function render(dt,ev){
   const c=cam.update(dt,subj,{look:!R1&&!!lastInp.look,impact:R1?0:Math.max(ev.wall||0,ev.land||0)*.25});
   const L=carLights(subj),M=qmat(subj.q),F=mcol(M,0),fw=norm([F[0],0,F[2]]);camLast={pos:c.pos,fwd:c.fwd};
   let you=carView(subj),others;
-  if(R1){others=replay.others();if(env.night>.3)for(const o of others.slice(0,{low:0,medium:2,high:4,ultra:6}[settings.quality]??4)){if(o.ghost)continue;const Mo=qmat(o.q),Fo=mcol(Mo,0),Uo=mcol(Mo,1);L.dyn.push({pos:add(o.p,[Fo[0]*2.1,.1,Fo[2]*2.1]),r:30,col:[150,145,130],type:1,dir:[Fo[0]-Uo[0]*.08,Fo[1]-Uo[1]*.08-.04,Fo[2]-Uo[2]*.08],cosO:Math.cos(.6)});}}
+  if(R1){others=replay.others();if(env.night>.3)for(const o of others.slice(0,{mobile:0,low:0,medium:2,high:4,ultra:6}[settings.quality]??4)){if(o.ghost)continue;const Mo=qmat(o.q),Fo=mcol(Mo,0),Uo=mcol(Mo,1);L.dyn.push({pos:add(o.p,[Fo[0]*2.1,.1,Fo[2]*2.1]),r:30,col:[150,145,130],type:1,dir:[Fo[0]-Uo[0]*.08,Fo[1]-Uo[1]*.08-.04,Fo[2]-Uo[2]*.08],cosO:Math.cos(.6)});}}
   else{
-    if(mode&&env.night>.3){const near=mode.others().map(o=>({o,d:Math.hypot(o.car.p[0]-c.pos[0],o.car.p[2]-c.pos[2])})).sort((a,b)=>a.d-b.d).slice(0,{low:0,medium:2,high:3,ultra:4}[settings.quality]??3);
+    if(mode&&env.night>.3){const near=mode.others().map(o=>({o,d:Math.hypot(o.car.p[0]-c.pos[0],o.car.p[2]-c.pos[2])})).sort((a,b)=>a.d-b.d).slice(0,{mobile:0,low:0,medium:2,high:3,ultra:4}[settings.quality]??3);
       for(const {o} of near){const Mr=qmat(o.car.q),Fr=mcol(Mr,0),Ur=mcol(Mr,1),hr=o.car.c.hcg,pos=add(o.car.p,mvec(Mr,[2.1,.62-hr,0]));L.dyn.push({pos,r:30,col:[150,145,130],type:1,dir:[Fr[0]-Ur[0]*.08,Fr[1]-Ur[1]*.08-.04,Fr[2]-Ur[2]*.08],cosO:Math.cos(.6)});}}
-    if(traffic)L.dyn.push(...traffic.lights({night:env.night,cam:c},Math.min(16-L.dyn.length,{low:0,medium:2,high:4,ultra:6}[settings.quality]??4)));
+    if(traffic)L.dyn.push(...traffic.lights({night:env.night,cam:c},Math.min(16-L.dyn.length,{mobile:0,low:0,medium:2,high:4,ultra:6}[settings.quality]??4)));
     others=liveViews;
   }
   const camVel=camPrev&&!c.cut?sub(c.pos,camPrev).map(x=>x/Math.max(dt,1e-3)):[0,0,0];camPrev=c.pos.slice();
@@ -469,7 +507,9 @@ function replaySound(c){
   audio.update(ep,[],fx,[],{tunnel:level.shelter(proxy),cabin:false});
 }
 let last=performance.now(),fps=60;
-function frame(dt){fit();const r=step(dt);render(dt,r.ev||{});frameN++;
+function frame(dt){fit();touchUI();if(portrait.matches&&state==='drive')pause(true);const r=step(dt);
+  /* paused, the scene stands still behind the menu: redraw it now and then (settings changes show), not every frame */
+  if(state!=='pause'||frameN%8===0)render(dt,r.ev||{});frameN++;
   if(settings.scale==='auto'){const sc=drs.update(dt*1000,R.gpuMs);if(Math.abs(sc-R.scale)>.001)R.resize(canvas.width,canvas.height,sc);}}
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;fps+=(1/Math.max(dt,1e-3)-fps)*.05;frame(dt);requestAnimationFrame(loop);}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='drive')pause(true);});
@@ -478,7 +518,7 @@ window.__game={R,CR,extraCars,career,sandbox,hub,garage,results,get traffic(){re
   /* park a car for tests and screenshots: design id, map x, world z, yaw, paint index */
   park:(design,x,z,yaw,paint=0,lamps=[1,1,0,0],opts={})=>{const ch=CHASSIS[design],g=level.world.ground(x,z,-1,50);
     extraCars.push(poseView(ch,Object.assign({id:100+extraCars.length,p:[x,g.y+ch.hcg,z],yaw,paint:design==='taxi'?TAXI_PAINT:TRAFFIC_PAINTS[paint%TRAFFIC_PAINTS.length],lamps},opts)));},
-  get level(){return level;},get car(){return car;},cam,input,frame,audio,menu,settings,pause,swapEngine,loadLevel,
+  get level(){return level;},get car(){return car;},cam,input,touch,frame,audio,menu,settings,pause,swapEngine,loadLevel,
   begin:()=>startFree(level.kind==='loop'?'loop-race':'city'),startFree,enterHub,openGarage,startCareerEvent,toTitle,EVENTS,
   sim:sec=>{for(let t=0;t<sec;t+=1/60)step(1/60);},setEnv:id=>{settings.env=id;env=ENVS[id];},setPaint:id=>{sandbox.paint(id);},
   stats:()=>({iw:R.iw,ih:R.ih,gpu:R.gpuMs,drawn:R.drawn,speed:car.vf,gear:car.pt.gear,rpm:car.pt.rpm,s:car.loc&&car.loc.s,d:car.loc&&car.loc.d,state,mode:mode&&mode.kind})};
