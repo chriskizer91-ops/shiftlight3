@@ -1184,6 +1184,64 @@ void matFacade(inout Surf s,inout vec3 em,inout float ssr,inout vec2 g,vec2 uv,u
   else if(uWet>0.0){s.diff*=1.0-.25*uWet;s.rough=mix(s.rough,.45,uWet*.5);}
 }
 
+/* the flats: a dry lakebed of tan clay and salt crust, cracked into plates; dark guide lines run
+   straight out from the city along both axes with a tick every 500 m; the rain floods it into a mirror */
+void matFlats(inout Surf s,inout float ssr,inout vec2 g,vec2 wp){
+  float fp=length(fwidth(wp));
+  float big=fbm(wp*.0035),mid=vn(wp*.045),fine=vn(wp*1.7);
+  vec3 alb=mix(vec3(.47,.42,.35),vec3(.70,.67,.61),smoothstep(.32,.78,big*.85+mid*.3));
+  alb*=.93+.1*fine*saturate(1.0-fp*3.);
+  float rough=.86;
+  /* mud plates about two metres across, their edges a little raised; gone where they'd shimmer */
+  float vis=1.0-smoothstep(.04,.22,fp);
+  /* some stretches are smooth salt, some cracked clay */
+  float crack=smoothstep(.3,.62,fbm(wp*.012+4.1))*vis;
+  if(crack>0.0){vec3 c=voro(wp*.52);float wd=.025+.03*h11(c.z*37.),edge=1.0-smoothstep(wd*.4,wd,c.y);
+    alb*=1.0-edge*.26*crack;alb*=1.0+(c.z-.5)*.08*crack;g+=vec2(c.z-.5,h11(c.z*91.)-.5)*.03*crack;}
+  /* tyre tracks fanning out from the city: faint darker bands near the guide lines */
+  float E=680.,line=0.0;
+  if(abs(wp.x)>E){float tk=abs(mod(wp.x+250.,500.)-250.),big2=abs(mod(wp.x+500.,1000.)-500.);
+    line=max(line,1.0-aaStep(.45,abs(wp.y)));
+    line=max(line,(1.0-aaStep(.35,tk))*(1.0-aaStep(3.5,abs(wp.y))));
+    line=max(line,(1.0-aaStep(.6,big2))*(1.0-aaStep(7.,abs(wp.y))));
+    alb*=1.0-.12*exp(-pow(wp.y/6.,2.));}
+  if(abs(wp.y)>E){float tk=abs(mod(wp.y+250.,500.)-250.),big2=abs(mod(wp.y+500.,1000.)-500.);
+    line=max(line,1.0-aaStep(.45,abs(wp.x)));
+    line=max(line,(1.0-aaStep(.35,tk))*(1.0-aaStep(3.5,abs(wp.x))));
+    line=max(line,(1.0-aaStep(.6,big2))*(1.0-aaStep(7.,abs(wp.x))));
+    alb*=1.0-.12*exp(-pow(wp.x/6.,2.));}
+  alb=mix(alb,vec3(.025,.025,.03),line*.92);rough=mix(rough,.6,line);
+  s.diff=alb;s.rough=rough;
+  water(s,g,ssr,wp,.75,vCol.r,.38);
+}
+/* the jumps: poured concrete, chevrons up the run-up pointing at the lip, a hazard band on the lip,
+   rubber down the middle where everyone lands, dusty banks at the sides */
+void matRamp(inout Surf s,inout float ssr,inout vec2 g,vec2 uv,uvec4 m,vec4 col){
+  float u=uv.x,v=uv.y,av=abs(v),hw=col.b*255./8.;int kind=int(m.y);float idh=h11(float(m.z)+.5);
+  float ws=kind==2?6.:kind==1?3.5:3.;
+  float n=fbm(uv*vec2(.5,.8)+idh*31.),n2=vn(uv*6.);
+  vec3 alb=vec3(.15,.15,.16)*(.8+.32*n)*(.9+.15*n2);float rough=.72;float retro=0.0;
+  /* formwork joints every 3 m */
+  alb*=1.0-.3*(1.0-aaStep(.03,abs(fract(u/3.+.5)-.5)*3.));
+  vec3 paint=kind==2?vec3(.7,.06,.04):kind==1?vec3(.8,.8,.78):vec3(.8,.55,.04);
+  float inner=1.0-smoothstep(hw-ws-.4,hw-ws,av);
+  if(u<0.0){float cv=fract((u+av*.6)/4.);float ch=(1.0-aaStep(.17,abs(cv-.5)))*inner*step(av,hw-ws-.6);
+    float wear=smoothstep(.35,.8,fbm(uv*vec2(.7,1.6)+idh*7.));alb=mix(alb,paint,ch*(1.0-wear*.7));rough=mix(rough,.55,ch);retro=max(retro,ch*(1.0-wear*.5));}
+  /* the lip: black and yellow */
+  if(abs(u)<.55){float hz=step(.5,fract((v+u)*.7));alb=mix(alb,hz>.5?vec3(.75,.55,.03):vec3(.02),inner);rough=.5;retro=max(retro,hz*inner);}
+  /* rubber where the wheels go */
+  float trk=exp(-pow((av-.8)/.35,2.))*smoothstep(-2.,8.,u);alb*=1.0-.35*trk*(.6+.4*n);
+  /* a painted line where the bank starts */
+  float el=1.0-aaStep(.09,abs(av-(hw-ws)));alb=mix(alb,vec3(.85),el*.85);
+  /* banks: lakebed dust */
+  float bank=smoothstep(hw-ws,hw,av);alb=mix(alb,vec3(.55,.5,.42)*(.8+.3*n2),bank*.85);
+  s.diff=alb;s.rough=rough;g+=vec2(n2-.5)*.004;
+  water(s,g,ssr,s.P.xz,.4,vCol.r,-.25);
+  /* the paint is retroreflective, like road markings: it lights up in your headlights */
+  if(retro>0.0)s.clear=-retro;
+}
+/* what the sky looks like straight through a point on the horizon (the sky pass, fog and all) */
+vec3 horizonCol(vec3 d){vec3 c=skyCol(d,true);float fogT=exp(-uFogDen*900.*saturate(1.0-d.y*2.));return c*mix(1.0,fogT,.85)+uFogCol*(1.0-fogT)*.85;}
 void main(){
   vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;
   Surf s;s.P=vP;s.V=normalize(uCam-vP);s.N=N;s.diff=vec3(.5);s.F0=vec3(.04);s.rough=.8;s.ao=1.0;s.clear=0.0;s.clearR=.05;s.Nc=N;s.spec=1.0;s.trans=0.0;
@@ -1227,6 +1285,8 @@ void main(){
   else if(id==17u)matCityRoad(s,ssr,g,uv,vMat);
   else if(id==18u)matDeck(s,ssr,g,uv,vMat);
   else if(id==19u){vec2 wp=uv;float n=fbm(wp*.7),n2=vn(wp*9.);s.diff=vec3(.05,.09,.03)*(.6+.6*n)*(.8+.4*n2);s.rough=.9;s.diff*=1.0-.3*uWet;water(s,g,ssr,s.P.xz,.6,1.0,-.35);}
+  else if(id==20u)matFlats(s,ssr,g,uv);
+  else if(id==21u)matRamp(s,ssr,g,uv,vMat,vCol);
   s.ao*=vCol.a>0.0&&id!=5u?vCol.a:1.0;
   if(dot(g,g)>0.0)s.N=bump(s.N,s.P,uv,g);
   /* specular anti-aliasing: widen the lobe where the normal changes within a pixel */
@@ -1248,6 +1308,10 @@ void main(){
 #endif
     ssr=ssr>0.0?lum(ew)*so:0.0;
   }
+#ifndef PROBE
+  /* the flats melt into the sky toward the horizon, so the ground never visibly ends */
+  if(id>=20u){float hz=smoothstep(1100.,2800.,vd);if(hz>0.0){col=mix(col,horizonCol(normalize(vP-uCam)),hz);ssr*=1.0-hz;}}
+#endif
 #ifdef PROBE
   float fogT=exp(-uFogDen*vd);col=col*fogT+uFogCol*(1.0-fogT);
   oCol=vec4(col,1.0);
@@ -1591,22 +1655,32 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
       T2 && (city.info.xw || []).forEach((s, i) => {
         i < 8 && (xw[i] = s);
       }), this.U.uXw = xw, this.U.uRoad = T2 ? [T2.hw, T2.lanes, T2.len, 1] : [6.5, 2, 1e4, 1], this.resetTAA = !0, this.hasPrev = !1, this.probeFilled = 0;
+      for (let k of Object.keys(this.dyn || {})) this.setDynamic(k, null);
+    }
+    /* world geometry that changes as you drive (the flats around the camera): replace one named part */
+    setDynamic(name, B) {
+      let gl = this.gl;
+      this.dyn || (this.dyn = {});
+      let old = this.dyn[name];
+      if (old && (gl.deleteVertexArray(old.vao), gl.deleteBuffer(old.vb), old.ib && gl.deleteBuffer(old.ib), delete this.dyn[name]), !B || !B.idx.length) return;
+      let m = this.G.mesh(LAYOUT, 36, B.vertexData(), B.indexData());
+      m.mn = B.mn.slice(), m.mx = B.mx.slice(), this.dyn[name] = m;
     }
     /* (re)allocate everything that depends on the screen size and render scale */
-    resize(W3, H, scale2 = this.scale) {
+    resize(W4, H, scale2 = this.scale) {
       let G4 = this.G;
       scale2 = Math.min(scale2, this.Q.maxScale);
-      let iw = Math.max(64, Math.round(W3 * scale2)), ih = Math.max(64, Math.round(H * scale2));
-      if (W3 !== this.W || H !== this.H) {
-        this.W = W3, this.H = H;
+      let iw = Math.max(64, Math.round(W4 * scale2)), ih = Math.max(64, Math.round(H * scale2));
+      if (W4 !== this.W || H !== this.H) {
+        this.W = W4, this.H = H;
         for (let t of [this.hist, this.mbT, this.pyr, this.ldr].flat().filter(Boolean)) G4.del(t);
-        this.hist = [0, 1].map(() => G4.texture(W3, H, "rgba16f")), this.histFB = this.hist.map((t) => G4.target([t])), this.histI = 0, this.mbT = G4.texture(W3, H, "rgba16f"), this.mbFB = G4.target([this.mbT]), this.pyr = G4.texture(Math.max(1, W3 >> 1), Math.max(1, H >> 1), "rgba16f", { mips: !0 }), this.pyrFB = G4.target([this.pyr]), this.bl = [];
-        let w = W3 >> 1, h = H >> 1;
+        this.hist = [0, 1].map(() => G4.texture(W4, H, "rgba16f")), this.histFB = this.hist.map((t) => G4.target([t])), this.histI = 0, this.mbT = G4.texture(W4, H, "rgba16f"), this.mbFB = G4.target([this.mbT]), this.pyr = G4.texture(Math.max(1, W4 >> 1), Math.max(1, H >> 1), "rgba16f", { mips: !0 }), this.pyrFB = G4.target([this.pyr]), this.bl = [];
+        let w = W4 >> 1, h = H >> 1;
         for (let i = 0; i < 6 && w > 2 && h > 2; i++) {
           let t = G4.texture(w, h, "rgba16f");
           this.bl.push({ t, fb: G4.target([t]), w, h }), w >>= 1, h >>= 1;
         }
-        this.ldr = G4.texture(W3, H, "rgba8"), this.ldrFB = G4.target([this.ldr]), this.resetTAA = !0, this.hasPrev = !1;
+        this.ldr = G4.texture(W4, H, "rgba8"), this.ldrFB = G4.target([this.ldr]), this.resetTAA = !0, this.hasPrev = !1;
       }
       if (iw !== this.iw || ih !== this.ih) {
         this.iw = iw, this.ih = ih, this.scale = scale2;
@@ -1649,6 +1723,10 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
         }
       sort && list.sort((a, b) => a.d - b.d), gl.bindVertexArray(this.world.vao);
       for (let t of list) gl.drawElements(gl.TRIANGLES, t.count, gl.UNSIGNED_INT, t.first * 4);
+      if (this.dyn) for (let k in this.dyn) {
+        let m = this.dyn[k];
+        M4.boxVisible(planes, m.mn, m.mx) && G4.draw(m);
+      }
       return list.length;
     }
     shadowPass(S) {
@@ -2254,28 +2332,28 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
     return B;
   }
   function buildWheel(R2 = 0.335, { style = "ten", tw = 0.245, rimR = 0.2413, lod = 0 } = {}) {
-    let hi = lod === 0, W3 = new MeshBuilder(hi ? 8192 : 1024), n = hi ? 40 : 16, prof = [[rimR + 5e-3, -tw * 0.46], [rimR + 0.035, -tw * 0.53], [R2 - 0.045, -tw * 0.52], [R2 - 0.012, -tw * 0.47], [R2, -tw * 0.38], [R2 + 2e-3, 0], [R2, tw * 0.38], [R2 - 0.012, tw * 0.47], [R2 - 0.045, tw * 0.52], [rimR + 0.035, tw * 0.53], [rimR + 5e-3, tw * 0.46]], sp = hi ? smooth2(prof, 3) : prof;
-    W3.mat(4), lathe(W3, sp, n, (k, j) => [k / n, j / (sp.length - 1)]), W3.mat(5, 1), lathe(W3, [[rimR - 4e-3, tw * 0.47], [rimR - 0.012, tw * 0.42], [rimR - 0.012, -tw * 0.42], [rimR - 4e-3, -tw * 0.47]], n, (k, j) => [k / n, j]), W3.mat(5, 2), lathe(W3, [[rimR + 4e-3, tw * 0.47], [rimR - 0.018, tw * 0.47], [rimR - 0.022, tw * 0.43]], n, (k, j) => [k / n, j]);
+    let hi = lod === 0, W4 = new MeshBuilder(hi ? 8192 : 1024), n = hi ? 40 : 16, prof = [[rimR + 5e-3, -tw * 0.46], [rimR + 0.035, -tw * 0.53], [R2 - 0.045, -tw * 0.52], [R2 - 0.012, -tw * 0.47], [R2, -tw * 0.38], [R2 + 2e-3, 0], [R2, tw * 0.38], [R2 - 0.012, tw * 0.47], [R2 - 0.045, tw * 0.52], [rimR + 0.035, tw * 0.53], [rimR + 5e-3, tw * 0.46]], sp = hi ? smooth2(prof, 3) : prof;
+    W4.mat(4), lathe(W4, sp, n, (k, j) => [k / n, j / (sp.length - 1)]), W4.mat(5, 1), lathe(W4, [[rimR - 4e-3, tw * 0.47], [rimR - 0.012, tw * 0.42], [rimR - 0.012, -tw * 0.42], [rimR - 4e-3, -tw * 0.47]], n, (k, j) => [k / n, j]), W4.mat(5, 2), lathe(W4, [[rimR + 4e-3, tw * 0.47], [rimR - 0.018, tw * 0.47], [rimR - 0.022, tw * 0.43]], n, (k, j) => [k / n, j]);
     let zf = tw * 0.4, zh = tw * 0.47;
     if (!hi || style === "cap") {
-      W3.mat(5, hi || style === "cap" ? 4 : 5);
+      W4.mat(5, hi || style === "cap" ? 4 : 5);
       let ring = [[0, zh + 6e-3], [rimR * 0.3, zh + 4e-3], [rimR * 0.75, zh - 6e-3], [rimR - 0.012, zh - 0.012]], ix = [];
       for (let k = 0; k <= n; k++) {
         let a = k / n * Math.PI * 2, c = Math.cos(a), s = Math.sin(a), row = [];
-        for (let [r, z] of ring) row.push(W3.v([c * r, s * r, z], [c * 0.12, s * 0.12, 1], k / n, r / rimR));
+        for (let [r, z] of ring) row.push(W4.v([c * r, s * r, z], [c * 0.12, s * 0.12, 1], k / n, r / rimR));
         ix.push(row);
       }
-      for (let k = 0; k < n; k++) for (let j = 0; j < ring.length - 1; j++) W3.quad(ix[k][j], ix[k][j + 1], ix[k + 1][j + 1], ix[k + 1][j]);
+      for (let k = 0; k < n; k++) for (let j = 0; j < ring.length - 1; j++) W4.quad(ix[k][j], ix[k][j + 1], ix[k + 1][j + 1], ix[k + 1][j]);
     } else {
       let NS = style === "five" ? 5 : 10, k5 = style === "five";
-      W3.mat(5, k5 ? 6 : 0);
+      W4.mat(5, k5 ? 6 : 0);
       for (let s = 0; s < NS; s++) {
         let a = s / NS * Math.PI * 2, t = [Math.cos(a), Math.sin(a), 0], sd = [-Math.sin(a), Math.cos(a), 0], P = (r, o, z) => [t[0] * r + sd[0] * o, t[1] * r + sd[1] * o, z], r0 = 0.065, r1 = rimR - 0.02, w0 = k5 ? 0.04 : 0.021, w1 = k5 ? 0.032 : 0.016, zz0 = zh, zz1 = zf;
-        W3.quadP(P(r0, -w0, zz0), P(r1, -w1, zz1), P(r1, w1, zz1), P(r0, w0, zz0), void 0, void 0), W3.quadP(P(r0, w0, zz0), P(r1, w1, zz1), P(r1, w1, zz1 - 0.035), P(r0, w0, zz0 - 0.035)), W3.quadP(P(r1, -w1, zz1), P(r0, -w0, zz0), P(r0, -w0, zz0 - 0.035), P(r1, -w1, zz1 - 0.035));
+        W4.quadP(P(r0, -w0, zz0), P(r1, -w1, zz1), P(r1, w1, zz1), P(r0, w0, zz0), void 0, void 0), W4.quadP(P(r0, w0, zz0), P(r1, w1, zz1), P(r1, w1, zz1 - 0.035), P(r0, w0, zz0 - 0.035)), W4.quadP(P(r1, -w1, zz1), P(r0, -w0, zz0), P(r0, -w0, zz0 - 0.035), P(r1, -w1, zz1 - 0.035));
       }
     }
     if (hi) {
-      W3.mat(5, style === "five" ? 6 : 0);
+      W4.mat(5, style === "five" ? 6 : 0);
       {
         let hub2 = [];
         for (let k = 0; k <= n; k++) {
@@ -2283,41 +2361,41 @@ void main(){vec4 c=texture(uSrc,vT);vec3 r=c.rgb;
           hub2.push([Math.cos(a), Math.sin(a)]);
         }
         for (let k = 0; k < n; k++) {
-          let [c0, s0] = hub2[k], [c1, s1] = hub2[k + 1], a = W3.v([c0 * 0.07, s0 * 0.07, zh], [0, 0, 1]), b = W3.v([c1 * 0.07, s1 * 0.07, zh], [0, 0, 1]), c = W3.v([0, 0, zh + 8e-3], [0, 0, 1]);
-          W3.tri(a, b, c);
-          let d = W3.v([c0 * 0.07, s0 * 0.07, zh], [c0, s0, 0]), e = W3.v([c1 * 0.07, s1 * 0.07, zh], [c1, s1, 0]), f2 = W3.v([c1 * 0.07, s1 * 0.07, zh - 0.04], [c1, s1, 0]), g = W3.v([c0 * 0.07, s0 * 0.07, zh - 0.04], [c0, s0, 0]);
-          W3.quad(d, g, f2, e);
+          let [c0, s0] = hub2[k], [c1, s1] = hub2[k + 1], a = W4.v([c0 * 0.07, s0 * 0.07, zh], [0, 0, 1]), b = W4.v([c1 * 0.07, s1 * 0.07, zh], [0, 0, 1]), c = W4.v([0, 0, zh + 8e-3], [0, 0, 1]);
+          W4.tri(a, b, c);
+          let d = W4.v([c0 * 0.07, s0 * 0.07, zh], [c0, s0, 0]), e = W4.v([c1 * 0.07, s1 * 0.07, zh], [c1, s1, 0]), f2 = W4.v([c1 * 0.07, s1 * 0.07, zh - 0.04], [c1, s1, 0]), g = W4.v([c0 * 0.07, s0 * 0.07, zh - 0.04], [c0, s0, 0]);
+          W4.quad(d, g, f2, e);
         }
       }
       if (style !== "cap") {
-        W3.mat(3);
+        W4.mat(3);
         for (let k = 0; k < 5; k++) {
           let a = k / 5 * Math.PI * 2 + 0.3;
-          W3.tube([Math.cos(a) * 0.048, Math.sin(a) * 0.048, zh - 5e-3], [Math.cos(a) * 0.048, Math.sin(a) * 0.048, zh + 0.012], 9e-3, 6, !0);
+          W4.tube([Math.cos(a) * 0.048, Math.sin(a) * 0.048, zh - 5e-3], [Math.cos(a) * 0.048, Math.sin(a) * 0.048, zh + 0.012], 9e-3, 6, !0);
         }
-        W3.mat(5, 3), W3.tube([0, 0, zh + 2e-3], [0, 0, zh + 0.011], 0.028, 16, !0);
+        W4.mat(5, 3), W4.tube([0, 0, zh + 2e-3], [0, 0, zh + 0.011], 0.028, 16, !0);
       }
-      W3.mat(6);
+      W4.mat(6);
       let zd = -0.02, sc = rimR / 0.2413, ri = 0.1 * sc, ro = 0.18 * sc;
       for (let k = 0; k < n; k++) {
         let a0 = k / n * Math.PI * 2, a1 = (k + 1) / n * Math.PI * 2;
         for (let [z, nz] of [[zd + 0.014, 1], [zd - 0.014, -1]]) {
-          let a = W3.v([Math.cos(a0) * ri, Math.sin(a0) * ri, z], [0, 0, nz], a0, ri / sc), b = W3.v([Math.cos(a1) * ri, Math.sin(a1) * ri, z], [0, 0, nz], a1, ri / sc), c = W3.v([Math.cos(a1) * ro, Math.sin(a1) * ro, z], [0, 0, nz], a1, ro / sc), d = W3.v([Math.cos(a0) * ro, Math.sin(a0) * ro, z], [0, 0, nz], a0, ro / sc);
-          nz > 0 ? W3.quad(a, d, c, b) : W3.quad(a, b, c, d);
+          let a = W4.v([Math.cos(a0) * ri, Math.sin(a0) * ri, z], [0, 0, nz], a0, ri / sc), b = W4.v([Math.cos(a1) * ri, Math.sin(a1) * ri, z], [0, 0, nz], a1, ri / sc), c = W4.v([Math.cos(a1) * ro, Math.sin(a1) * ro, z], [0, 0, nz], a1, ro / sc), d = W4.v([Math.cos(a0) * ro, Math.sin(a0) * ro, z], [0, 0, nz], a0, ro / sc);
+          nz > 0 ? W4.quad(a, d, c, b) : W4.quad(a, b, c, d);
         }
-        let e = W3.v([Math.cos(a0) * ro, Math.sin(a0) * ro, zd + 0.014], [Math.cos(a0), Math.sin(a0), 0]), f2 = W3.v([Math.cos(a1) * ro, Math.sin(a1) * ro, zd + 0.014], [Math.cos(a1), Math.sin(a1), 0]), g = W3.v([Math.cos(a1) * ro, Math.sin(a1) * ro, zd - 0.014], [Math.cos(a1), Math.sin(a1), 0]), h = W3.v([Math.cos(a0) * ro, Math.sin(a0) * ro, zd - 0.014], [Math.cos(a0), Math.sin(a0), 0]);
-        W3.quad(e, h, g, f2);
+        let e = W4.v([Math.cos(a0) * ro, Math.sin(a0) * ro, zd + 0.014], [Math.cos(a0), Math.sin(a0), 0]), f2 = W4.v([Math.cos(a1) * ro, Math.sin(a1) * ro, zd + 0.014], [Math.cos(a1), Math.sin(a1), 0]), g = W4.v([Math.cos(a1) * ro, Math.sin(a1) * ro, zd - 0.014], [Math.cos(a1), Math.sin(a1), 0]), h = W4.v([Math.cos(a0) * ro, Math.sin(a0) * ro, zd - 0.014], [Math.cos(a0), Math.sin(a0), 0]);
+        W4.quad(e, h, g, f2);
       }
     } else {
-      W3.mat(11);
-      let ix = [], c0 = W3.v([0, 0, -tw * 0.3], [0, 0, -1]);
+      W4.mat(11);
+      let ix = [], c0 = W4.v([0, 0, -tw * 0.3], [0, 0, -1]);
       for (let k = 0; k <= n; k++) {
         let a = k / n * Math.PI * 2;
-        ix.push(W3.v([Math.cos(a) * rimR, Math.sin(a) * rimR, -tw * 0.3], [0, 0, -1]));
+        ix.push(W4.v([Math.cos(a) * rimR, Math.sin(a) * rimR, -tw * 0.3], [0, 0, -1]));
       }
-      for (let k = 0; k < n; k++) W3.tri(c0, ix[k + 1], ix[k]);
+      for (let k = 0; k < n; k++) W4.tri(c0, ix[k + 1], ix[k]);
     }
-    return W3;
+    return W4;
   }
   function lathe(B, prof, n, uvf) {
     let ix = [];
@@ -2868,7 +2946,7 @@ void main(){
     return [[a, hpF, -ch.trackF / 2, s.rest - c0F, 1], [a, hpF, ch.trackF / 2, s.rest - c0F, 1], [-b, hpR, -ch.trackR / 2, s.rest - c0R, 0], [-b, hpR, ch.trackR / 2, s.rest - c0R, 0]].map(([x, y, z, len3, f2]) => ({ hp: [x, y, z], len: len3, front: !!f2 }));
   }
   function poseView(ch, { id, p, q, yaw = 0, paint, lamps = [0, 0, 0, 0], ind = [0, 0], steer = 0, spin = 0, lod }) {
-    let W3 = wheelLayout(ch);
+    let W4 = wheelLayout(ch);
     return {
       id,
       design: ch.design,
@@ -2878,7 +2956,7 @@ void main(){
       lamps,
       ind,
       lod,
-      wheels: W3.map((w) => ({ hp: w.hp, len: w.len, steer: w.front ? steer : 0, ang: spin, disc: 0 }))
+      wheels: W4.map((w) => ({ hp: w.hp, len: w.len, steer: w.front ? steer : 0, ang: spin, disc: 0 }))
     };
   }
 
@@ -3375,9 +3453,9 @@ void main(){
         after < this.upRpm[g - 2] * 0.88 && (rpm < e.redline * 0.5 || brk > 0.3 && after < e.redline * 0.86) && this.sinceShift > 0.45 && this.shift(-1);
       }
     }
-    meanW(W3) {
+    meanW(W4) {
       let m = 0;
-      for (let i of this.drv) m += W3[i].w;
+      for (let i of this.drv) m += W4[i].w;
       return m / this.drv.length;
     }
     /* inertia a wheel's brake has to fight (with the engine attached through a locked clutch) */
@@ -3392,30 +3470,30 @@ void main(){
       return this.e.gears[this.gear - 1] * this.e.fd * (this.rev ? -1.15 : 1);
     }
     /* one substep. inp {thr, brk, nos}. W: four wheels {w, Fx, Kd, Fz, kap}. aid {tc, escThr}. */
-    step(dt, inp, W3, aid) {
+    step(dt, inp, W4, aid) {
       let e = this.e, o = this.o, R2 = o.R, Iw = o.Iw, drv = this.drv, idleW = e.idle * TAU / 60;
       this.t += dt, this.lopeT += dt, this.sinceShift += dt, this.twostep = !1, this.cutFrac = 0, this.tcOn = !1;
       let thrIn = clamp(inp.thr, 0, 1), brkIn = clamp(inp.brk, 0, 1);
       if (this.st === "off") {
-        this.we = 0, this.rpm = 0, this.load = 0, this.engage = 0, this.locked = !1, this._free(W3, dt), this._out();
+        this.we = 0, this.rpm = 0, this.load = 0, this.engage = 0, this.locked = !1, this._free(W4, dt), this._out();
         return;
       }
       if (this.st === "crank") {
-        this.we = (235 + 70 * Math.sin(this.t * 38)) * TAU / 60, this.rpm = this.we * 60 / TAU, this.t > 0.8 && (this.st = "catch", this.t = 0), this._free(W3, dt), this._out();
+        this.we = (235 + 70 * Math.sin(this.t * 38)) * TAU / 60, this.rpm = this.we * 60 / TAU, this.t > 0.8 && (this.st = "catch", this.t = 0), this._free(W4, dt), this._out();
         return;
       }
       if (this.st === "catch") {
         let t = this.t;
-        this.we = idleW * (1 + 0.95 * Math.sin(Math.min(1, t / 0.22) * Math.PI / 2) * Math.exp(-Math.max(0, t - 0.22) * 2.6)), this.load = t < 0.22 ? 0.6 : 0, t > 1.1 && (this.st = "run"), this.rpm = this.we * 60 / TAU, this._free(W3, dt), this._out();
+        this.we = idleW * (1 + 0.95 * Math.sin(Math.min(1, t / 0.22) * Math.PI / 2) * Math.exp(-Math.max(0, t - 0.22) * 2.6)), this.load = t < 0.22 ? 0.6 : 0, t > 1.1 && (this.st = "run"), this.rpm = this.we * 60 / TAU, this._free(W4, dt), this._out();
         return;
       }
       this.st === "stopping" && (thrIn = 0);
-      let vW = this.meanW(W3) * R2;
+      let vW = this.meanW(W4) * R2;
       this.thr += (thrIn - this.thr) * Math.min(1, dt * (thrIn > this.thr ? 9 : 14) * e.resp);
       let thrE = this.thr, thrSnd = this.thr, rpm = this.we * 60 / TAU;
       this.rpm = rpm;
       let dslip = 0;
-      for (let i of drv) dslip = Math.max(dslip, W3[i].kap);
+      for (let i of drv) dslip = Math.max(dslip, W4[i].kap);
       let vAbs = Math.abs(vW);
       if (this.tcCap = 1e9, aid.tc && !this.rev && this.locked && aid.fmax > 0) {
         let gr2 = Math.abs(this.ratio());
@@ -3435,10 +3513,10 @@ void main(){
         if (this.shiftTo > this.gear)
           e.seq && this.thr > 0.7 ? (thrEng = 0, this.cutFrac = 1) : (thrEng = 0, thrSnd = 0);
         else {
-          let tgtW = e.gears[this.shiftTo - 1] * e.fd * this.meanW(W3);
+          let tgtW = e.gears[this.shiftTo - 1] * e.fd * this.meanW(W4);
           thrEng = clamp((tgtW - this.we) * 0.02, 0, 1), thrSnd = thrEng;
         }
-      let grL = this.ratio(), wmL = this.meanW(W3), launchRpm = Math.max(Math.min(e.redline * 0.55, 4600), e.turbo ? e.s0 * 1.1 : 0), wHold = this.launchW || lerp(idleW * 1.3, launchRpm * TAU / 60, clamp(this.thr, 0, 1)), wTgt = Math.max(Math.abs(grL * wmL), wHold * Math.max(0.72, 1 - 0.3 * this.launchT));
+      let grL = this.ratio(), wmL = this.meanW(W4), launchRpm = Math.max(Math.min(e.redline * 0.55, 4600), e.turbo ? e.s0 * 1.1 : 0), wHold = this.launchW || lerp(idleW * 1.3, launchRpm * TAU / 60, clamp(this.thr, 0, 1)), wTgt = Math.max(Math.abs(grL * wmL), wHold * Math.max(0.72, 1 - 0.3 * this.launchT));
       if (this.launching && !shifting && !this.hold && this.we > wTgt + 15 && (thrEng *= clamp(1 - (this.we - wTgt - 15) / 90, 0, 1)), !shifting && !this.locked && !this.launching && this.engage < 1 && (thrEng *= this.engage * this.engage), this.cutT > 0 && (this.cutT -= dt, thrEng = 0, this.cutFrac = 1), rpm > e.limiterRpm)
         if (e.limiter === "soft") {
           let k = clamp(1 - (rpm - e.limiterRpm) / 150, 0, 1);
@@ -3455,23 +3533,23 @@ void main(){
       this.nosOn = !1, inp.nos && e.nosKw && this.nos > 0 && this.thr > 0.5 && !shifting && !this.hold && this.running && this.cutFrac < 0.5 && (this.nosOn = !0, this.nos = Math.max(0, this.nos - dt / e.nosT), Te += Math.min(e.nosKw * 1e3 / Math.max(this.we, 150), e.tq * 1.6)), this.st === "run" && this.we < idleW && (Te += (idleW - this.we) * e.Ie * 25);
       let TeS = engTq(e, Math.max(rpm, 1), thrSnd, this.boost);
       this.load = this.st === "run" ? clamp(thrSnd * (TeS > 0 ? 1 : 0) * (0.42 + 0.58 * Math.min(1, TeS / e.tq)), 0, 1) : 0, this.Te = Te, shifting && (this.shiftT -= dt, this.shiftT <= 0 && (this.gear = this.shiftTo, this.shiftT = 0));
-      let gr = this.ratio(), wm = this.meanW(W3);
+      let gr = this.ratio(), wm = this.meanW(W4);
       !this.locked && !shifting && Math.abs(gr * wm) < idleW * 1.3 && this.engage < 0.5 && (this.launching = !0), this.launching ? this.launchT += dt : this.launchT = 0;
       let slowForGear = this.launching && Math.abs(gr * wm) < wTgt * 0.98, fzD = 0;
-      for (let i of drv) fzD += W3[i].Fz;
+      for (let i of drv) fzD += W4[i].Fz;
       let tracCap = Math.abs(gr) > 0 ? (aid.fmax || fzD * o.mu) * (aid.tc ? 0.9 : 1.3) * R2 / (Math.abs(gr) * 0.88) : 1e9, engT = 1;
       (shifting || this.hold || !this.running || Math.abs(gr * wm) < idleW * 1.1 && this.thr < 0.05) && (engT = 0);
       let er = engT > this.engage ? dt / Math.max(0.02, o.engage * (this.launchW ? 0.25 : this.launching ? 1 : 0.55)) : dt * 12;
       this.engage = clamp(this.engage + clamp(engT - this.engage, -er, er), 0, 1);
       let cap = o.clutch * this.engage, n = drv.length, Fsum = 0, Ksum = 0;
       for (let i of drv)
-        Fsum += W3[i].Fx, Ksum += W3[i].Kd;
+        Fsum += W4[i].Fx, Ksum += W4[i].Kd;
       let Tdrv = 0;
       if (this.locked && this.engage > 0.98 && !shifting) {
         let Itot = e.Ie * gr * gr + n * Iw, tau = Te * gr * 0.88 - R2 * Fsum, dwm = dt * tau / (Itot + dt * R2 * Ksum), Tcl = Te - e.Ie * gr * dwm / dt;
         if (Math.abs(Tcl) > o.clutch * 1.02) this.locked = !1;
         else {
-          for (let i of drv) W3[i].w += dwm;
+          for (let i of drv) W4[i].w += dwm;
           this.we = gr * (wm + dwm), Tdrv = Tcl * gr * 0.88;
         }
       } else this.locked = !1;
@@ -3486,35 +3564,35 @@ void main(){
         }
         this.we += dt * (Te - Tc) / e.Ie, Tdrv = Tc * gr * 0.88;
         let dwm = dt * (Tdrv - R2 * Fsum) / (n * Iw + dt * R2 * Ksum);
-        for (let i of drv) W3[i].w += dwm;
+        for (let i of drv) W4[i].w += dwm;
         let s2 = this.we - gr * (wm + dwm);
         gr !== 0 && this.engage > 0.98 && !shifting && (Math.abs(s2) < 5 || Math.sign(s2) !== Math.sign(slipW) && !slowForGear) && (this.locked = !0, this.we = gr * (wm + dwm), this.launchW = 0, this.launching = !1);
       }
       this.we < idleW * 0.6 && this.st !== "stopping" && (this.we = idleW * 0.6), this.st === "stopping" && this.we < idleW * 0.35 && (this.st = "off", this.we = 0), this.Tdrv = Tdrv;
       let D = o.diff;
       if (n === 2) {
-        let i = drv[0], j = drv[1], Dd = (W3[i].w - W3[j].w) / 2, m = (W3[i].w + W3[j].w) / 2;
-        Dd += dt * (-R2 * (W3[i].Fx - W3[j].Fx) / 2) / (Iw + dt * R2 * (W3[i].Kd + W3[j].Kd) / 2);
+        let i = drv[0], j = drv[1], Dd = (W4[i].w - W4[j].w) / 2, m = (W4[i].w + W4[j].w) / 2;
+        Dd += dt * (-R2 * (W4[i].Fx - W4[j].Fx) / 2) / (Iw + dt * R2 * (W4[i].Kd + W4[j].Kd) / 2);
         let lk = D.pre + (Tdrv >= 0 ? D.acc : D.dec) * Math.abs(Tdrv);
-        Dd -= sgn(Dd) * Math.min(Math.abs(Dd), dt * lk / Iw), W3[i].w = m + Dd, W3[j].w = m - Dd;
+        Dd -= sgn(Dd) * Math.min(Math.abs(Dd), dt * lk / Iw), W4[i].w = m + Dd, W4[j].w = m - Dd;
       } else {
-        let m = (W3[0].w + W3[1].w + W3[2].w + W3[3].w) / 4, Dc = (W3[0].w + W3[1].w - (W3[2].w + W3[3].w)) / 4, Df = (W3[0].w - W3[1].w) / 2, Dr = (W3[2].w - W3[3].w) / 2, Qc = -R2 * (W3[0].Fx + W3[1].Fx - W3[2].Fx - W3[3].Fx) - Tdrv * 0.2;
-        Dc += dt * Qc / (4 * Iw + dt * R2 * (W3[0].Kd + W3[1].Kd + W3[2].Kd + W3[3].Kd)), Dc -= sgn(Dc) * Math.min(Math.abs(Dc), dt * (160 + Math.abs(Dc) * 80) / (4 * Iw)), Df += dt * (-R2 * (W3[0].Fx - W3[1].Fx)) / (2 * Iw + dt * R2 * (W3[0].Kd + W3[1].Kd)), Df -= sgn(Df) * Math.min(Math.abs(Df), dt * (20 + 0.1 * Math.abs(Tdrv)) / (2 * Iw)), Dr += dt * (-R2 * (W3[2].Fx - W3[3].Fx)) / (2 * Iw + dt * R2 * (W3[2].Kd + W3[3].Kd));
+        let m = (W4[0].w + W4[1].w + W4[2].w + W4[3].w) / 4, Dc = (W4[0].w + W4[1].w - (W4[2].w + W4[3].w)) / 4, Df = (W4[0].w - W4[1].w) / 2, Dr = (W4[2].w - W4[3].w) / 2, Qc = -R2 * (W4[0].Fx + W4[1].Fx - W4[2].Fx - W4[3].Fx) - Tdrv * 0.2;
+        Dc += dt * Qc / (4 * Iw + dt * R2 * (W4[0].Kd + W4[1].Kd + W4[2].Kd + W4[3].Kd)), Dc -= sgn(Dc) * Math.min(Math.abs(Dc), dt * (160 + Math.abs(Dc) * 80) / (4 * Iw)), Df += dt * (-R2 * (W4[0].Fx - W4[1].Fx)) / (2 * Iw + dt * R2 * (W4[0].Kd + W4[1].Kd)), Df -= sgn(Df) * Math.min(Math.abs(Df), dt * (20 + 0.1 * Math.abs(Tdrv)) / (2 * Iw)), Dr += dt * (-R2 * (W4[2].Fx - W4[3].Fx)) / (2 * Iw + dt * R2 * (W4[2].Kd + W4[3].Kd));
         let lk = D.pre + (Tdrv >= 0 ? D.acc : D.dec) * Math.abs(Tdrv) * 0.6;
-        Dr -= sgn(Dr) * Math.min(Math.abs(Dr), dt * lk / (2 * Iw)), W3[0].w = m + Dc + Df, W3[1].w = m + Dc - Df, W3[2].w = m - Dc + Dr, W3[3].w = m - Dc - Dr;
+        Dr -= sgn(Dr) * Math.min(Math.abs(Dr), dt * lk / (2 * Iw)), W4[0].w = m + Dc + Df, W4[1].w = m + Dc - Df, W4[2].w = m - Dc + Dr, W4[3].w = m - Dc - Dr;
       }
-      for (let i = 0; i < 4; i++) drv.includes(i) || (W3[i].w += dt * (-R2 * W3[i].Fx) / (Iw + dt * R2 * W3[i].Kd));
+      for (let i = 0; i < 4; i++) drv.includes(i) || (W4[i].w += dt * (-R2 * W4[i].Fx) / (Iw + dt * R2 * W4[i].Kd));
       this.thrSnd = thrSnd, this._out();
     }
     /* engine not driving: every wheel just rolls */
-    _free(W3, dt) {
+    _free(W4, dt) {
       let R2 = this.o.R, Iw = this.o.Iw;
-      for (let i = 0; i < 4; i++) W3[i].w += dt * (-R2 * W3[i].Fx) / (Iw + dt * R2 * W3[i].Kd);
+      for (let i = 0; i < 4; i++) W4[i].w += dt * (-R2 * W4[i].Fx) / (Iw + dt * R2 * W4[i].Kd);
     }
-    _sync(W3) {
+    _sync(W4) {
       if (this.locked) {
         let idleW = this.e.idle * TAU / 60;
-        this.we = this.ratio() * this.meanW(W3), this.we < idleW * 0.92 && (this.locked = !1, this.we = Math.max(this.we, idleW * 0.92));
+        this.we = this.ratio() * this.meanW(W4), this.we < idleW * 0.92 && (this.locked = !1, this.we = Math.max(this.we, idleW * 0.92));
       }
       this.rpm = this.we * 60 / TAU;
     }
@@ -3663,7 +3741,7 @@ void main(){
       }), P.steer = this.steer, P.ok = !0, this._ipGen = ipGen, LIVE.add(this);
     }
     _ipApply(a) {
-      let P = this._pp, p = this.p, q = this.q, W3 = this.wheels;
+      let P = this._pp, p = this.p, q = this.q, W4 = this.wheels;
       this._ipT && this._ipRestore();
       let dx = p[0] - P.p[0], dy = p[1] - P.p[1], dz = p[2] - P.p[2];
       if (dx * dx + dy * dy + dz * dz > 9) return;
@@ -3671,7 +3749,7 @@ void main(){
       this._ipT = T2, T2.p = p, T2.q = q, T2.steer = this.steer;
       for (let k = 0; k < 3; k++) T2.pv[k] = p[k];
       for (let k = 0; k < 4; k++) T2.qv[k] = q[k];
-      W3.forEach((w, i) => {
+      W4.forEach((w, i) => {
         T2.ang[i] = w.ang, T2.len[i] = w.len;
       });
       for (let k = 0; k < 3; k++) p[k] = P.p[k] + (p[k] - P.p[k]) * a;
@@ -3680,7 +3758,7 @@ void main(){
         q[k] = P.q[k] * (1 - a) + q[k] * sg * a, n += q[k] * q[k];
       n = 1 / Math.sqrt(n || 1);
       for (let k = 0; k < 4; k++) q[k] *= n;
-      W3.forEach((w, i) => {
+      W4.forEach((w, i) => {
         w.ang = P.ang[i] + (w.ang - P.ang[i]) * a, w.len = P.len[i] + (w.len - P.len[i]) * a;
       }), this.steer = P.steer + (this.steer - P.steer) * a;
     }
@@ -3696,7 +3774,7 @@ void main(){
     }
     step(dt, inp) {
       this._ipSave();
-      let c = this.c, s = c.susp, m = this.m, R2 = c.R, pt = this.pt, aid = this.aid, W3 = this.wheels, M = qmat(this.q), U = mcol(M, 1), p = this.p, v = this.v, w = this.w, vb = mtvec(M, v), wb = mtvec(M, w);
+      let c = this.c, s = c.susp, m = this.m, R2 = c.R, pt = this.pt, aid = this.aid, W4 = this.wheels, M = qmat(this.q), U = mcol(M, 1), p = this.p, v = this.v, w = this.w, vb = mtvec(M, v), wb = mtvec(M, w);
       this.speed = len(v), this.vf = vb[0], this.beta = Math.atan2(vb[2], Math.max(Math.abs(vb[0]), 0.5)), this.loc = this.world.locate(p, this.hint), this.loc && (this.hint = this.loc.i);
       let thr = clamp(inp.thr || 0, 0, 1), brk = clamp(inp.brk || 0, 0, 1), hb = clamp(inp.hb || 0, 0, 1);
       if (!this.rev && Math.abs(vb[0]) < 0.6 && brk > 0.5 && thr < 0.05 ? (this.revT += dt, this.revT > 0.5 && pt.running && (this.rev = !0, pt.rev = !0, pt.gear = 1, pt.shiftT = 0)) : this.rev || (this.revT = 0), this.rev)
@@ -3708,7 +3786,7 @@ void main(){
         }
       !this.rev && Math.abs(vb[0]) < 0.5 && brk > 0.5 && thr > 0.3 && pt.running ? pt.hold = !0 : pt.hold && (pt.hold = !1, thr > 0.3 && (pt.launchW = pt.we, pt.launching = !0)), this.thrIn = thr, this.brkIn = brk, this.steer = this._steer(dt, inp.steer || 0, vb, wb);
       let down = [-U[0], -U[1], -U[2]], nContact = 0;
-      for (let wh of W3) {
+      for (let wh of W4) {
         let hpW = add(p, mvec(M, wh.hp));
         wh.hpW = hpW;
         let hit = this.world.raycast(hpW, down, s.rest + R2 + 0.3, wh.hint), comp = -1;
@@ -3722,13 +3800,13 @@ void main(){
         comp > s.travel && (Fs += (comp - s.travel) * wh.k * 14 + Math.max(0, rate2) * wh.cb * 2), wh.Fz = Math.max(0, Fs), wh.cp = hit.p, wh.n = hit.n, wh.surf = hit.surf;
       }
       for (let [l, r, k] of [[0, 1, s.arbF], [2, 3, s.arbR]]) {
-        let d = (W3[l].contact ? W3[l].comp : 0) - (W3[r].contact ? W3[r].comp : 0), f2 = k * d;
-        W3[l].contact && (W3[l].Fz = Math.max(0, W3[l].Fz + f2)), W3[r].contact && (W3[r].Fz = Math.max(0, W3[r].Fz - f2));
+        let d = (W4[l].contact ? W4[l].comp : 0) - (W4[r].contact ? W4[r].comp : 0), f2 = k * d;
+        W4[l].contact && (W4[l].Fz = Math.max(0, W4[l].Fz + f2)), W4[r].contact && (W4[r].Fz = Math.max(0, W4[r].Fz - f2));
       }
       let wasAir = this.air;
       this.air = nContact === 0, this.air ? this.airT += dt : (wasAir && this.airT > 0.15 && (this.ev.land = Math.max(this.ev.land, -vb[1])), this.airT = 0);
       let P = this.plus, TY = this.TY, wetMu = lerp(1, (P ? 0.93 : 0.84) * (this.tyre.wet || 1), this.wet) * (P ? P.grip : 1);
-      for (let wh of W3) {
+      for (let wh of W4) {
         if (!wh.contact) {
           wh.Fx = wh.Fy = wh.Kd = wh.kap = wh.sg = wh.slipV = 0, wh.tanA = 0;
           continue;
@@ -3738,15 +3816,15 @@ void main(){
       }
       let escThr = this._stability(dt, inp, vb, wb, thr), fmax = 0;
       for (let i of pt.drv) {
-        let wh = W3[i];
+        let wh = W4[i];
         if (wh.contact) {
           let lf = Math.max(0.6, 1 - this.tyre.loadSens * (wh.Fz / this.tyre.fz0 - 1));
           fmax += wh.Fz * this.tyre.mu * lf * wetMu * (SURF_MU[wh.surf] || 1);
         }
       }
-      pt.step(dt, { thr, brk, nos: !!inp.nos }, W3, { tc: aid.tc && !this.drift.on, escThr, fmax, mass: m }), pt.auto && pt.autoShift(brk, this.air, this.drift.on), this.absOn = !1;
+      pt.step(dt, { thr, brk, nos: !!inp.nos }, W4, { tc: aid.tc && !this.drift.on, escThr, fmax, mass: m }), pt.auto && pt.autoShift(brk, this.air, this.drift.on), this.absOn = !1;
       let hold = this.speed < 0.4 && thr < 0.05 && !this.rev && pt.running;
-      for (let wh of W3) {
+      for (let wh of W4) {
         let Tb = brk * c.brake * (wh.front ? c.bias : 1 - c.bias) / 2;
         if (aid.abs && brk > 0.1 && this.speed > 2.5 && wh.kap < -0.1) {
           let k = clamp(1 - (-wh.kap - 0.1) * 7, 0.2, 1);
@@ -3756,13 +3834,13 @@ void main(){
         let dw = dt * Tb / pt.effInertia(wh.i, c.Iw);
         Math.abs(wh.w) <= dw ? wh.w = 0 : wh.w -= sgn(wh.w) * dw, wh.Tb = Tb, wh.disc = clamp(wh.disc + dt * (Tb * Math.abs(wh.w) / 9e4 - wh.disc * (0.08 + this.speed * 4e-3)), 0, 1.2);
       }
-      hb > 0.5 && !pt.drv.includes(0) && (pt.engage = 0, pt.locked = !1), pt._sync(W3);
+      hb > 0.5 && !pt.drv.includes(0) && (pt.engage = 0, pt.locked = !1), pt._sync(W4);
       let force = [0, -m * G2, 0], torque = [0, 0, 0], apply = (F, at) => {
         force[0] += F[0], force[1] += F[1], force[2] += F[2];
         let t = cross2(sub2(at, p), F);
         torque[0] += t[0], torque[1] += t[1], torque[2] += t[2];
       };
-      for (let wh of W3)
+      for (let wh of W4)
         wh.contact && (apply(scale(U, wh.Fz), wh.hpW), apply(add(scale(wh.f, wh.Fx), scale(wh.r, wh.Fy)), madd(wh.cp, wh.n, c.rcH)));
       let sp = this.speed, dr = 0.5 * RHO * c.cdA * sp;
       apply([-v[0] * dr, -v[1] * dr, -v[2] * dr], p);
@@ -3778,7 +3856,7 @@ void main(){
       this.w = mvec(M, wb);
       for (let k = 0; k < 3; k++) p[k] += v[k] * dt;
       this.q = qint(this.q, this.w, dt), this.accB = mtvec(M, this.acc);
-      for (let wh of W3) wh.ang += wh.w * dt;
+      for (let wh of W4) wh.ang += wh.w * dt;
       if (this._collide(dt), hold && this.speed < 0.2)
         for (let k = 0; k < 3; k++)
           this.v[k] *= 1 - Math.min(1, dt * 6), this.w[k] *= 1 - Math.min(1, dt * 6);
@@ -3796,8 +3874,8 @@ void main(){
     }
     /* stability control, the drift helper and the spin catcher. Returns a throttle multiplier. */
     _stability(dt, inp, vb, wb, thr) {
-      let aid = this.aid, W3 = this.wheels, v = vb[0], beta = this.beta, r = wb[1], sIn = inp.steer || 0, mu = this.tyre.mu;
-      for (let wh of W3) wh.escBrake = 0;
+      let aid = this.aid, W4 = this.wheels, v = vb[0], beta = this.beta, r = wb[1], sIn = inp.steer || 0, mu = this.tyre.mu;
+      for (let wh of W4) wh.escBrake = 0;
       this.escOn = !1, this.assistTorque = 0;
       let mult = 1, Iyaw = this.I[1], D = this.drift;
       if (aid.drift ? (!D.on && v > 9 && (inp.hb > 0.5 && Math.abs(sIn) > 0.15 || !this.plus && Math.abs(beta) > 0.22 && thr > 0.6 && Math.abs(sIn) > 0.3) && (D.on = !0, D.dir = -sgn(sIn) || sgn(beta), D.t = 0, D.low = 0, D.bPrev = void 0, D.bd = 0), D.on && (D.t += dt, Math.abs(beta) < 0.1 || sIn * D.dir > 0.35 ? D.low += dt : D.low = 0, (D.low > 0.35 || v < 6 || this.air && this.airT > 0.5) && (D.on = !1))) : D.on = !1, D.on) {
@@ -3808,10 +3886,10 @@ void main(){
       if (aid.esc > 0) {
         let rMax = Math.min(mu * G2 / Math.max(v, 1), v * Math.tan(this.c.lock) / this.c.wb), rRef = -sIn * rMax, lim = 0.07 + 0.22 * (1 - aid.esc), over = Math.abs(beta) - lim, yawErr = r - rRef;
         if (over > 0 && Math.sign(r) === Math.sign(beta) && Math.abs(r) > 0.05) {
-          let k = clamp(over * 6, 0, 1) * aid.esc, front = r > 0 ? W3[1] : W3[0];
+          let k = clamp(over * 6, 0, 1) * aid.esc, front = r > 0 ? W4[1] : W4[0];
           front.escBrake = 2400 * k, this.escOn = !0, mult = Math.min(mult, clamp(1 - over * 4 * aid.esc, 0.15, 1));
         } else if (Math.abs(yawErr) > 0.15 && Math.abs(r) > Math.abs(rRef) + 0.15 && Math.sign(r) === Math.sign(rRef || r)) {
-          let k = clamp((Math.abs(r) - Math.abs(rRef) - 0.15) * 2, 0, 1) * aid.esc, front = r > 0 ? W3[1] : W3[0];
+          let k = clamp((Math.abs(r) - Math.abs(rRef) - 0.15) * 2, 0, 1) * aid.esc, front = r > 0 ? W4[1] : W4[0];
           front.escBrake = 1500 * k, this.escOn = k > 0.05;
         }
       }
@@ -4008,17 +4086,17 @@ void main(){
       let th = R2.headAt(s), sl = R2.slope(s), fl = Math.hypot(1, sl), f2 = [Math.cos(th) / fl, sl / fl, -Math.sin(th) / fl], l = [-Math.sin(th), 0, -Math.cos(th)], u = [f2[1] * l[2] - f2[2] * l[1], f2[2] * l[0] - f2[0] * l[2], f2[0] * l[1] - f2[1] * l[0]];
       return { f: f2, l, u };
     };
-    let B = 20, hash = /* @__PURE__ */ new Map();
+    let B = 20, hash2 = /* @__PURE__ */ new Map();
     for (let i = 0; i < N2; i++) {
-      let k = Math.floor(mx[i] / B) + "," + Math.floor(my[i] / B), a = hash.get(k);
-      a || hash.set(k, a = []), a.push(i);
+      let k = Math.floor(mx[i] / B) + "," + Math.floor(my[i] / B), a = hash2.get(k);
+      a || hash2.set(k, a = []), a.push(i);
     }
-    R2.cells = [...hash.keys()];
+    R2.cells = [...hash2.keys()];
     let d2 = (i, x, y) => (mx[i] - x) ** 2 + (my[i] - y) ** 2;
     return R2.nearest = (x, y, r = 1) => {
       let bx = Math.floor(x / B), by = Math.floor(y / B), best = 1e18, bi = -1;
       for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
-        let L = hash.get(bx + a + "," + (by + b));
+        let L = hash2.get(bx + a + "," + (by + b));
         if (L)
           for (let q of L) {
             let v = d2(q, x, y);
@@ -5138,16 +5216,16 @@ void main(){
       let p = T2.pos(s, d), u = T2.frame(s).u;
       return u[1] < 0 && (u = [-u[0], -u[1], -u[2]]), { y: p[1], n: u };
     };
-    let B = 24, hash = /* @__PURE__ */ new Map();
+    let B = 24, hash2 = /* @__PURE__ */ new Map();
     for (let i = 0; i < N2; i++) {
-      let k = Math.floor(mx[i] / B) + "," + Math.floor(my[i] / B), a = hash.get(k);
-      a || hash.set(k, a = []), a.push(i);
+      let k = Math.floor(mx[i] / B) + "," + Math.floor(my[i] / B), a = hash2.get(k);
+      a || hash2.set(k, a = []), a.push(i);
     }
     let d2 = (i, x, y) => (mx[i] - x) ** 2 + (my[i] - y) ** 2;
     T2.nearest = (x, y, r = 2) => {
       let bx = Math.floor(x / B), by = Math.floor(y / B), best = 1e18, bi = -1;
       for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
-        let L = hash.get(bx + a + "," + (by + b));
+        let L = hash2.get(bx + a + "," + (by + b));
         if (L)
           for (let q of L) {
             let v = d2(q, x, y);
@@ -6547,6 +6625,77 @@ void main(){
     }
   };
 
+  // src/world/flats.js
+  var FLATS = { edge: 680, y: 0.15, cell: 360, strip: 45 }, onFlats = (x, y) => Math.abs(x) > FLATS.edge || Math.abs(y) > FLATS.edge;
+  function hash(i, j, k) {
+    let h = Math.imul(i | 0, 374761393) ^ Math.imul(j | 0, 668265263) ^ Math.imul(k | 0, 1103515245);
+    return h = Math.imul(h ^ h >>> 13, 1274126177), h ^= h >>> 16, h = Math.imul(h, 2246822519), h ^= h >>> 13, (h >>> 0) / 4294967296;
+  }
+  var SKYLINE = null, SKY_BINS = null, SB = 120;
+  function skylineBlocks() {
+    if (SKYLINE) return SKYLINE;
+    let R2 = rng(4242), out = [], S = FLATS.strip;
+    for (let k = 0; k < 420; k++) {
+      let a = R2() * Math.PI * 2, r = 760 + Math.pow(R2(), 0.7) * 1100, cx = Math.cos(a) * r, cy = Math.sin(a) * r, w = 18 + R2() * 40, l = 18 + R2() * 40, H = 25 + Math.pow(R2(), 2) * 200, style = R2() < 0.5 ? 2 : 1, seed = Math.floor(R2() * 255), tint = style === 2 ? [50 + R2() * 40, 80 + R2() * 30, 100 + R2() * 30] : [120 + R2() * 50, 118 + R2() * 45, 110 + R2() * 40];
+      Math.abs(cy) < l / 2 + S || Math.abs(cx) < w / 2 + S || out.some((b) => Math.abs(b.cx - cx) < (b.w + w) / 2 + 6 && Math.abs(b.cy - cy) < (b.l + l) / 2 + 6) || out.push({ cx, cy, w, l, H, style, seed, tint });
+    }
+    SKY_BINS = /* @__PURE__ */ new Map();
+    for (let b of out) {
+      let r = Math.hypot(b.w, b.l) / 2;
+      for (let i = Math.floor((b.cx - r) / SB); i <= Math.floor((b.cx + r) / SB); i++) for (let j = Math.floor((b.cy - r) / SB); j <= Math.floor((b.cy + r) / SB); j++) {
+        let key = i + "," + j, a = SKY_BINS.get(key);
+        a || SKY_BINS.set(key, a = []), a.push(b);
+      }
+    }
+    return SKYLINE = out;
+  }
+  function nearTower(x, y, r) {
+    skylineBlocks();
+    for (let i = Math.floor((x - r) / SB); i <= Math.floor((x + r) / SB); i++) for (let j = Math.floor((y - r) / SB); j <= Math.floor((y + r) / SB); j++) {
+      let a = SKY_BINS.get(i + "," + j);
+      if (a)
+        for (let b of a) {
+          let dx = Math.max(0, Math.abs(x - b.cx) - b.w / 2), dy = Math.max(0, Math.abs(y - b.cy) - b.l / 2);
+          if (dx * dx + dy * dy < r * r) return !0;
+        }
+    }
+    return !1;
+  }
+  var CACHE = /* @__PURE__ */ new Map();
+  function rampsIn(ci, cj) {
+    let key = ci + "," + cj, list = CACHE.get(key);
+    if (list) return list;
+    list = [], CACHE.size > 4e3 && CACHE.clear(), CACHE.set(key, list);
+    let C2 = FLATS.cell, cx = (ci + 0.5) * C2, cy = (cj + 0.5) * C2, D = Math.hypot(cx, cy);
+    if (hash(ci, cj, 1) > 0.62) return list;
+    let t = hash(ci, cj, 2), h = (k) => hash(ci, cj, 10 + k), r;
+    t < 0.12 && D > 1400 ? r = { kind: "mega", H: 7 + h(0) * 5, Lf: 44 + h(1) * 18, T: 6, k: 1.5, hw: 10 + h(2) * 3, ws: 6 } : t < 0.45 ? r = { kind: "table", H: 2 + h(0) * 2.2, Lf: 14 + h(1) * 8, T: 16 + h(2) * 22, k: 1.15, hw: 6 + h(3) * 3, ws: 3.5 } : r = { kind: "kicker", H: 2.2 + h(0) * 2.6, Lf: 13 + h(1) * 9, T: 3 + h(2) * 3, k: 1.6, hw: 5 + h(3) * 3, ws: 3 }, r.Lb = r.kind === "table" ? r.Lf * 1.1 : r.Lf * (r.kind === "mega" ? 1.9 : 2.4), r.L = r.Lf + r.T + r.Lb;
+    let yaw = h(5) * Math.PI * 2;
+    r.dx = Math.cos(yaw), r.dy = Math.sin(yaw);
+    let rad = Math.hypot(r.L / 2, r.hw), room = C2 / 2 - rad - 6, mx = cx + (h(6) - 0.5) * 2 * Math.max(0, room), my = cy + (h(7) - 0.5) * 2 * Math.max(0, room);
+    r.ox = mx - r.dx * r.L / 2, r.oy = my - r.dy * r.L / 2, r.mx = mx, r.my = my, r.rad = rad, r.id = ci * 7919 + cj * 104729 >>> 0, r.key = key;
+    let E = FLATS.edge + 30, S = FLATS.strip;
+    return Math.max(Math.abs(mx), Math.abs(my)) - rad < E || Math.abs(my) < rad + S || Math.abs(mx) < rad + S || nearTower(mx, my, rad + 15) || list.push(r), list;
+  }
+  var smooth = (t) => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+  function rampHeight(r, x, y) {
+    let dx = x - r.ox, dy = y - r.oy, u = dx * r.dx + dy * r.dy, v = -dx * r.dy + dy * r.dx, av = Math.abs(v);
+    if (u <= 0 || u >= r.L || av >= r.hw) return 0;
+    let p;
+    return u < r.Lf ? p = r.H * Math.pow(u / r.Lf, r.k) : u < r.Lf + r.T ? p = r.H : p = r.H * (1 - smooth((u - r.Lf - r.T) / r.Lb)), av < r.hw - r.ws ? p : p * smooth((r.hw - av) / r.ws);
+  }
+  function flatsHeight(x, y) {
+    let C2 = FLATS.cell, h = 0;
+    for (let r of rampsIn(Math.floor(x / C2), Math.floor(y / C2))) h = Math.max(h, rampHeight(r, x, y));
+    return FLATS.y + h;
+  }
+  function rampsNear(x, y, reach) {
+    let C2 = FLATS.cell, out = [];
+    for (let i = Math.floor((x - reach) / C2); i <= Math.floor((x + reach) / C2); i++) for (let j = Math.floor((y - reach) / C2); j <= Math.floor((y + reach) / C2); j++)
+      for (let r of rampsIn(i, j)) Math.hypot(r.mx - x, r.my - y) < reach + r.rad && out.push(r);
+    return out;
+  }
+
   // src/ui/font.js
   var F5SRC = `A 01110 10001 10001 11111 10001 10001 10001|B 11110 10001 10001 11110 10001 10001 11110|C 01110 10001 10000 10000 10000 10001 01110|D 11110 10001 10001 10001 10001 10001 11110|E 11111 10000 10000 11110 10000 10000 11111|F 11111 10000 10000 11110 10000 10000 10000|G 01110 10001 10000 10111 10001 10001 01111|H 10001 10001 10001 11111 10001 10001 10001|I 01110 00100 00100 00100 00100 00100 01110|J 00111 00010 00010 00010 00010 10010 01100|K 10001 10010 10100 11000 10100 10010 10001|L 10000 10000 10000 10000 10000 10000 11111|M 10001 11011 10101 10101 10001 10001 10001|N 10001 10001 11001 10101 10011 10001 10001|O 01110 10001 10001 10001 10001 10001 01110|P 11110 10001 10001 11110 10000 10000 10000|Q 01110 10001 10001 10001 10101 10010 01101|R 11110 10001 10001 11110 10100 10010 10001|S 01111 10000 10000 01110 00001 00001 11110|T 11111 00100 00100 00100 00100 00100 00100|U 10001 10001 10001 10001 10001 10001 01110|V 10001 10001 10001 10001 10001 01010 00100|W 10001 10001 10001 10101 10101 10101 01010|X 10001 10001 01010 00100 01010 10001 10001|Y 10001 10001 01010 00100 00100 00100 00100|Z 11111 00001 00010 00100 01000 10000 11111|0 01110 10001 10011 10101 11001 10001 01110|1 00100 01100 00100 00100 00100 00100 01110|2 01110 10001 00001 00010 00100 01000 11111|3 11111 00010 00100 00010 00001 10001 01110|4 00010 00110 01010 10010 11111 00010 00010|5 11111 10000 11110 00001 00001 10001 01110|6 00110 01000 10000 11110 10001 10001 01110|7 11111 00001 00010 00100 01000 01000 01000|8 01110 10001 10001 01110 10001 10001 01110|9 01110 10001 10001 01111 00001 00010 01100|! 00100 00100 00100 00100 00100 00000 00100|. 00000 00000 00000 00000 00000 01100 01100|, 00000 00000 00000 00000 01100 00100 01000|: 00000 01100 01100 00000 01100 01100 00000|- 00000 00000 00000 11111 00000 00000 00000|+ 00000 00100 00100 11111 00100 00100 00000|? 01110 10001 00001 00010 00100 00000 00100|' 00100 00100 01000 00000 00000 00000 00000|/ 00001 00001 00010 00100 01000 10000 10000|> 01000 00100 00010 00001 00010 00100 01000|< 00010 00100 01000 10000 01000 00100 00010|x 00000 00000 10001 01010 00100 01010 10001|$ 00100 01111 10100 01110 00101 11110 00100|% 11001 11010 00010 00100 01000 01011 10011|# 01010 01010 11111 01010 11111 01010 01010|( 00010 00100 01000 01000 01000 00100 00010|) 01000 00100 00010 00010 00010 00100 01000|= 00000 00000 11111 00000 11111 00000 00000|* 00000 00100 10101 01110 10101 00100 00000|^ 00100 01110 10101 00100 00100 00100 00100|~ 00100 00100 00100 00100 10101 01110 00100|[ 00010 00110 01110 11110 01110 00110 00010|] 01000 01100 01110 01111 01110 01100 01000|@ 00100 00100 11111 01110 01110 11011 10001|" 01010 01010 00000 00000 00000 00000 00000|_ 00000 00000 00000 00000 00000 00000 00000`, F3SRC = `A 010 101 111 101 101|B 110 101 110 101 110|C 011 100 100 100 011|D 110 101 101 101 110|E 111 100 110 100 111|F 111 100 110 100 100|G 011 100 101 101 011|H 101 101 111 101 101|I 111 010 010 010 111|J 001 001 001 101 010|K 101 101 110 101 101|L 100 100 100 100 111|M 101 111 111 101 101|N 110 101 101 101 101|O 010 101 101 101 010|P 110 101 110 100 100|Q 010 101 101 110 011|R 110 101 110 101 101|S 011 100 010 001 110|T 111 010 010 010 010|U 101 101 101 101 111|V 101 101 101 101 010|W 101 101 111 111 101|X 101 101 010 101 101|Y 101 101 010 010 010|Z 111 001 010 100 111|0 111 101 101 101 111|1 010 110 010 010 111|2 111 001 111 100 111|3 111 001 011 001 111|4 101 101 111 001 001|5 111 100 111 001 111|6 111 100 111 101 111|7 111 001 001 010 010|8 111 101 111 101 111|9 111 101 111 001 111|x 000 101 010 101 000|+ 000 010 111 010 000|- 000 000 111 000 000|: 0 1 0 1 0|. 0 0 0 0 1|, 0 0 0 1 1|! 1 1 1 0 1|/ 001 001 010 100 100|' 1 1 0 0 0|> 100 010 001 010 100|< 001 010 100 010 001|? 111 001 011 000 010|( 01 10 10 10 01|) 10 01 01 01 10|% 101 001 010 100 101|# 101 111 101 111 101|$ 011 110 010 011 110|^ 010 111 010 010 010|~ 010 010 010 111 010|[ 001 011 111 011 001|] 100 110 111 110 100|= 000 111 000 111 000|* 010 111 010 101 000|@ 010 111 111 010 101|" 101 101 000 000 000`, G5 = {};
   for (let ln of F5SRC.split("|")) {
@@ -7519,13 +7668,13 @@ void main(){
     }
     let ground = SKY3;
     ground.mat(11, 1).col(255, 0, 0, 255);
-    for (let gx = -2e3; gx < 2e3; gx += 250) for (let gy = -2e3; gy < 2e3; gy += 250)
+    for (let gx = -750; gx < 750; gx += 250) for (let gy = -750; gy < 750; gy += 250)
       ground.at(gx + 125, -(gy + 125)).quadP(W2(gx, gy, -0.09), W2(gx + 250, gy, -0.09), W2(gx + 250, gy + 250, -0.09), W2(gx, gy + 250, -0.09), [[gx, -gy], [gx + 250, -gy], [gx + 250, -gy - 250], [gx, -gy - 250]], [0, 1, 0]);
-    for (let k = 0; k < 420; k++) {
-      let a = R2() * Math.PI * 2, r = 760 + Math.pow(R2(), 0.7) * 1100, cx = Math.cos(a) * r, cy = Math.sin(a) * r, w = 18 + R2() * 40, l = 18 + R2() * 40, H = 25 + Math.pow(R2(), 2) * 200, style = R2() < 0.5 ? 2 : 1, seed = Math.floor(R2() * 255), bw0 = style === 2 ? 1.7 : 3.2, tint = style === 2 ? [50 + R2() * 40, 80 + R2() * 30, 100 + R2() * 30] : [120 + R2() * 50, 118 + R2() * 45, 110 + R2() * 40], x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - l / 2, y1 = cy + l / 2;
+    for (let b of skylineBlocks()) {
+      let { cx, cy, w, l, H, style, seed, tint } = b, bw0 = style === 2 ? 1.7 : 3.2, x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - l / 2, y1 = cy + l / 2, g = FLATS.y - 0.05;
       [[[x0, y0], [x1, y0], [0, 0, 1]], [[x1, y1], [x0, y1], [0, 0, -1]], [[x1, y0], [x1, y1], [1, 0, 0]], [[x0, y1], [x0, y0], [-1, 0, 0]]].forEach(([bl, br, nn], k2) => {
         let Wd = Math.hypot(br[0] - bl[0], br[1] - bl[1]), bw = Wd / Math.max(1, Math.round(Wd / bw0));
-        SKY3.mat(5, style, seed, 128).col(tint[0], tint[1], tint[2], Math.round((bw - 1) / 3 * 255)), SKY3.at(cx, -cy).quadP(W2(bl[0], bl[1], 0), W2(br[0], br[1], 0), W2(br[0], br[1], H), W2(bl[0], bl[1], H), [[k2 * 64 * bw, 0], [k2 * 64 * bw + Wd, 0], [k2 * 64 * bw + Wd, H], [k2 * 64 * bw, H]], nn);
+        SKY3.mat(5, style, seed, 128).col(tint[0], tint[1], tint[2], Math.round((bw - 1) / 3 * 255)), SKY3.at(cx, -cy).quadP(W2(bl[0], bl[1], g), W2(br[0], br[1], g), W2(br[0], br[1], H), W2(bl[0], bl[1], H), [[k2 * 64 * bw, 0], [k2 * 64 * bw + Wd, 0], [k2 * 64 * bw + Wd, H], [k2 * 64 * bw, H]], nn);
       }), SKY3.mat(6).col(255, 0, 0, 255), SKY3.at(cx, -cy).quadP(W2(x0, y0, H), W2(x1, y0, H), W2(x1, y1, H), W2(x0, y1, H), [[0, 0], [1, 0], [1, 1], [0, 1]], [0, 1, 0]), H > 140 && (SKY3.mat(7, 60, 7).col(255, 30, 20), SKY3.at(cx, -cy).sphere(W2(cx, cy, H + 1.5), 0.6, 5, 3));
     }
     for (let [k, B] of SKY3.tiles) C2.tiles.set("sky" + k, B);
@@ -7564,6 +7713,7 @@ void main(){
     buildWalls() {
       let M = this.M;
       for (let L of M.lots) this.addBox((L.x0 + L.x1) / 2, (L.y0 + L.y1) / 2, [1, 0], (L.x1 - L.x0) / 2, (L.y1 - L.y0) / 2, -1, L.h, "building");
+      for (let b of skylineBlocks()) this.addBox(b.cx, b.cy, [1, 0], b.w / 2, b.l / 2, -1, b.H, "building");
       let barrier = (R2, d, s0, s1, hTop, skip, yLow) => {
         for (let s = s0; s < s1 - 0.01; s += 4) {
           let se = Math.min(s1, s + 4), sm = (s + se) / 2;
@@ -7606,7 +7756,16 @@ void main(){
     }
     /* the surface under (x, z), the highest one not more than half a metre above yRef */
     ground(x, z, hint = -1, yRef) {
-      let mx = x, my = -z, y = baseGround(this.M, mx, my), n = UP2, surf = y > 0.1 ? "walk" : "road", ri = -1, list = this.rcell.get(Math.floor(mx / CELL) + "," + Math.floor(my / CELL));
+      let mx = x, my = -z;
+      if (onFlats(mx, my)) {
+        let y2 = flatsHeight(mx, my), n2 = UP2;
+        if (y2 > FLATS.y + 1e-4) {
+          let gx = (flatsHeight(mx + 0.2, my) - flatsHeight(mx - 0.2, my)) / 0.4, gy = (flatsHeight(mx, my + 0.2) - flatsHeight(mx, my - 0.2)) / (2 * 0.2), l = Math.hypot(gx, 1, gy);
+          n2 = [-gx / l, 1 / l, gy / l];
+        }
+        return { y: y2, n: n2, surf: "road", i: -1 };
+      }
+      let y = baseGround(this.M, mx, my), n = UP2, surf = y > 0.1 ? "walk" : "road", ri = -1, list = this.rcell.get(Math.floor(mx / CELL) + "," + Math.floor(my / CELL));
       if (list) for (let k of list) {
         let R2 = this.ribbons[k], L = R2.locate(x, z, this.hints[k]);
         if (!L || (this.hints[k] = L.i, L.s < 0 || L.s > R2.len || Math.abs(L.d) > R2.hw + 0.6)) continue;
@@ -7754,7 +7913,20 @@ void main(){
       car2.pt.gear = 1, car2.pt.shiftT = 0, car2.pt.engage = 0, car2.pt.locked = !1, car2.rev = !1, car2.pt.rev = !1, car2.drift.on = !1;
     };
     L.spawn = (car2) => placeAt(car2, 2.9, -60, Math.PI / 2, 0), L.resetAt = (car2) => {
-      let x = car2.p[0], y = -car2.p[2], F = mcol(qmat(car2.q), 0), yaw = Math.atan2(-F[2], F[0]), Lh = M.hwy.locate(car2.p[0], car2.p[2], -1);
+      let x = car2.p[0], y = -car2.p[2], F = mcol(qmat(car2.q), 0), yaw = Math.atan2(-F[2], F[0]);
+      if (onFlats(x, y)) {
+        let fx = Math.cos(yaw), fy = Math.sin(yaw), flat = (px2, py2) => [[0, 0], [2.6, 1.2], [2.6, -1.2], [-2.6, 1.2], [-2.6, -1.2]].every(([a, b]) => flatsHeight(px2 + fx * a - fy * b, py2 + fy * a + fx * b) < FLATS.y + 0.02), px = x, py = y;
+        for (let k = 0; k < 60 && !flat(px, py); k++)
+          px -= fx * 5, py -= fy * 5;
+        if (!flat(px, py)) {
+          px = x, py = y;
+          for (let k = 0; k < 60 && !flat(px, py); k++)
+            px += fy * 5, py -= fx * 5;
+        }
+        placeAt(car2, px, py, yaw, FLATS.y);
+        return;
+      }
+      let Lh = M.hwy.locate(car2.p[0], car2.p[2], -1);
       if (Lh && Math.abs(Lh.d) < HWY.hw + 2 && car2.p[1] > DECK_H - 2) {
         let th = M.hwy.headAt(Lh.s), fwd = Math.cos(yaw - th) > 0, d = fwd ? -4.2 : 4.2, p = M.hwy.pos(Lh.s, d);
         placeAt(car2, p[0], -p[2], fwd ? th : th + Math.PI, DECK_H);
@@ -7789,6 +7961,7 @@ void main(){
     let NAMES = M.names;
     return L.place = (car2) => {
       let x = car2.p[0], y = -car2.p[2];
+      if (onFlats(x, y)) return "THE FLATS";
       if (car2.p[1] > DECK_H - 1.5) {
         let Lh = M.hwy.locate(car2.p[0], car2.p[2], -1);
         if (Lh && Math.abs(Lh.d) < HWY.hw + 1) return "RING EXPRESSWAY";
@@ -8646,19 +8819,19 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }
     /* ------------ the frame ------------ */
     draw(S, dt) {
-      let ctx = this.g, W3 = this.c.width, H = this.c.height;
-      if (ctx.clearRect(0, 0, W3, H), !S || S.hidden) return;
-      let T2 = this.touch, I = this.ins, s = Math.min(W3 / 1920, H / 1080) * (this.pixel ? 1.25 : 1) * (T2 && !this.pixel ? this.ui : 1), pad = 44 * s;
+      let ctx = this.g, W4 = this.c.width, H = this.c.height;
+      if (ctx.clearRect(0, 0, W4, H), !S || S.hidden) return;
+      let T2 = this.touch, I = this.ins, s = Math.min(W4 / 1920, H / 1080) * (this.pixel ? 1.25 : 1) * (T2 && !this.pixel ? this.ui : 1), pad = 44 * s;
       if (ctx.imageSmoothingEnabled = !this.pixel, this.flash += dt, this.msgT > 0 && (this.msgT -= dt), ctx.save(), S.replay) {
         let R2 = S.replay, mm = (t) => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0"), px = pad + I.l, py = pad + I.t;
         ((this.flash * 2 | 0) % 2 === 0 || R2.paused) && (ctx.fillStyle = C.red, ctx.beginPath(), ctx.arc(px + 10 * s, py + 12 * s, 9 * s, 0, 6.283), ctx.fill()), this.small(ctx, "REPLAY", px + 30 * s, py + 3 * s, 5 * s, C.white), this.small(ctx, R2.cam.toUpperCase() + " CAMERA  X" + (R2.speed < 1 ? R2.speed.toFixed(2).replace(/0$/, "") : R2.speed) + (R2.paused ? "  PAUSED" : ""), px + 30 * s, py + 40 * s, 3 * s, C.faint);
-        let bw = W3 - 2 * pad - 200 * s - I.l - I.r, bx = pad + 100 * s + I.l, by = T2 && this.replayBar ? H - this.replayBar - 26 * s : H - pad - 40 * s;
-        ctx.fillStyle = "rgba(200,190,230,.15)", ctx.fillRect(bx, by, bw, 8 * s), ctx.fillStyle = C.pink, ctx.fillRect(bx, by, bw * Math.min(1, R2.t / Math.max(0.1, R2.dur)), 8 * s), this.small(ctx, mm(R2.t), bx - 14 * s, by - 1 * s, 3 * s, C.ink, "r"), this.small(ctx, mm(R2.dur), bx + bw + 14 * s, by - 1 * s, 3 * s, C.ink), T2 || this.small(ctx, "SPACE PLAY/PAUSE · LEFT/RIGHT 5 S · UP/DOWN SPEED · C CAMERA · ESC BACK", W3 / 2, by + 24 * s, 3 * s, C.faint, "c"), ctx.restore();
+        let bw = W4 - 2 * pad - 200 * s - I.l - I.r, bx = pad + 100 * s + I.l, by = T2 && this.replayBar ? H - this.replayBar - 26 * s : H - pad - 40 * s;
+        ctx.fillStyle = "rgba(200,190,230,.15)", ctx.fillRect(bx, by, bw, 8 * s), ctx.fillStyle = C.pink, ctx.fillRect(bx, by, bw * Math.min(1, R2.t / Math.max(0.1, R2.dur)), 8 * s), this.small(ctx, mm(R2.t), bx - 14 * s, by - 1 * s, 3 * s, C.ink, "r"), this.small(ctx, mm(R2.dur), bx + bw + 14 * s, by - 1 * s, 3 * s, C.ink), T2 || this.small(ctx, "SPACE PLAY/PAUSE · LEFT/RIGHT 5 S · UP/DOWN SPEED · C CAMERA · ESC BACK", W4 / 2, by + 24 * s, 3 * s, C.faint, "c"), ctx.restore();
         return;
       }
       let sT = T2 ? s * 0.72 : s;
       {
-        let s2 = sT, nb = (S.boostMax > 0) + (S.nosMax > 0), cx = T2 ? W3 / 2 + 12 * s2 : W3 - pad - 250 * s2 - I.r, cy = T2 ? H - Math.max(pad * 0.45, I.b) - (64 + nb * 24) * s2 : H - pad - 150 * s2, Rr = 210 * s2, n = 34, frac = S.rpm / S.limiter, shift = S.rpm > S.shiftRpm * 0.985, a0 = Math.PI * 1.08, a1 = Math.PI * 1.92;
+        let s2 = sT, nb = (S.boostMax > 0) + (S.nosMax > 0), cx = T2 ? W4 / 2 + 12 * s2 : W4 - pad - 250 * s2 - I.r, cy = T2 ? H - Math.max(pad * 0.45, I.b) - (64 + nb * 24) * s2 : H - pad - 150 * s2, Rr = 210 * s2, n = 34, frac = S.rpm / S.limiter, shift = S.rpm > S.shiftRpm * 0.985, a0 = Math.PI * 1.08, a1 = Math.PI * 1.92;
         for (let i = 0; i < n; i++) {
           let t = i / (n - 1), a = a0 + (a1 - a0) * t, lit = t <= frac, col = t > S.shiftRpm / S.limiter ? C.red : t > S.shiftRpm / S.limiter * 0.86 ? C.amber : C.cyan, x0 = cx + Math.cos(a) * Rr, y0 = cy + Math.sin(a) * Rr, x1 = cx + Math.cos(a) * (Rr - 26 * s2), y1 = cy + Math.sin(a) * (Rr - 26 * s2);
           ctx.lineCap = "round", lit ? (ctx.strokeStyle = col, ctx.globalAlpha = 0.25, ctx.lineWidth = 13 * s2, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke(), ctx.globalAlpha = 1, ctx.lineWidth = 6 * s2, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke()) : (ctx.strokeStyle = "rgba(200,190,230,.10)", ctx.lineWidth = 6 * s2, ctx.beginPath(), ctx.moveTo(x0, y0), ctx.lineTo(x1, y1), ctx.stroke());
@@ -8686,7 +8859,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       }
       let lx = pad + I.l, ly = pad + I.t;
       if (this.small(ctx, S.levelName || "NEON LOOP", lx, ly, 4 * s, C.pink), S.race) {
-        this.dots(ctx, "P" + S.pos, W3 / 2 - 40 * s, pad, 11 * s, S.pos === 1 ? C.green : C.white, { align: "c" }), this.small(ctx, "/" + S.n, W3 / 2 + 60 * s, pad + 46 * s, 4 * s, C.faint), this.small(ctx, "LAP " + S.lap + "/" + S.laps, lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, fmtT(S.lapT), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "BEST", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.best), lx + 70 * s, ly + 118 * s, 3 * s, S.best > 0 ? C.green : C.faint), this.small(ctx, "LAST", lx, ly + 140 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.last), lx + 70 * s, ly + 140 * s, 3 * s, C.ink);
+        this.dots(ctx, "P" + S.pos, W4 / 2 - 40 * s, pad, 11 * s, S.pos === 1 ? C.green : C.white, { align: "c" }), this.small(ctx, "/" + S.n, W4 / 2 + 60 * s, pad + 46 * s, 4 * s, C.faint), this.small(ctx, "LAP " + S.lap + "/" + S.laps, lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, fmtT(S.lapT), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "BEST", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.best), lx + 70 * s, ly + 118 * s, 3 * s, S.best > 0 ? C.green : C.faint), this.small(ctx, "LAST", lx, ly + 140 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.last), lx + 70 * s, ly + 140 * s, 3 * s, C.ink);
         let ty = ly + 190 * s;
         for (let [i, r] of S.tower.entries()) {
           let col = r.you ? C.pink : C.ink;
@@ -8697,7 +8870,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       } else if (S.trial) {
         if (this.small(ctx, "LAP " + S.lap + (isFinite(S.laps) ? "/" + S.laps : ""), lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, fmtT(S.lapT), lx, ly + 60 * s, 6 * s, S.invalid ? C.red : C.white, { unlit: !1 }), this.small(ctx, "BEST", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.best), lx + 70 * s, ly + 118 * s, 3 * s, S.best > 0 ? C.green : C.faint), this.small(ctx, "LAST", lx, ly + 140 * s, 3 * s, C.faint), this.small(ctx, fmtT(S.last), lx + 70 * s, ly + 140 * s, 3 * s, C.ink), S.delta !== null && S.delta !== void 0) {
           let d = S.delta;
-          this.dots(ctx, (d >= 0 ? "+" : "-") + Math.abs(d).toFixed(2), W3 / 2, pad, 7 * s, d > 0 ? C.red : C.green, { align: "c", unlit: !1 }), this.small(ctx, "GHOST", W3 / 2, pad + 58 * s, 3 * s, C.faint, "c");
+          this.dots(ctx, (d >= 0 ? "+" : "-") + Math.abs(d).toFixed(2), W4 / 2, pad, 7 * s, d > 0 ? C.red : C.green, { align: "c", unlit: !1 }), this.small(ctx, "GHOST", W4 / 2, pad + 58 * s, 3 * s, C.faint, "c");
         }
         S.medals && [["GOLD", "#ffd23f"], ["SILVER", "#c8d0dc"], ["BRONZE", "#d88b4a"]].forEach(([n, c], i) => {
           let got = S.best > 0 && S.best <= S.medals[i];
@@ -8705,9 +8878,9 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         });
       } else if (S.drift) {
         let m = Math.floor(S.timeLeft / 60), sec = Math.floor(S.timeLeft % 60);
-        this.small(ctx, "TIME", lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, m + ":" + String(sec).padStart(2, "0"), lx, ly + 60 * s, 6 * s, S.timeLeft < 10 ? C.red : C.white, { unlit: !1 }), this.dots(ctx, String(S.driftTotal), W3 / 2, pad, 9 * s, C.white, { align: "c", unlit: !1 }), this.small(ctx, "POINTS", W3 / 2, pad + 72 * s, 3 * s, C.faint, "c"), S.driftChain > 0 && (ctx.globalAlpha = S.driftGap ? 1 - S.driftGap * 0.6 : 1, this.dots(ctx, "+" + S.driftChain, W3 / 2, H * 0.22, 7 * s, S.driftNear ? C.amber : C.pink, { align: "c", unlit: !1 }), this.small(ctx, "X" + S.driftMult.toFixed(2).replace(/\.?0+$/, ""), W3 / 2, H * 0.22 + 60 * s, 5 * s, C.cyan, "c"), ctx.globalAlpha = 1);
+        this.small(ctx, "TIME", lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, m + ":" + String(sec).padStart(2, "0"), lx, ly + 60 * s, 6 * s, S.timeLeft < 10 ? C.red : C.white, { unlit: !1 }), this.dots(ctx, String(S.driftTotal), W4 / 2, pad, 9 * s, C.white, { align: "c", unlit: !1 }), this.small(ctx, "POINTS", W4 / 2, pad + 72 * s, 3 * s, C.faint, "c"), S.driftChain > 0 && (ctx.globalAlpha = S.driftGap ? 1 - S.driftGap * 0.6 : 1, this.dots(ctx, "+" + S.driftChain, W4 / 2, H * 0.22, 7 * s, S.driftNear ? C.amber : C.pink, { align: "c", unlit: !1 }), this.small(ctx, "X" + S.driftMult.toFixed(2).replace(/\.?0+$/, ""), W4 / 2, H * 0.22 + 60 * s, 5 * s, C.cyan, "c"), ctx.globalAlpha = 1);
         {
-          let cxA = W3 / 2, cyA = H * 0.22 + 150 * s, r = 70 * s, a = Math.max(-70, Math.min(70, S.driftAngle)) * Math.PI / 180;
+          let cxA = W4 / 2, cyA = H * 0.22 + 150 * s, r = 70 * s, a = Math.max(-70, Math.min(70, S.driftAngle)) * Math.PI / 180;
           ctx.strokeStyle = "rgba(200,190,230,.18)", ctx.lineWidth = 5 * s, ctx.beginPath(), ctx.arc(cxA, cyA, r, Math.PI * 1.11, Math.PI * 1.89), ctx.stroke(), S.driftOn && (ctx.strokeStyle = C.pink, ctx.lineWidth = 5 * s, ctx.beginPath(), ctx.arc(cxA, cyA, r, -Math.PI / 2, -Math.PI / 2 + a, a < 0), ctx.stroke());
         }
         S.targets && [["GOLD", "#ffd23f"], ["SILVER", "#c8d0dc"], ["BRONZE", "#d88b4a"]].forEach(([n, c], i) => {
@@ -8715,13 +8888,13 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
           this.small(ctx, n, lx, ly + 120 * s + i * 24 * s, 3 * s, got ? c : C.faint), this.small(ctx, String(S.targets[i]), lx + 100 * s, ly + 120 * s + i * 24 * s, 3 * s, got ? c : C.ink);
         });
       } else if (S.drag) {
-        let tx = W3 / 2, ty = pad + 10 * s, b = (y, col, on, r = 15 * s) => {
+        let tx = W4 / 2, ty = pad + 10 * s, b = (y, col, on, r = 15 * s) => {
           ctx.fillStyle = "rgba(10,8,20,.75)", ctx.beginPath(), ctx.arc(tx, y, r + 5 * s, 0, 6.283), ctx.fill(), ctx.fillStyle = on ? col : "rgba(200,190,230,.08)", on && (ctx.globalAlpha = 0.35, ctx.beginPath(), ctx.arc(tx, y, r * 1.8, 0, 6.283), ctx.fill(), ctx.globalAlpha = 1), ctx.beginPath(), ctx.arc(tx, y, r, 0, 6.283), ctx.fill();
         };
         b(ty, "#fff7cc", S.tree >= 1 || S.staged, 9 * s), b(ty + 28 * s, "#fff7cc", S.tree >= 1, 9 * s);
         for (let i = 0; i < 3; i++) b(ty + 66 * s + i * 40 * s, "#ffb040", S.tree === 2);
-        b(ty + 66 * s + 120 * s, C.green, S.tree === 3 && !S.foul), b(ty + 66 * s + 160 * s, C.red, S.foul), S.stagePrompt && this.small(ctx, "HOLD THE BRAKE TO STAGE · ADD THROTTLE FOR REVS · LET GO ON GREEN", W3 / 2, ty + 290 * s, 4 * s, C.amber, "c"), this.small(ctx, "ET", lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, S.et.toFixed(3), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "RT", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, S.rt === null || S.rt === void 0 ? "-.---" : S.rt < 0 ? "RED" : S.rt.toFixed(3), lx + 60 * s, ly + 118 * s, 3 * s, S.rt < 0 ? C.red : C.ink);
-        let bw = T2 ? 300 * s : 520 * s, bx = T2 ? lx + 70 * s : W3 / 2 - bw / 2, by = T2 ? ly + 170 * s : H - pad - 110 * s;
+        b(ty + 66 * s + 120 * s, C.green, S.tree === 3 && !S.foul), b(ty + 66 * s + 160 * s, C.red, S.foul), S.stagePrompt && this.small(ctx, "HOLD THE BRAKE TO STAGE · ADD THROTTLE FOR REVS · LET GO ON GREEN", W4 / 2, ty + 290 * s, 4 * s, C.amber, "c"), this.small(ctx, "ET", lx, ly + 34 * s, 4 * s, C.faint), this.dots(ctx, S.et.toFixed(3), lx, ly + 60 * s, 6 * s, C.white, { unlit: !1 }), this.small(ctx, "RT", lx, ly + 118 * s, 3 * s, C.faint), this.small(ctx, S.rt === null || S.rt === void 0 ? "-.---" : S.rt < 0 ? "RED" : S.rt.toFixed(3), lx + 60 * s, ly + 118 * s, 3 * s, S.rt < 0 ? C.red : C.ink);
+        let bw = T2 ? 300 * s : 520 * s, bx = T2 ? lx + 70 * s : W4 / 2 - bw / 2, by = T2 ? ly + 170 * s : H - pad - 110 * s;
         for (let [k, v, col, name] of [[0, S.you, C.pink, "YOU"], [1, S.opp, C.cyan, S.oppName]]) {
           let y = by + k * 26 * s;
           ctx.fillStyle = "rgba(200,190,230,.1)", ctx.fillRect(bx, y, bw, 10 * s), ctx.fillStyle = col, ctx.fillRect(bx, y, bw * Math.min(1, v), 10 * s), this.small(ctx, name, bx - 12 * s, y - 2 * s, 3 * s, col, "r");
@@ -8732,16 +8905,24 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
           let d = S.delta;
           this.small(ctx, (d >= 0 ? "+" : "-") + Math.abs(d).toFixed(2), lx + 250 * s, ly + 74 * s, 4 * s, d > 0 ? C.red : C.green);
         }
-      } else S.place && this.dots(ctx, S.place, lx, ly + 34 * s, 5 * s, C.white, { unlit: !1 });
+      } else if (S.place && (this.dots(ctx, S.place, lx, ly + 34 * s, 5 * s, C.white, { unlit: !1 }), S.placeSub && this.small(ctx, S.placeSub, lx, ly + 82 * s, 3 * s, C.faint), S.flats)) {
+        let F = S.flats, row = (y, label, v, best, unit) => {
+          let x2 = lx;
+          x2 += this.small(ctx, label, x2, y, 3 * s, C.faint) + 14 * s, x2 += this.small(ctx, v > 0 ? v.toFixed(1) : "---.-", x2, y, 3 * s, C.white) + 14 * s, x2 += this.small(ctx, "BEST", x2, y, 3 * s, C.faint) + 10 * s, this.small(ctx, best > 0 ? best.toFixed(1) + (unit ? " " + unit : "") : "---.-", x2, y, 3 * s, best > 0 ? C.green : C.faint);
+        };
+        row(ly + 112 * s, "TOP SPEED", F.top, F.topBest), row(ly + 134 * s, F.flyName, F.fly, F.flyBest);
+        let x = lx;
+        x += this.small(ctx, "BEST JUMP", x, ly + 156 * s, 3 * s, C.faint) + 14 * s, this.small(ctx, F.jump > 0 ? Math.round(F.jump) + " " + F.jumpUnit + "  " + F.air.toFixed(1) + " S" : "---", x, ly + 156 * s, 3 * s, F.jump > 0 ? C.green : C.faint);
+      }
       if (S.lights > 0 || S.go) {
         let r = 20 * s, y0 = pad + 140 * s;
         for (let i = 0; i < 5; i++) {
-          let x = W3 / 2 + (i - 2) * 58 * s, on = S.go ? 1 : i < S.lights;
+          let x = W4 / 2 + (i - 2) * 58 * s, on = S.go ? 1 : i < S.lights;
           ctx.fillStyle = "rgba(10,8,20,.7)", ctx.beginPath(), ctx.arc(x, y0, r + 6 * s, 0, 6.283), ctx.fill(), ctx.fillStyle = S.go ? C.green : on ? C.red : "rgba(200,190,230,.08)", on && (ctx.globalAlpha = 0.35, ctx.beginPath(), ctx.arc(x, y0, r * 1.7, 0, 6.283), ctx.fill(), ctx.globalAlpha = 1), ctx.beginPath(), ctx.arc(x, y0, r, 0, 6.283), ctx.fill();
         }
       }
       if (this.map && this.map.paths) {
-        let M = this.map, sz = (T2 ? 190 : 230) * s, mx = (T2 && this.mapRight ? this.mapRight : W3 - pad - I.r) - sz, my = pad + I.t, P = (x, y) => [mx + (x - M.x0) * M.sc * sz + (1 - M.w) * sz / 2, my + sz - ((y - M.y0) * M.sc * sz + (1 - M.h) * sz / 2)], mg = Math.ceil(12 * s * Math.max(1, ...M.paths.map((p) => p.w || 1))) + 2, ox = Math.floor(mx - mg), oy = Math.floor(my - mg), key = [M.x0, M.y0, sz, ox, oy, mx, my, this.pixel].join();
+        let M = this.map, sz = (T2 ? 190 : 230) * s, mx = (T2 && this.mapRight ? this.mapRight : W4 - pad - I.r) - sz, my = pad + I.t, P = (x, y) => [mx + (x - M.x0) * M.sc * sz + (1 - M.w) * sz / 2, my + sz - ((y - M.y0) * M.sc * sz + (1 - M.h) * sz / 2)], mg = Math.ceil(12 * s * Math.max(1, ...M.paths.map((p) => p.w || 1))) + 2, ox = Math.floor(mx - mg), oy = Math.floor(my - mg), key = [M.x0, M.y0, sz, ox, oy, mx, my, this.pixel].join();
         if (!this.mapCache || this.mapCache.key !== key || this.mapCache.map !== M) {
           let c = document.createElement("canvas");
           c.width = Math.ceil(sz + 2 * mg) + 2, c.height = Math.ceil(sz + 2 * mg) + 2;
@@ -8759,22 +8940,35 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
             stroke(p.pts, p.closed, (this.pixel ? 1 : 3.4 * s) * p.w, C.pink, 0.8);
           M.hwy && stroke(M.hwy, !0, this.pixel ? 1 : 2.4 * s, C.cyan, 0.85), this.mapCache = { key, map: M, c };
         }
-        if (ctx.drawImage(this.mapCache.c, ox, oy), ctx.lineJoin = "round", ctx.lineCap = "round", ctx.globalAlpha = 1, M.start) {
-          let [sx, sy] = P(M.start[0], M.start[1]);
-          ctx.fillStyle = C.white, ctx.fillRect(sx - 1.5 * s, sy - 7 * s, 3 * s, 14 * s);
-        }
-        if (S.mapDots) {
-          ctx.fillStyle = "#ffb347", ctx.globalAlpha = 0.75;
-          let r = this.pixel ? 0.6 : 2.1 * s;
-          for (let d of S.mapDots) {
-            let [x, y] = P(d[0], d[1]);
-            ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+        let cp = S.mapCar ? P(S.mapCar[0], S.mapCar[1]) : null;
+        if (!this.pixel && cp && (cp[0] < mx - 8 * s || cp[0] > mx + sz + 8 * s || cp[1] < my - 8 * s || cp[1] > my + sz + 8 * s)) {
+          let g = M.sc * sz, cx0 = M.x0 + M.w / (2 * M.sc), cy0 = M.y0 + M.h / (2 * M.sc), E = Math.max(Math.abs(S.mapCar[0] - cx0), Math.abs(S.mapCar[1] - cy0)) * 1.15 + 40, f2 = sz / 2 / E, k = f2 / g, A = [mx + sz / 2, my + sz / 2], B = P(cx0, cy0), Pf = (x2, y2) => [A[0] + (x2 - cx0) * f2, A[1] - (y2 - cy0) * f2];
+          ctx.strokeStyle = C.pink, ctx.globalAlpha = 0.25, ctx.lineWidth = 1.5 * s, ctx.strokeRect(mx, my, sz, sz), ctx.globalAlpha = 0.35, ctx.strokeStyle = C.faint, ctx.lineWidth = 1.2 * s, ctx.beginPath();
+          for (let [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            let a = Pf(cx0 + dx * 680, cy0 + dy * 680), b = Pf(cx0 + dx * E, cy0 + dy * E);
+            ctx.moveTo(a[0], a[1]), ctx.lineTo(b[0], b[1]);
           }
-          ctx.globalAlpha = 1;
-        }
-        if (S.mapCar) {
-          let [x, y] = P(S.mapCar[0], S.mapCar[1]);
+          ctx.stroke(), ctx.globalAlpha = 1, ctx.drawImage(this.mapCache.c, A[0] + (ox - B[0]) * k, A[1] + (oy - B[1]) * k, this.mapCache.c.width * k, this.mapCache.c.height * k);
+          let [x, y] = Pf(S.mapCar[0], S.mapCar[1]);
           ctx.fillStyle = C.white, ctx.globalAlpha = 0.3, ctx.beginPath(), ctx.arc(x, y, 12 * s, 0, 6.283), ctx.fill(), ctx.globalAlpha = 1, ctx.beginPath(), ctx.arc(x, y, 6 * s, 0, 6.283), ctx.fill(), S.mapHead !== void 0 && (ctx.strokeStyle = C.white, ctx.lineWidth = 2 * s, ctx.beginPath(), ctx.moveTo(x, y), ctx.lineTo(x + Math.cos(S.mapHead) * 16 * s, y - Math.sin(S.mapHead) * 16 * s), ctx.stroke());
+        } else {
+          if (ctx.drawImage(this.mapCache.c, ox, oy), ctx.lineJoin = "round", ctx.lineCap = "round", ctx.globalAlpha = 1, M.start) {
+            let [sx, sy] = P(M.start[0], M.start[1]);
+            ctx.fillStyle = C.white, ctx.fillRect(sx - 1.5 * s, sy - 7 * s, 3 * s, 14 * s);
+          }
+          if (S.mapDots) {
+            ctx.fillStyle = "#ffb347", ctx.globalAlpha = 0.75;
+            let r = this.pixel ? 0.6 : 2.1 * s;
+            for (let d of S.mapDots) {
+              let [x, y] = P(d[0], d[1]);
+              ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+            }
+            ctx.globalAlpha = 1;
+          }
+          if (S.mapCar) {
+            let [x, y] = P(S.mapCar[0], S.mapCar[1]);
+            ctx.fillStyle = C.white, ctx.globalAlpha = 0.3, ctx.beginPath(), ctx.arc(x, y, 12 * s, 0, 6.283), ctx.fill(), ctx.globalAlpha = 1, ctx.beginPath(), ctx.arc(x, y, 6 * s, 0, 6.283), ctx.fill(), S.mapHead !== void 0 && (ctx.strokeStyle = C.white, ctx.lineWidth = 2 * s, ctx.beginPath(), ctx.moveTo(x, y), ctx.lineTo(x + Math.cos(S.mapHead) * 16 * s, y - Math.sin(S.mapHead) * 16 * s), ctx.stroke());
+          }
         }
       }
       let ax = pad + I.l, ay = H - pad - 30 * s - I.b;
@@ -8786,7 +8980,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
           ctx.strokeStyle = on ? C.amber : "rgba(200,190,230,.18)", ctx.lineWidth = 2 * s, ctx.strokeRect(x, ay, 74 * s, 26 * s), on && (ctx.fillStyle = "rgba(255,176,64,.22)", ctx.fillRect(x, ay, 74 * s, 26 * s)), this.small(ctx, t, x + 37 * s, ay + 7 * s, 3 * s, on ? C.amber : "rgba(200,190,230,.35)", "c");
         });
       }
-      S.freeChain > 0 && (ctx.globalAlpha = S.freeGap ? 1 - S.freeGap * 0.6 : 1, this.dots(ctx, "+" + S.freeChain, W3 / 2, H * 0.2, 6 * s, C.pink, { align: "c", unlit: !1 }), this.small(ctx, "DRIFT X" + S.freeMult.toFixed(2).replace(/\.?0+$/, ""), W3 / 2, H * 0.2 + 50 * s, 4 * s, C.cyan, "c"), ctx.globalAlpha = 1), this.msg && this.msgT > 0 && (ctx.globalAlpha = Math.min(1, this.msgT * 2), this.dots(ctx, this.msg.text, W3 / 2, H * 0.32, 9 * s, this.msg.col, { align: "c", unlit: !1 }), ctx.globalAlpha = 1), S.hint && (ctx.globalAlpha = 0.85, this.small(ctx, S.hint, W3 / 2, T2 ? H * 0.5 : H - pad - 20 * s, 4 * s, C.faint, "c"), ctx.globalAlpha = 1), ctx.restore();
+      S.freeChain > 0 && (ctx.globalAlpha = S.freeGap ? 1 - S.freeGap * 0.6 : 1, this.dots(ctx, "+" + S.freeChain, W4 / 2, H * 0.2, 6 * s, C.pink, { align: "c", unlit: !1 }), this.small(ctx, "DRIFT X" + S.freeMult.toFixed(2).replace(/\.?0+$/, ""), W4 / 2, H * 0.2 + 50 * s, 4 * s, C.cyan, "c"), ctx.globalAlpha = 1), this.msg && this.msgT > 0 && (ctx.globalAlpha = Math.min(1, this.msgT * 2), this.dots(ctx, this.msg.text, W4 / 2, H * 0.32, 9 * s, this.msg.col, { align: "c", unlit: !1 }), ctx.globalAlpha = 1), S.hint && (ctx.globalAlpha = 0.85, this.small(ctx, S.hint, W4 / 2, T2 ? H * 0.5 : H - pad - 20 * s, 4 * s, C.faint, "c"), ctx.globalAlpha = 1), ctx.restore();
     }
   };
 
@@ -8900,7 +9094,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       let pt = this.pt, e = this.e, rpm0 = Math.max(e.idle * 1.35, e.redline * 0.22);
       pt.gear = this.gear, pt.locked = !0, pt.engage = 1, pt.shiftT = 0, pt.we = rpm0 * TAU2 / 60, pt.rpm = rpm0, pt.boost = 0, pt.nos = 1;
       let w = pt.we / pt.ratio();
-      for (let W3 of this.W) W3.w = (pt.drv.includes(W3.i), w);
+      for (let W4 of this.W) W4.w = (pt.drv.includes(W4.i), w);
       this.samples = [], this.peak = null, this.state = "pull", this.t = 0, this.nosShot = this.nos && e.nosKw > 0;
     }
     /* one step; thr is forced flat out during a pull */
@@ -8909,7 +9103,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       this.t += dt;
       let thr = 0;
       if (this.state === "pull" ? thr = 1 : this.state === "spin" && (thr = this.revThr || 0), this.state === "down")
-        for (let W3 of this.W) W3.w *= Math.exp(-dt * 0.9);
+        for (let W4 of this.W) W4.w *= Math.exp(-dt * 0.9);
       let wPrev = pt.meanW(this.W);
       pt.step(dt, { thr, brk: 0, nos: this.state === "pull" && this.nosShot && pt.rpm > e.redline * 0.45 }, this.W, { tc: !1, escThr: 1, fmax: 1e9, mass: this.c.mass }), pt._sync(this.W);
       let w = pt.meanW(this.W), acc2 = (w - wPrev) / dt, Pw = this.Jd * acc2 * w, ratio = Math.abs(pt.ratio()), L = this.live;
@@ -9200,13 +9394,13 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     drawChart(pv) {
       let cv = this.root.querySelector("canvas");
       if (!cv) return;
-      let g = cv.getContext("2d"), W3 = cv.width, H = cv.height, pad = 38;
-      g.clearRect(0, 0, W3, H);
-      let b = build(this.C.setup, { noPI: !0 }), paper = Dyno.curve(b.spec), pp = pv ? Dyno.curve(build(pv, { noPI: !0 }).spec) : null, live = this.dyno && this.dyno.state === "pull" ? this.dyno.samples : null, all = [paper, pp, live, ...this.runs.map((r) => r.samples)].filter(Boolean).flat(), rmax = Math.max(...all.map((p) => p.rpm)) * 1.02, kmax = Math.max(50, ...all.map((p) => p.kw)) * 1.15, tmax = Math.max(100, ...all.map((p) => p.tq)) * 1.15, X = (r) => pad + (W3 - 2 * pad) * r / rmax, Yk = (k) => H - pad - (H - 2 * pad) * k / kmax, Yt = (t) => H - pad - (H - 2 * pad) * t / tmax;
+      let g = cv.getContext("2d"), W4 = cv.width, H = cv.height, pad = 38;
+      g.clearRect(0, 0, W4, H);
+      let b = build(this.C.setup, { noPI: !0 }), paper = Dyno.curve(b.spec), pp = pv ? Dyno.curve(build(pv, { noPI: !0 }).spec) : null, live = this.dyno && this.dyno.state === "pull" ? this.dyno.samples : null, all = [paper, pp, live, ...this.runs.map((r) => r.samples)].filter(Boolean).flat(), rmax = Math.max(...all.map((p) => p.rpm)) * 1.02, kmax = Math.max(50, ...all.map((p) => p.kw)) * 1.15, tmax = Math.max(100, ...all.map((p) => p.tq)) * 1.15, X = (r) => pad + (W4 - 2 * pad) * r / rmax, Yk = (k) => H - pad - (H - 2 * pad) * k / kmax, Yt = (t) => H - pad - (H - 2 * pad) * t / tmax;
       g.strokeStyle = "rgba(200,190,230,.12)", g.lineWidth = 1, g.font = "13px ui-monospace,monospace", g.fillStyle = "rgba(200,190,230,.5)";
       for (let r = 1e3; r < rmax; r += 1e3)
         g.beginPath(), g.moveTo(X(r), pad * 0.5), g.lineTo(X(r), H - pad), g.stroke(), (r % 2e3 === 0 || rmax < 9e3) && g.fillText(r / 1e3 + "k", X(r) - 8, H - pad + 18);
-      g.fillText("kW", 6, pad * 0.6), g.fillText("N m", W3 - pad + 4, pad * 0.6);
+      g.fillText("kW", 6, pad * 0.6), g.fillText("N m", W4 - pad + 4, pad * 0.6);
       for (let k = 0; k <= kmax; k += Math.max(50, Math.round(kmax / 5 / 50) * 50))
         g.fillText(String(k), 4, Yk(k) + 4);
       let line = (pts, f2, col, dash, w = 2) => {
@@ -9419,8 +9613,137 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }
   };
 
+  // src/render/flatsgeo.js
+  var W3 = (x, y, h) => [x, h, -y];
+  function buildFlatsGround(cx, cy, { cell = 250, n = 12 } = {}) {
+    let B = new MeshBuilder(4096);
+    B.mat(20).col(255, 0, 0, 255);
+    let E = FLATS.edge, h = FLATS.y, ox = Math.floor(cx / cell) * cell, oy = Math.floor(cy / cell) * cell, rect = (x0, y0, x1, y1) => {
+      x1 - x0 < 0.01 || y1 - y0 < 0.01 || B.quadP(W3(x0, y0, h), W3(x1, y0, h), W3(x1, y1, h), W3(x0, y1, h), [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], [0, 1, 0]);
+    };
+    for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) {
+      let x0 = ox + i * cell, x1 = x0 + cell, y0 = oy + j * cell, y1 = y0 + cell;
+      if (x1 <= -E || x0 >= E || y1 <= -E || y0 >= E) {
+        rect(x0, y0, x1, y1);
+        continue;
+      }
+      x0 < -E && rect(x0, y0, -E, y1), x1 > E && rect(E, y0, x1, y1);
+      let xa = Math.max(x0, -E), xb = Math.min(x1, E);
+      y0 < -E && rect(xa, y0, xb, -E), y1 > E && rect(xa, E, xb, y1);
+    }
+    return B;
+  }
+  function buildRamps(list) {
+    let B = new MeshBuilder(8192);
+    for (let r of list) {
+      B.mat(21, r.kind === "mega" ? 2 : r.kind === "table" ? 1 : 0, r.id & 255).col(255, Math.min(255, Math.round(r.T * 4)), Math.min(255, Math.round(r.hw * 8)), 255);
+      let us = [], nf = r.kind === "mega" ? 30 : 20, nb = r.kind === "mega" ? 18 : 12;
+      for (let k = 0; k <= nf; k++) us.push(r.Lf * k / nf);
+      us.push(r.Lf + r.T * 0.5, r.Lf + r.T);
+      for (let k = 1; k <= nb; k++) us.push(r.Lf + r.T + r.Lb * k / nb);
+      let ws = r.ws, vs = [-r.hw, -r.hw + ws * 0.3, -r.hw + ws * 0.65, -r.hw + ws, 0, r.hw - ws, r.hw - ws * 0.65, r.hw - ws * 0.3, r.hw], map = (u, v) => [r.ox + r.dx * u - r.dy * v, r.oy + r.dy * u + r.dx * v], hAt = (u, v) => {
+        let [x, y] = map(Math.min(r.L - 1e-3, Math.max(1e-3, u)), Math.max(-r.hw + 1e-3, Math.min(r.hw - 1e-3, v)));
+        return rampHeight(r, x, y);
+      }, idx = [];
+      for (let u of us) {
+        let row = [];
+        for (let v of vs) {
+          let [x, y] = map(u, v), h = hAt(u, v), e = 0.15, du = (hAt(u + e, v) - hAt(u - e, v)) / (2 * e), dv = (hAt(u, v + e) - hAt(u, v - e)) / (2 * e), gx = du * r.dx - dv * r.dy, gy = du * r.dy + dv * r.dx;
+          row.push(B.v(W3(x, y, FLATS.y + h + 0.012), [-gx, 1, gy], u - r.Lf, v));
+        }
+        idx.push(row);
+      }
+      for (let i = 0; i < us.length - 1; i++) for (let j = 0; j < vs.length - 1; j++) B.quad(idx[i][j], idx[i + 1][j], idx[i + 1][j + 1], idx[i][j + 1]);
+      let lamp = r.kind === "mega" ? [255, 40, 30] : [255, 150, 30], ph = r.kind === "mega" ? 3.4 : 2.4;
+      for (let sv of [-1, 1]) {
+        let v = sv * (r.hw - r.ws + 0.35), [x, y] = map(r.Lf, v), h = FLATS.y + hAt(r.Lf, v);
+        B.mat(8, 120, 200).col(60, 60, 64), B.tube(W3(x, y, h), W3(x, y, h + ph), 0.06, 6, !1), B.mat(7, 70, 0).col(lamp[0], lamp[1], lamp[2]), B.sphere(W3(x, y, h + ph + 0.12), 0.2, 8, 4), B.mat(21, r.kind === "mega" ? 2 : r.kind === "table" ? 1 : 0, r.id & 255).col(255, Math.min(255, Math.round(r.T * 4)), Math.min(255, Math.round(r.hw * 8)), 255);
+      }
+    }
+    return B;
+  }
+  var FlatsView = class {
+    constructor(R2) {
+      this.R = R2, this.gk = null, this.rk = null, this.cache = /* @__PURE__ */ new Map(), this.pending = !1;
+    }
+    update(camPos) {
+      let x = camPos[0], y = -camPos[2], gk = Math.floor(x / 250) + "," + Math.floor(y / 250), rk = Math.floor(x / 180) + "," + Math.floor(y / 180);
+      if (gk !== this.gk && (this.gk = gk, this.R.setDynamic("flats", buildFlatsGround(x, y))), rk === this.rk && !this.pending) return;
+      let list = rampsNear(x, y, 1500), built = 0, missing = !1;
+      for (let r of list) if (!this.cache.has(r.key)) {
+        if (built >= 2) {
+          missing = !0;
+          continue;
+        }
+        this.cache.set(r.key, buildRamps([r])), built++;
+      }
+      let B = new MeshBuilder(16384);
+      for (let r of list) {
+        let c = this.cache.get(r.key);
+        c && B.append(c);
+      }
+      if (this.R.setDynamic("ramps", B), this.rk = rk, this.pending = missing, this.cache.size > 500) {
+        let keep = new Set(list.map((r) => r.key));
+        for (let k of [...this.cache.keys()]) keep.has(k) || this.cache.delete(k);
+      }
+    }
+    clear() {
+      this.gk = this.rk = null, this.R.setDynamic("flats", null), this.R.setDynamic("ramps", null);
+    }
+  };
+
+  // src/game/flatsrun.js
+  var MILE = 1609.344, FlatsRun = class {
+    constructor(rec, save2) {
+      this.rec = Object.assign({ top: 0, mile: 0, km: 0, air: 0, jump: 0 }, rec || {}), this.save = save2 || (() => {
+      }), this.samples = [], this.dist = 0, this.last = null, this.top = 0, this.flying = 0, this.on = !1, this.inAir = !1, this.msgs = [], this.pendTop = !1, this.pendFly = !1;
+    }
+    takeMessages() {
+      let m = this.msgs;
+      return this.msgs = [], m;
+    }
+    /* forget the current run (a reset, a new level, leaving free roam) */
+    restart() {
+      this.samples.length = 0, this.dist = 0, this.last = null, this.top = 0, this.flying = 0, this.inAir = !1, this.pendTop = this.pendFly = !1;
+    }
+    update(dt, time2, car2, mph) {
+      let x = car2.p[0], y = -car2.p[2], v = Math.hypot(car2.v[0], car2.v[2]);
+      this.last && Math.hypot(x - this.last[0], y - this.last[1]) > Math.max(6, v * dt * 3) && this.restart();
+      let step2 = this.last ? Math.hypot(x - this.last[0], y - this.last[1]) : 0;
+      if (this.last = [x, y], car2.air && !this.inAir)
+        this.inAir = !0, this.t0 = time2, this.p0 = [x, y];
+      else if (!car2.air && this.inAir) {
+        this.inAir = !1;
+        let t = time2 - this.t0, d = Math.hypot(x - this.p0[0], y - this.p0[1]);
+        if (t >= 0.6 && d > 4) {
+          let best = d > this.rec.jump + 0.01;
+          best && (this.rec.jump = d), t > this.rec.air && (this.rec.air = t), this.msgs.push({ t: "jump", air: t, dist: d, best }), (best || t >= this.rec.air) && this.save(this.rec);
+        }
+      }
+      if (this.on = onFlats(x, y), !this.on) {
+        this.samples.length && (this.samples.length = 0, this.dist = 0, this.flying = 0), this.top = 0, this.settle(v, !0);
+        return;
+      }
+      !car2.air && v > this.top && (this.top = v), !car2.air && v > this.rec.top + 0.03 && (this.rec.top = v, this.pendTop = !0), this.dist += step2;
+      let L = mph ? MILE : 1e3, key = mph ? "mile" : "km", S = this.samples;
+      for ((!S.length || time2 - S[S.length - 1].t >= 0.05) && S.push({ t: time2, d: this.dist }); S.length > 2 && this.dist - S[1].d >= L; ) S.shift();
+      if (S.length > 1 && this.dist - S[0].d >= L) {
+        let dt2 = time2 - S[0].t;
+        this.flying = dt2 > 0 ? (this.dist - S[0].d) / dt2 : 0, this.flying > this.rec[key] + 0.03 && (this.rec[key] = this.flying, this.pendFly = key);
+      } else this.flying = 0;
+      this.settle(v, !1);
+    }
+    /* announce a new best once the run has peaked */
+    settle(v, force) {
+      if (this.pendTop && (force || v < this.rec.top - 2.5) && (this.pendTop = !1, this.msgs.push({ t: "top", v: this.rec.top }), this.save(this.rec)), this.pendFly && (force || this.flying < this.rec[this.pendFly] - 1)) {
+        let k = this.pendFly;
+        this.pendFly = !1, this.msgs.push({ t: "flying", v: this.rec[k], unit: k }), this.save(this.rec);
+      }
+    }
+  };
+
   // game/main.js
-  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { event: "race", laps: 3, rivals: "racing", level: "city", assist: "easy", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", fps: "auto", perf: !1, volume: 0.8, units: "kmh", sandbox: null, touch: "auto", steer: "slide", device: null }, settings = loadSettings(DEFAULTS);
+  var $ = (id) => document.getElementById(id), Q = new URLSearchParams(location.search), DEFAULTS = { event: "race", laps: 3, rivals: "racing", level: "city", assist: "easy", gearbox: "auto", engine: "six", paint: "magenta", env: "rain", cam: "chase", display: "modern", ledRes: "classic", quality: "high", scale: "auto", fps: "auto", perf: !1, nosFree: "endless", flatsRec: null, volume: 0.8, units: "kmh", sandbox: null, touch: "auto", steer: "slide", device: null }, settings = loadSettings(DEFAULTS);
   for (let k of Object.keys(DEFAULTS)) Q.has(k) && (settings[k] = isNaN(+Q.get(k)) || k === "scale" && Q.get(k) === "auto" ? Q.get(k) : +Q.get(k));
   var save = () => {
     Q.has("manual") || saveSettings(settings);
@@ -9428,7 +9751,9 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   settings.device || (settings.device = COARSE ? "touch" : "desktop", COARSE && !Q.has("quality") && (settings.quality = "mobile"), save());
   var canvas = $("view"), hudC = $("hud"), R = new Renderer(canvas, { quality: settings.quality }), level = makeLevel(settings.level);
   R.loadWorld(level.geo, level.T);
-  var CR = new CarRenderer(R, CHASSIS);
+  var flatsView = new FlatsView(R), flatsRun = new FlatsRun(settings.flatsRec, (rec) => {
+    settings.flatsRec = Object.assign({}, rec), save();
+  }), CR = new CarRenderer(R, CHASSIS);
   for (let d of ["sl3_lip", "sl3_wing"]) CR.addDesign(Object.assign({}, CHASSIS.sl3, { design: d }));
   var AERO_DESIGN = ["sl3", "sl3_lip", "sl3_wing"], extraCars = [], PS = new Particles(R, level.mask, { rainN: { mobile: 2500, low: 4e3, medium: 6500, high: 9e3, ultra: 12e3 }[settings.quality] || 9e3 }), drs = new DRS({ min: 0.5, max: R.Q.maxScale, start: settings.scale === "auto" ? 0.85 : +settings.scale });
   drs.enabled = settings.scale === "auto";
@@ -9460,7 +9785,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
   }
   var botFn = null, guide = null;
   function loadLevel(kind) {
-    level.kind !== kind && (settings.level = kind, save(), level = makeLevel(kind), R.loadWorld(level.geo, level.T), PS.setMask(level.mask), hud.setMap(level.map), ledHudView.setMap(level.map), cam.setLevel(level), car.world = level.world, level.spawn(car), car.pt.start(), guide = level.guide(car), botFn = level.bot(car), mode = null, makeTraffic());
+    level.kind !== kind && (settings.level = kind, save(), level = makeLevel(kind), R.loadWorld(level.geo, level.T), flatsView.gk = flatsView.rk = null, flatsRun.restart(), PS.setMask(level.mask), hud.setMap(level.map), ledHudView.setMap(level.map), cam.setLevel(level), car.world = level.world, level.spawn(car), car.pt.start(), guide = level.guide(car), botFn = level.bot(car), mode = null, makeTraffic());
   }
   var TRAFFIC_N = { mobile: 16, low: 28, medium: 42, high: 56, ultra: 76 }, SL3_BOX = carBox({ xF: 2.25, xR: -2.3, hw: 0.966, H: 1.28 }, CHASSIS.sl3.hcg), traffic = null, trafficInit = !1, camLast = { pos: [0, 0, 0], fwd: [1, 0, 0] };
   function makeTraffic() {
@@ -9510,6 +9835,13 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
         m.t === "bank" && m.pts > 200 ? hud.message("+" + m.pts.toLocaleString("en-US"), "#ff4fa0", 1.3) : m.t === "lost" && hud.message(m.why + "  -" + Math.round(m.pts).toLocaleString("en-US"), "#ff3d5a", 1.6);
       }
     mode.done && doneT < 0 && (doneT = time), doneT >= 0 && time - doneT > (mode.kind === "race" ? 0 : 1.5) && state === "drive" && showResults();
+  }
+  function flatsUpdate(dt) {
+    let mph = settings.units === "mph";
+    flatsRun.update(dt, time, car, mph);
+    let sp = (v) => (v * (mph ? 2.23694 : 3.6)).toFixed(1) + (mph ? " MPH" : " KM/H"), far = (d) => mph ? Math.round(d * 3.28084) + " FT" : Math.round(d) + " M";
+    for (let m of flatsRun.takeMessages())
+      m.t === "jump" ? hud.message((m.best ? "BEST JUMP  " : "AIR ") + m.air.toFixed(1) + " S  " + far(m.dist), m.best ? "#5dff7a" : "#ff4fa0", 2.2) : m.t === "top" ? hud.message("NEW TOP SPEED  " + sp(m.v), "#5dff7a", 2.6) : m.t === "flying" && hud.message("FLYING " + (m.unit === "mile" ? "MILE" : "KM") + "  " + sp(m.v), "#5dff7a", 2.6);
   }
   function freeDriftUpdate(dt, ev) {
     if (freeDrift) {
@@ -9721,8 +10053,18 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       toggleFullscreen(), setTimeout(() => {
         menu.open && menu.render();
       }, 300);
-    } })), free && rows.push(
+    } })), free && level.kind === "city" && onFlats(car.p[0], -car.p[2]) && rows.push({ type: "action", label: "Back to Shift City", act: () => {
+      level.spawn(car), car.pt.start(), flatsRun.restart(), cam.cut = !0, pause(!1);
+    } }), free && rows.push(
       { type: "head", label: "Car" },
+      {
+        type: "choice",
+        label: "Nitrous",
+        chips: 1,
+        get: () => settings.nosFree,
+        set: set("nosFree"),
+        options: [opt("endless", "Endless", "Free roam only: the bottle never runs dry. Events always use the real bottle." + (spec.nosKw ? "" : " This car has no nitrous fitted yet: add it in the garage.")), opt("normal", "Normal", "The bottle empties as you use it, as in events.")]
+      },
       { type: "choice", label: "Engine", get: () => sandbox.setup.engine, set: (v) => swapEngine(v), options: ENGINE_CHOICES.concat(["street4", "three", "oddv6", "rotary2", "eight", "flat6"]).filter((v, i, a) => a.indexOf(v) === i).map((id) => {
         let p = SIM.PRESETS.find((q) => q.id === id);
         return opt(id, p.name, p.tag);
@@ -9958,6 +10300,21 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       let d = freeDrift.hud();
       S.freeChain = d.driftChain, S.freeMult = d.driftMult, S.freeGap = d.driftGap;
     }
+    if (level.kind === "city" && !mode && onFlats(car.p[0], -car.p[2])) {
+      let x = car.p[0], y = -car.p[2], mph = settings.units === "mph", d = Math.hypot(x, y), dirs = ["EAST", "NORTHEAST", "NORTH", "NORTHWEST", "WEST", "SOUTHWEST", "SOUTH", "SOUTHEAST"], k = (Math.round(Math.atan2(-y, -x) / (Math.PI / 4)) % 8 + 8) % 8;
+      S.placeSub = "SHIFT CITY " + (mph ? (d / 1609.344).toFixed(1) + " MI" : (d / 1e3).toFixed(1) + " KM") + " " + dirs[k];
+      let u = (v) => v * (mph ? 2.23694 : 3.6), R2 = flatsRun.rec;
+      S.flats = {
+        top: u(flatsRun.top),
+        topBest: u(R2.top),
+        fly: u(flatsRun.flying),
+        flyBest: u(mph ? R2.mile : R2.km),
+        flyName: mph ? "FLYING MILE" : "FLYING KM",
+        jump: mph ? R2.jump * 3.28084 : R2.jump,
+        jumpUnit: mph ? "FT" : "M",
+        air: R2.air
+      };
+    }
     return S;
   }
   var slowT = 0, slowHinted = !1, state = "boot", time = 0, acc = 0, frameN = 0, highBeam = !1, lastInp = {}, DT = 1 / 240, fmt2 = (t) => {
@@ -9981,7 +10338,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     let drive;
     state === "title" || Q.has("auto") && state === "drive" ? drive = Object.assign({}, inp, botFn(car)) : state === "hub" || state === "garage" ? drive = { thr: 0, brk: 0.4, hb: 1, steer: 0 } : state === "results" ? drive = { thr: 0, brk: 0.35, hb: 0, steer: 0 } : drive = inp, state === "drive" && car.aid.guide && guide && (drive = guide(drive));
     let pb = playerBody();
-    mode && state === "drive" && (drive = mode.gate(drive)), acc += dt;
+    mode && state === "drive" && (drive = mode.gate(drive)), state === "drive" && session.kind === "free" && !mode && settings.nosFree !== "normal" && spec.nosKw && (car.pt.nos = 1), acc += dt;
     let n = 0;
     for (; acc >= DT && n < 24; )
       car.step(DT, drive), mode && mode.stepPhysics(DT), traffic && traffic.stepPhysics(DT, pb), acc -= DT, n++, time += DT;
@@ -9991,7 +10348,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
     }
     traffic && (traffic.wet = env.wet, traffic.update(dt, { time, player: pb, cam: camLast, night: env.night, init: trafficInit }), trafficInit = !1);
     let ev = car.takeEvents();
-    return mode && (mode.wet = env.wet, mode.update(dt, time, { ev }), modeEvents()), state === "drive" && freeDriftUpdate(dt, ev), liveViews = [...mode ? mode.views(env.night > 0.3) : [], ...traffic ? traffic.views({ night: env.night }) : []], state === "drive" && recorder.add(time, car, carView(), liveViews, car.p), effects(dt), { ev };
+    return mode && (mode.wet = env.wet, mode.update(dt, time, { ev }), modeEvents()), state === "drive" && freeDriftUpdate(dt, ev), state === "drive" && session.kind === "free" && !mode && level.kind === "city" && flatsUpdate(dt), liveViews = [...mode ? mode.views(env.night > 0.3) : [], ...traffic ? traffic.views({ night: env.night }) : []], state === "drive" && recorder.add(time, car, carView(), liveViews, car.p), effects(dt), { ev };
   }
   function render(dt, ev) {
     let R1 = state === "replay" && replay, subj = R1 ? proxy : car, c = cam.update(dt, subj, { look: !R1 && !!lastInp.look, impact: R1 ? 0 : Math.max(ev.wall || 0, ev.land || 0) * 0.25 }), L = carLights(subj), M = qmat(subj.q), F = mcol(M, 0), fw = norm2([F[0], 0, F[2]]);
@@ -10020,7 +10377,7 @@ registerProcessor('shiftlight-fx',ShiftlightFX);`, GameAudio = class {
       let res = settings.ledRes === "fine" ? [480, 270] : [320, 180];
       ledHud.width !== res[0] && (ledHud.width = res[0], ledHud.height = res[1]), ledHudView.pixel = !0, ledHudView.draw(hs, dt), ledS = { res, hud: R.hudTexture(ledHud), quant: 15 };
     }
-    R.render({
+    level.kind === "city" && flatsView.update(c.pos), R.render({
       time: R1 ? replay.t : time,
       dt,
       cam: c,

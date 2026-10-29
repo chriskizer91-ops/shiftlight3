@@ -83,6 +83,14 @@ export class Renderer{
     const xw=new Float32Array(8).fill(-1);if(T)(city.info.xw||[]).forEach((s,i)=>{if(i<8)xw[i]=s;});this.U.uXw=xw;
     this.U.uRoad=T?[T.hw,T.lanes,T.len,1]:[6.5,2,1e4,1];
     this.resetTAA=true;this.hasPrev=false;this.probeFilled=0;
+    for(const k of Object.keys(this.dyn||{}))this.setDynamic(k,null);
+  }
+  /* world geometry that changes as you drive (the flats around the camera): replace one named part */
+  setDynamic(name,B){
+    const gl=this.gl;if(!this.dyn)this.dyn={};const old=this.dyn[name];
+    if(old){gl.deleteVertexArray(old.vao);gl.deleteBuffer(old.vb);if(old.ib)gl.deleteBuffer(old.ib);delete this.dyn[name];}
+    if(!B||!B.idx.length)return;
+    const m=this.G.mesh(LAYOUT,STRIDE,B.vertexData(),B.indexData());m.mn=B.mn.slice();m.mx=B.mx.slice();this.dyn[name]=m;
   }
   /* (re)allocate everything that depends on the screen size and render scale */
   resize(W,H,scale=this.scale){
@@ -155,6 +163,7 @@ export class Renderer{
     if(sort)list.sort((a,b)=>a.d-b.d);
     gl.bindVertexArray(this.world.vao);
     for(const t of list)gl.drawElements(gl.TRIANGLES,t.count,gl.UNSIGNED_INT,t.first*4);
+    if(this.dyn)for(const k in this.dyn){const m=this.dyn[k];if(!M4.boxVisible(planes,m.mn,m.mx))continue;G.draw(m);}
     return list.length;
   }
   shadowPass(S){

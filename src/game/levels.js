@@ -5,6 +5,7 @@
      spawn(car), resetAt(car), map (minimap paths), place(car) (street name), shelter(car),
      camCollide(pos, pivot), bot(car) (who drives on the title screen), guide(car)
    ===================================================================================== */
+import {onFlats,flatsHeight,FLATS} from '../world/flats.js';
 import {buildTrack,speedProfile} from '../world/track.js';
 import {buildCity} from '../world/city.js';
 import {buildRainMask} from '../world/rainmask.js';
@@ -53,6 +54,11 @@ function cityLevel(){
   L.spawn=car=>placeAt(car,2.9,-60,Math.PI/2,0);
   /* reset: back onto the nearest lane of the road you were on, pointing the way you were going */
   L.resetAt=car=>{const x=car.p[0],y=-car.p[2],F=mcol(qmat(car.q),0);const yaw=Math.atan2(-F[2],F[0]);
+    /* out on the flats: back on your wheels right here, stepped back off any jump you landed on */
+    if(onFlats(x,y)){const fx=Math.cos(yaw),fy=Math.sin(yaw),flat=(px,py)=>[[0,0],[2.6,1.2],[2.6,-1.2],[-2.6,1.2],[-2.6,-1.2]].every(([a,b])=>flatsHeight(px+fx*a-fy*b,py+fy*a+fx*b)<FLATS.y+.02);
+      let px=x,py=y;for(let k=0;k<60&&!flat(px,py);k++){px-=fx*5;py-=fy*5;}
+      if(!flat(px,py)){px=x;py=y;for(let k=0;k<60&&!flat(px,py);k++){px+=fy*5;py-=fx*5;}}
+      placeAt(car,px,py,yaw,FLATS.y);return;}
     /* on the expressway? */
     const Lh=M.hwy.locate(car.p[0],car.p[2],-1);
     if(Lh&&Math.abs(Lh.d)<HWY.hw+2&&car.p[1]>DECK_H-2){const th=M.hwy.headAt(Lh.s),fwd=Math.cos(yaw-th)>0;const d=fwd?-4.2:4.2,p=M.hwy.pos(Lh.s,d);placeAt(car,p[0],-p[2],fwd?th:th+Math.PI,DECK_H);return;}
@@ -69,6 +75,7 @@ function cityLevel(){
   L.map={paths,hwy:Array.from({length:Math.ceil(M.hwy.N/8)},(_,i)=>[M.hwy.mx[i*8],M.hwy.my[i*8]])};
   const NAMES=M.names;
   L.place=car=>{const x=car.p[0],y=-car.p[2];
+    if(onFlats(x,y))return 'THE FLATS';
     if(car.p[1]>DECK_H-1.5){const Lh=M.hwy.locate(car.p[0],car.p[2],-1);if(Lh&&Math.abs(Lh.d)<HWY.hw+1)return 'RING EXPRESSWAY';
       for(const r of M.ramps){const Lr=r.locate(car.p[0],car.p[2],-1);if(Lr&&Lr.s>=0&&Lr.s<=r.len&&Math.abs(Lr.d)<r.hw+1)return r.name.toUpperCase();}}
     let best=null;for(const g of GRID){const dx=Math.abs(x-g),dy=Math.abs(y-g);if(!best||dx<best.d)best={d:dx,n:NAMES.x[g]};if(dy<best.d)best={d:dy,n:NAMES.y[g]};}

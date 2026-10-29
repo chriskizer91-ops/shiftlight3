@@ -275,6 +275,64 @@ void matFacade(inout Surf s,inout vec3 em,inout float ssr,inout vec2 g,vec2 uv,u
   else if(uWet>0.0){s.diff*=1.0-.25*uWet;s.rough=mix(s.rough,.45,uWet*.5);}
 }
 
+/* the flats: a dry lakebed of tan clay and salt crust, cracked into plates; dark guide lines run
+   straight out from the city along both axes with a tick every 500 m; the rain floods it into a mirror */
+void matFlats(inout Surf s,inout float ssr,inout vec2 g,vec2 wp){
+  float fp=length(fwidth(wp));
+  float big=fbm(wp*.0035),mid=vn(wp*.045),fine=vn(wp*1.7);
+  vec3 alb=mix(vec3(.47,.42,.35),vec3(.70,.67,.61),smoothstep(.32,.78,big*.85+mid*.3));
+  alb*=.93+.1*fine*saturate(1.0-fp*3.);
+  float rough=.86;
+  /* mud plates about two metres across, their edges a little raised; gone where they'd shimmer */
+  float vis=1.0-smoothstep(.04,.22,fp);
+  /* some stretches are smooth salt, some cracked clay */
+  float crack=smoothstep(.3,.62,fbm(wp*.012+4.1))*vis;
+  if(crack>0.0){vec3 c=voro(wp*.52);float wd=.025+.03*h11(c.z*37.),edge=1.0-smoothstep(wd*.4,wd,c.y);
+    alb*=1.0-edge*.26*crack;alb*=1.0+(c.z-.5)*.08*crack;g+=vec2(c.z-.5,h11(c.z*91.)-.5)*.03*crack;}
+  /* tyre tracks fanning out from the city: faint darker bands near the guide lines */
+  float E=680.,line=0.0;
+  if(abs(wp.x)>E){float tk=abs(mod(wp.x+250.,500.)-250.),big2=abs(mod(wp.x+500.,1000.)-500.);
+    line=max(line,1.0-aaStep(.45,abs(wp.y)));
+    line=max(line,(1.0-aaStep(.35,tk))*(1.0-aaStep(3.5,abs(wp.y))));
+    line=max(line,(1.0-aaStep(.6,big2))*(1.0-aaStep(7.,abs(wp.y))));
+    alb*=1.0-.12*exp(-pow(wp.y/6.,2.));}
+  if(abs(wp.y)>E){float tk=abs(mod(wp.y+250.,500.)-250.),big2=abs(mod(wp.y+500.,1000.)-500.);
+    line=max(line,1.0-aaStep(.45,abs(wp.x)));
+    line=max(line,(1.0-aaStep(.35,tk))*(1.0-aaStep(3.5,abs(wp.x))));
+    line=max(line,(1.0-aaStep(.6,big2))*(1.0-aaStep(7.,abs(wp.x))));
+    alb*=1.0-.12*exp(-pow(wp.x/6.,2.));}
+  alb=mix(alb,vec3(.025,.025,.03),line*.92);rough=mix(rough,.6,line);
+  s.diff=alb;s.rough=rough;
+  water(s,g,ssr,wp,.75,vCol.r,.38);
+}
+/* the jumps: poured concrete, chevrons up the run-up pointing at the lip, a hazard band on the lip,
+   rubber down the middle where everyone lands, dusty banks at the sides */
+void matRamp(inout Surf s,inout float ssr,inout vec2 g,vec2 uv,uvec4 m,vec4 col){
+  float u=uv.x,v=uv.y,av=abs(v),hw=col.b*255./8.;int kind=int(m.y);float idh=h11(float(m.z)+.5);
+  float ws=kind==2?6.:kind==1?3.5:3.;
+  float n=fbm(uv*vec2(.5,.8)+idh*31.),n2=vn(uv*6.);
+  vec3 alb=vec3(.15,.15,.16)*(.8+.32*n)*(.9+.15*n2);float rough=.72;float retro=0.0;
+  /* formwork joints every 3 m */
+  alb*=1.0-.3*(1.0-aaStep(.03,abs(fract(u/3.+.5)-.5)*3.));
+  vec3 paint=kind==2?vec3(.7,.06,.04):kind==1?vec3(.8,.8,.78):vec3(.8,.55,.04);
+  float inner=1.0-smoothstep(hw-ws-.4,hw-ws,av);
+  if(u<0.0){float cv=fract((u+av*.6)/4.);float ch=(1.0-aaStep(.17,abs(cv-.5)))*inner*step(av,hw-ws-.6);
+    float wear=smoothstep(.35,.8,fbm(uv*vec2(.7,1.6)+idh*7.));alb=mix(alb,paint,ch*(1.0-wear*.7));rough=mix(rough,.55,ch);retro=max(retro,ch*(1.0-wear*.5));}
+  /* the lip: black and yellow */
+  if(abs(u)<.55){float hz=step(.5,fract((v+u)*.7));alb=mix(alb,hz>.5?vec3(.75,.55,.03):vec3(.02),inner);rough=.5;retro=max(retro,hz*inner);}
+  /* rubber where the wheels go */
+  float trk=exp(-pow((av-.8)/.35,2.))*smoothstep(-2.,8.,u);alb*=1.0-.35*trk*(.6+.4*n);
+  /* a painted line where the bank starts */
+  float el=1.0-aaStep(.09,abs(av-(hw-ws)));alb=mix(alb,vec3(.85),el*.85);
+  /* banks: lakebed dust */
+  float bank=smoothstep(hw-ws,hw,av);alb=mix(alb,vec3(.55,.5,.42)*(.8+.3*n2),bank*.85);
+  s.diff=alb;s.rough=rough;g+=vec2(n2-.5)*.004;
+  water(s,g,ssr,s.P.xz,.4,vCol.r,-.25);
+  /* the paint is retroreflective, like road markings: it lights up in your headlights */
+  if(retro>0.0)s.clear=-retro;
+}
+/* what the sky looks like straight through a point on the horizon (the sky pass, fog and all) */
+vec3 horizonCol(vec3 d){vec3 c=skyCol(d,true);float fogT=exp(-uFogDen*900.*saturate(1.0-d.y*2.));return c*mix(1.0,fogT,.85)+uFogCol*(1.0-fogT)*.85;}
 void main(){
   vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;
   Surf s;s.P=vP;s.V=normalize(uCam-vP);s.N=N;s.diff=vec3(.5);s.F0=vec3(.04);s.rough=.8;s.ao=1.0;s.clear=0.0;s.clearR=.05;s.Nc=N;s.spec=1.0;s.trans=0.0;
@@ -318,6 +376,8 @@ void main(){
   else if(id==17u)matCityRoad(s,ssr,g,uv,vMat);
   else if(id==18u)matDeck(s,ssr,g,uv,vMat);
   else if(id==19u){vec2 wp=uv;float n=fbm(wp*.7),n2=vn(wp*9.);s.diff=vec3(.05,.09,.03)*(.6+.6*n)*(.8+.4*n2);s.rough=.9;s.diff*=1.0-.3*uWet;water(s,g,ssr,s.P.xz,.6,1.0,-.35);}
+  else if(id==20u)matFlats(s,ssr,g,uv);
+  else if(id==21u)matRamp(s,ssr,g,uv,vMat,vCol);
   s.ao*=vCol.a>0.0&&id!=5u?vCol.a:1.0;
   if(dot(g,g)>0.0)s.N=bump(s.N,s.P,uv,g);
   /* specular anti-aliasing: widen the lobe where the normal changes within a pixel */
@@ -339,6 +399,10 @@ void main(){
 #endif
     ssr=ssr>0.0?lum(ew)*so:0.0;
   }
+#ifndef PROBE
+  /* the flats melt into the sky toward the horizon, so the ground never visibly ends */
+  if(id>=20u){float hz=smoothstep(1100.,2800.,vd);if(hz>0.0){col=mix(col,horizonCol(normalize(vP-uCam)),hz);ssr*=1.0-hz;}}
+#endif
 #ifdef PROBE
   float fogT=exp(-uFogDen*vd);col=col*fogT+uFogCol*(1.0-fogT);
   oCol=vec4(col,1.0);

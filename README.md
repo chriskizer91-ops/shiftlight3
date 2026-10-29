@@ -63,6 +63,26 @@ while you drive. Hold the phone sideways (upright, it pauses and asks you to tur
   rays, no motion blur, at most 1.25 device pixels per CSS pixel, 16 traffic cars, and lighter
   rain. Dynamic resolution still runs on top. A strong tablet can try Low or Medium in Graphics.
 
+### The Flats
+
+Shift City sits in the middle of a dry lakebed that goes on forever. Drive past the city's edge in
+free roam and keep going:
+
+- **The ground never ends.** Pale clay and salt crust by day; at night it's dark under your
+  headlights with the city glowing behind you; in the rain it floods into a mirror.
+- **Speed strips** run straight out from the city along Main Street (east and west) and the 0
+  avenue (north and south): a dark guide line with a tick every 500 m and a longer one every km.
+- **Jumps** are scattered everywhere, the same ones in the same places every time: kickers,
+  long tables, and big ones farther out. Amber beacons mark the lips (red on the big ones),
+  and the chevrons light up in your headlights.
+- **Records**: top speed, the flying mile (or flying km with km/h: your average speed over the
+  last mile you covered), and your longest jump with its air time. They're saved.
+- **Finding home**: the HUD says how far the city is and which way; the minimap zooms out to
+  show you and the city. R puts you back on your wheels where you are; the pause menu has
+  *Back to Shift City*.
+- **Endless nitrous** in free roam (pause menu, Car > Nitrous: Endless / Normal). Events always
+  use the real bottle.
+
 ### Career
 
 Start with $8,000 and a stock SL-3 with a 2.0 L four. Twenty events in five tiers, D up to S: in
@@ -180,6 +200,7 @@ npm run test:career    # buying, class limits, rewards, tiers, saves; every buil
 npm run test:events    # drag runs and red lights, a time trial and its ghost, a drift run
 npm run test:mobile    # an emulated phone: touch pads drive, screens tap through, portrait
 npm run test:cpu       # game-logic time per frame (physics, traffic, rivals) per quality tier
+npm run test:flats     # the flats: endless ground, jumps you can land, solid towers, a speed run
 SHOTS='[{"name":"x","js":"__game.begin()"}]' node test/shot.mjs test/out   # screenshots (headless GPU)
 ```
 

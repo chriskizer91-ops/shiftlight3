@@ -8,6 +8,7 @@
 import {Chunked,rng,norm} from '../render/mesh.js';
 import {makeKit,W,NEON,WORDS} from './kit.js';
 import {GRID,RING,CORNER,ROADS,HWY,DECK_H,classOf,hwOf,baseGround} from './citymap.js';
+import {skylineBlocks,FLATS} from './flats.js';
 
 const CLS={ring:0,main:1,ave:2,street:3};
 export function buildShiftCity(M){
@@ -157,15 +158,15 @@ export function buildShiftCity(M){
       const name=(['NORTH','EAST','SOUTH','WEST'][r.side])+' EXIT',px=.12,len=name.length*6*px-px;
       K.neonText(name,[fb[0]-rt[0]*len/2-f[0]*.08,fb[1]-.3,fb[2]-rt[2]*len/2-f[2]*.08],rt,[0,1,0],px,[.95,.97,.9]);}
   }
-  /* ---------- the skyline far out ---------- */
+  /* ---------- the skyline out on the flats ---------- */
+  /* the ground under the city (the flats around it are drawn around the camera, see flatsgeo.js) */
   const ground=SKY;ground.mat(11,1).col(255,0,0,255);
-  for(let gx=-2000;gx<2000;gx+=250)for(let gy=-2000;gy<2000;gy+=250){ground.at(gx+125,-(gy+125)).quadP(W(gx,gy,-.09),W(gx+250,gy,-.09),W(gx+250,gy+250,-.09),W(gx,gy+250,-.09),[[gx,-gy],[gx+250,-gy],[gx+250,-gy-250],[gx,-gy-250]],[0,1,0]);}
-  for(let k=0;k<420;k++){const a=R()*Math.PI*2,r=760+Math.pow(R(),.7)*1100,cx=Math.cos(a)*r,cy=Math.sin(a)*r;
-    const w=18+R()*40,l=18+R()*40,H=25+Math.pow(R(),2)*200,style=R()<.5?2:1,seed=Math.floor(R()*255),bw0=style===2?1.7:3.2;
-    const tint=style===2?[50+R()*40,80+R()*30,100+R()*30]:[120+R()*50,118+R()*45,110+R()*40],x0=cx-w/2,x1=cx+w/2,y0=cy-l/2,y1=cy+l/2;
+  for(let gx=-750;gx<750;gx+=250)for(let gy=-750;gy<750;gy+=250){ground.at(gx+125,-(gy+125)).quadP(W(gx,gy,-.09),W(gx+250,gy,-.09),W(gx+250,gy+250,-.09),W(gx,gy+250,-.09),[[gx,-gy],[gx+250,-gy],[gx+250,-gy-250],[gx,-gy-250]],[0,1,0]);}
+  for(const b of skylineBlocks()){
+    const {cx,cy,w,l,H,style,seed,tint}=b,bw0=style===2?1.7:3.2,x0=cx-w/2,x1=cx+w/2,y0=cy-l/2,y1=cy+l/2,g=FLATS.y-.05;
     [[[x0,y0],[x1,y0],[0,0,1]],[[x1,y1],[x0,y1],[0,0,-1]],[[x1,y0],[x1,y1],[1,0,0]],[[x0,y1],[x0,y0],[-1,0,0]]].forEach(([bl,br,nn],k2)=>{
       const Wd=Math.hypot(br[0]-bl[0],br[1]-bl[1]),bw=Wd/Math.max(1,Math.round(Wd/bw0));SKY.mat(5,style,seed,8<<4).col(tint[0],tint[1],tint[2],Math.round((bw-1)/3*255));
-      SKY.at(cx,-cy).quadP(W(bl[0],bl[1],0),W(br[0],br[1],0),W(br[0],br[1],H),W(bl[0],bl[1],H),[[k2*64*bw,0],[k2*64*bw+Wd,0],[k2*64*bw+Wd,H],[k2*64*bw,H]],nn);});
+      SKY.at(cx,-cy).quadP(W(bl[0],bl[1],g),W(br[0],br[1],g),W(br[0],br[1],H),W(bl[0],bl[1],H),[[k2*64*bw,0],[k2*64*bw+Wd,0],[k2*64*bw+Wd,H],[k2*64*bw,H]],nn);});
     SKY.mat(6).col(255,0,0,255);SKY.at(cx,-cy).quadP(W(x0,y0,H),W(x1,y0,H),W(x1,y1,H),W(x0,y1,H),[[0,0],[1,0],[1,1],[0,1]],[0,1,0]);
     if(H>140){SKY.mat(7,60,7).col(255,30,20);SKY.at(cx,-cy).sphere(W(cx,cy,H+1.5),.6,5,3);}}
   for(const [k,B] of SKY.tiles)C.tiles.set('sky'+k,B);

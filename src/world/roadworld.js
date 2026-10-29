@@ -9,6 +9,7 @@
    Same interface as the circuit's TrackWorld: locate, ground, raycast, wall.
    ===================================================================================== */
 import {baseGround,HWY,DECK_H,RING,CORNER,ROADS,GRID} from './citymap.js';
+import {onFlats,flatsHeight,skylineBlocks,FLATS} from './flats.js';
 
 const UP=[0,1,0],CELL=16;
 export class RoadWorld{
@@ -32,6 +33,8 @@ export class RoadWorld{
     const M=this.M;
     /* buildings */
     for(const L of M.lots)this.addBox((L.x0+L.x1)/2,(L.y0+L.y1)/2,[1,0],(L.x1-L.x0)/2,(L.y1-L.y0)/2,-1,L.h,'building');
+    /* the towers out on the flats are solid too */
+    for(const b of skylineBlocks())this.addBox(b.cx,b.cy,[1,0],b.w/2,b.l/2,-1,b.H,'building');
     /* barriers along a ribbon: one box every 4 m, skipping gaps; d is the barrier's centre offset */
     const barrier=(R,d,s0,s1,hTop,skip,yLow)=>{
       for(let s=s0;s<s1-.01;s+=4){const se=Math.min(s1,s+4),sm=(s+se)/2;if(skip&&skip(sm))continue;
@@ -65,7 +68,11 @@ export class RoadWorld{
   locate(){return null;}
   /* the surface under (x, z), the highest one not more than half a metre above yRef */
   ground(x,z,hint=-1,yRef){
-    const mx=x,my=-z;let y=baseGround(this.M,mx,my),n=UP,surf=y>.1?'walk':'road',ri=-1;
+    const mx=x,my=-z;
+    /* out on the flats: the lakebed and its jumps, one height field */
+    if(onFlats(mx,my)){const y=flatsHeight(mx,my);let n=UP;
+      if(y>FLATS.y+1e-4){const e=.2,gx=(flatsHeight(mx+e,my)-flatsHeight(mx-e,my))/(2*e),gy=(flatsHeight(mx,my+e)-flatsHeight(mx,my-e))/(2*e),l=Math.hypot(gx,1,gy);n=[-gx/l,1/l,gy/l];}
+      return {y,n,surf:'road',i:-1};}let y=baseGround(this.M,mx,my),n=UP,surf=y>.1?'walk':'road',ri=-1;
     const list=this.rcell.get(Math.floor(mx/CELL)+','+Math.floor(my/CELL));
     if(list)for(const k of list){const R=this.ribbons[k];const L=R.locate(x,z,this.hints[k]);if(!L)continue;this.hints[k]=L.i;
       if(L.s<0||L.s>R.len||Math.abs(L.d)>R.hw+.6)continue;

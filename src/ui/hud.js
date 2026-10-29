@@ -164,7 +164,15 @@ export class HUD{
       this.small(ctx,'BEST',lx,ly+118*s,3*s,C.faint);this.small(ctx,fmtT(S.best),lx+70*s,ly+118*s,3*s,S.best>0?C.green:C.faint);
       this.small(ctx,'LAST',lx,ly+140*s,3*s,C.faint);this.small(ctx,fmtT(S.last),lx+70*s,ly+140*s,3*s,C.ink);
       if(S.delta!==null&&S.delta!==undefined&&S.best>0){const d=S.delta;this.small(ctx,(d>=0?'+':'-')+Math.abs(d).toFixed(2),lx+250*s,ly+74*s,4*s,d>0?C.red:C.green);}
-    }else if(S.place){this.dots(ctx,S.place,lx,ly+34*s,5*s,C.white,{unlit:false});}
+    }else if(S.place){this.dots(ctx,S.place,lx,ly+34*s,5*s,C.white,{unlit:false});
+      if(S.placeSub)this.small(ctx,S.placeSub,lx,ly+82*s,3*s,C.faint);
+      /* records out on the flats */
+      if(S.flats){const F=S.flats,row=(y,label,v,best,unit)=>{let x=lx;x+=this.small(ctx,label,x,y,3*s,C.faint)+14*s;
+          x+=this.small(ctx,v>0?v.toFixed(1):'---.-',x,y,3*s,C.white)+14*s;x+=this.small(ctx,'BEST',x,y,3*s,C.faint)+10*s;
+          this.small(ctx,best>0?best.toFixed(1)+(unit?' '+unit:''):'---.-',x,y,3*s,best>0?C.green:C.faint);};
+        row(ly+112*s,'TOP SPEED',F.top,F.topBest);row(ly+134*s,F.flyName,F.fly,F.flyBest);
+        let x=lx;x+=this.small(ctx,'BEST JUMP',x,ly+156*s,3*s,C.faint)+14*s;
+        this.small(ctx,F.jump>0?Math.round(F.jump)+' '+F.jumpUnit+'  '+F.air.toFixed(1)+' S':'---',x,ly+156*s,3*s,F.jump>0?C.green:C.faint);}}
     /* the start lights (races, trials, drift runs) */
     if(S.lights>0||S.go){const r=20*s,y0=pad+140*s;for(let i=0;i<5;i++){const x=W/2+(i-2)*58*s,on=S.go?1:i<S.lights;
       ctx.fillStyle='rgba(10,8,20,.7)';ctx.beginPath();ctx.arc(x,y0,r+6*s,0,6.283);ctx.fill();
@@ -181,12 +189,24 @@ export class HUD{
         for(const p of M.paths){stroke(p.pts,p.closed,(this.pixel?1:3.4*s)*p.w,C.pink,.8);}
         if(M.hwy)stroke(M.hwy,true,this.pixel?1:2.4*s,C.cyan,.85);
         this.mapCache={key,map:M,c};}
+      /* beyond the city the map zooms out until it holds both you and the city */
+      const cp=S.mapCar?P(S.mapCar[0],S.mapCar[1]):null,far=!this.pixel&&cp&&(cp[0]<mx-8*s||cp[0]>mx+sz+8*s||cp[1]<my-8*s||cp[1]>my+sz+8*s);
+      if(far){const g=M.sc*sz,cx0=M.x0+M.w/(2*M.sc),cy0=M.y0+M.h/(2*M.sc),E=Math.max(Math.abs(S.mapCar[0]-cx0),Math.abs(S.mapCar[1]-cy0))*1.15+40,f=sz/2/E,k=f/g;
+        const A=[mx+sz/2,my+sz/2],B=P(cx0,cy0),Pf=(x,y)=>[A[0]+(x-cx0)*f,A[1]-(y-cy0)*f];
+        ctx.strokeStyle=C.pink;ctx.globalAlpha=.25;ctx.lineWidth=1.5*s;ctx.strokeRect(mx,my,sz,sz);
+        /* the speed strips running out from the city */
+        ctx.globalAlpha=.35;ctx.strokeStyle=C.faint;ctx.lineWidth=1.2*s;ctx.beginPath();
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const a=Pf(cx0+dx*680,cy0+dy*680),b=Pf(cx0+dx*E,cy0+dy*E);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}ctx.stroke();
+        ctx.globalAlpha=1;ctx.drawImage(this.mapCache.c,A[0]+(ox-B[0])*k,A[1]+(oy-B[1])*k,this.mapCache.c.width*k,this.mapCache.c.height*k);
+        const [x,y]=Pf(S.mapCar[0],S.mapCar[1]);ctx.fillStyle=C.white;ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(x,y,12*s,0,6.283);ctx.fill();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,6*s,0,6.283);ctx.fill();
+        if(S.mapHead!==undefined){ctx.strokeStyle=C.white;ctx.lineWidth=2*s;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(S.mapHead)*16*s,y-Math.sin(S.mapHead)*16*s);ctx.stroke();}
+      }else{
       ctx.drawImage(this.mapCache.c,ox,oy);
       ctx.lineJoin='round';ctx.lineCap='round';ctx.globalAlpha=1;
       if(M.start){const [sx,sy]=P(M.start[0],M.start[1]);ctx.fillStyle=C.white;ctx.fillRect(sx-1.5*s,sy-7*s,3*s,14*s);}
       if(S.mapDots){ctx.fillStyle='#ffb347';ctx.globalAlpha=.75;const r=this.pixel?.6:2.1*s;for(const d of S.mapDots){const [x,y]=P(d[0],d[1]);ctx.fillRect(x-r,y-r,2*r,2*r);}ctx.globalAlpha=1;}
       if(S.mapCar){const [x,y]=P(S.mapCar[0],S.mapCar[1]);ctx.fillStyle=C.white;ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(x,y,12*s,0,6.283);ctx.fill();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,6*s,0,6.283);ctx.fill();
-        if(S.mapHead!==undefined){ctx.strokeStyle=C.white;ctx.lineWidth=2*s;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(S.mapHead)*16*s,y-Math.sin(S.mapHead)*16*s);ctx.stroke();}}}
+        if(S.mapHead!==undefined){ctx.strokeStyle=C.white;ctx.lineWidth=2*s;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(S.mapHead)*16*s,y-Math.sin(S.mapHead)*16*s);ctx.stroke();}}}}
     /* ---- assists ---- */
     const ax=pad+I.l,ay=H-pad-30*s-I.b;
     if(!T){this.small(ctx,S.assistName||'',ax,ay-40*s,3*s,C.faint);

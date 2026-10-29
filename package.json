@@ -11,12 +11,13 @@
     "test:physics": "node test/physics.mjs",
     "test:city": "node test/cityphys.mjs",
     "test:traffic": "node test/traffic.mjs",
-    "test": "node test/physics.mjs && node test/cityphys.mjs && node test/traffic.mjs && node test/race.mjs && node test/setup.mjs && node test/career.mjs && node test/events.mjs",
+    "test": "node test/physics.mjs && node test/cityphys.mjs && node test/traffic.mjs && node test/race.mjs && node test/setup.mjs && node test/career.mjs && node test/events.mjs && node test/flats.mjs",
     "test:race": "node test/race.mjs",
     "test:events": "node test/events.mjs",
     "test:career": "node test/career.mjs && node test/setup.mjs",
     "test:mobile": "node tools/build.mjs --only game && node test/mobile.mjs test/out/mobile",
-    "test:cpu": "node test/cpu.mjs"
+    "test:cpu": "node test/cpu.mjs",
+    "test:flats": "node test/flats.mjs"
   },
   "type": "module",
   "devDependencies": {

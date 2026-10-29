@@ -36,11 +36,14 @@ import {HUD} from '../src/ui/hud.js';
 import {Menu,loadSettings,saveSettings} from '../src/ui/menu.js';
 import {TitleMenu,CareerHub,Garage,Results} from '../src/ui/screens.js';
 import {TouchControls} from '../src/ui/touch.js';
+import {FlatsView} from '../src/render/flatsgeo.js';
+import {FlatsRun} from '../src/game/flatsrun.js';
+import {onFlats} from '../src/world/flats.js';
 import {qmat,mcol,mvec,add,norm,clamp,madd,sub,len,dot} from '../src/physics/math3.js';
 
 const $=id=>document.getElementById(id);
 const Q=new URLSearchParams(location.search);
-const DEFAULTS={event:'race',laps:3,rivals:'racing',level:'city',assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',fps:'auto',perf:false,volume:.8,units:'kmh',sandbox:null,touch:'auto',steer:'slide',device:null};
+const DEFAULTS={event:'race',laps:3,rivals:'racing',level:'city',assist:'easy',gearbox:'auto',engine:'six',paint:'magenta',env:'rain',cam:'chase',display:'modern',ledRes:'classic',quality:'high',scale:'auto',fps:'auto',perf:false,nosFree:'endless',flatsRec:null,volume:.8,units:'kmh',sandbox:null,touch:'auto',steer:'slide',device:null};
 const settings=loadSettings(DEFAULTS);
 for(const k of Object.keys(DEFAULTS))if(Q.has(k))settings[k]=isNaN(+Q.get(k))||k==='scale'&&Q.get(k)==='auto'?Q.get(k):+Q.get(k);
 const save=()=>{if(!Q.has('manual'))saveSettings(settings);};
@@ -52,6 +55,8 @@ if(!settings.device){settings.device=COARSE?'touch':'desktop';if(COARSE&&!Q.has(
 const canvas=$('view'),hudC=$('hud');
 const R=new Renderer(canvas,{quality:settings.quality});
 let level=makeLevel(settings.level);R.loadWorld(level.geo,level.T);
+const flatsView=new FlatsView(R);
+const flatsRun=new FlatsRun(settings.flatsRec,rec=>{settings.flatsRec=Object.assign({},rec);save();});
 const CR=new CarRenderer(R,CHASSIS);for(const d of ['sl3_lip','sl3_wing'])CR.addDesign(Object.assign({},CHASSIS.sl3,{design:d}));
 const AERO_DESIGN=['sl3','sl3_lip','sl3_wing'];
 const extraCars=[];   /* other cars to draw (tests can add some) */
@@ -91,7 +96,7 @@ let botFn=null,guide=null;
 function loadLevel(kind){
   if(level.kind===kind)return;
   settings.level=kind;save();
-  level=makeLevel(kind);R.loadWorld(level.geo,level.T);PS.setMask(level.mask);hud.setMap(level.map);ledHudView.setMap(level.map);cam.setLevel(level);
+  level=makeLevel(kind);R.loadWorld(level.geo,level.T);flatsView.gk=flatsView.rk=null;flatsRun.restart();PS.setMask(level.mask);hud.setMap(level.map);ledHudView.setMap(level.map);cam.setLevel(level);
   car.world=level.world;level.spawn(car);car.pt.start();guide=level.guide(car);botFn=level.bot(car);
   mode=null;makeTraffic();
 }
@@ -141,6 +146,13 @@ function modeEvents(){
   if(mode.done&&doneT<0)doneT=time;
   if(doneT>=0&&time-doneT>(mode.kind==='race'?0:1.5)&&state==='drive')showResults();
 }
+/* records out on the flats: top speed, the flying mile, jumps */
+function flatsUpdate(dt){const mph=settings.units==='mph';flatsRun.update(dt,time,car,mph);
+  const sp=v=>(v*(mph?2.23694:3.6)).toFixed(1)+(mph?' MPH':' KM/H'),far=d=>mph?Math.round(d*3.28084)+' FT':Math.round(d)+' M';
+  for(const m of flatsRun.takeMessages()){
+    if(m.t==='jump')hud.message((m.best?'BEST JUMP  ':'AIR ')+m.air.toFixed(1)+' S  '+far(m.dist),m.best?'#5dff7a':'#ff4fa0',2.2);
+    else if(m.t==='top')hud.message('NEW TOP SPEED  '+sp(m.v),'#5dff7a',2.6);
+    else if(m.t==='flying')hud.message('FLYING '+(m.unit==='mile'?'MILE':'KM')+'  '+sp(m.v),'#5dff7a',2.6);}}
 function freeDriftUpdate(dt,ev){if(!freeDrift)return;freeDrift.update(dt,car,ev);
   for(const m of freeDrift.takeMessages()){if(m.t==='bank'&&m.pts>800)hud.message('DRIFT  +'+m.pts.toLocaleString('en-US'),'#ff4fa0',1.4);else if(m.t==='lost'&&m.pts>800)hud.message(m.why,'#ff3d5a',1.2);}}
 
@@ -293,7 +305,10 @@ function menuRows(optionsOnly){
     {type:'choice',label:'Steering',chips:1,get:()=>settings.steer,set:v=>{settings.steer=v;save();if(v==='tilt')touch.enableTilt().then(ok=>{if(!ok){settings.steer='slide';save();hud.message('NO TILT ACCESS','#ff3d5a',2);if(menu.open)menu.render();}else setTimeout(()=>{if(!touch.tilt.ok)hud.message('NO TILT DATA · SLIDE TO STEER','#ffb040',3);},1500);});},
       options:[opt('slide','Slide','Put your left thumb down anywhere on the left and slide it sideways. Past full lock the centre follows your thumb.'),opt('buttons','Buttons','Two pads, left and right; steering builds up like on a keyboard.'),opt('tilt','Tilt','Turn the phone like a steering wheel.')]});
     if(document.fullscreenEnabled||document.webkitFullscreenEnabled)rows.push({type:'action',label:document.fullscreenElement||document.webkitFullscreenElement?'Leave full screen':'Full screen',act:()=>{toggleFullscreen();setTimeout(()=>{if(menu.open)menu.render();},300);}});}
+  if(free&&level.kind==='city'&&onFlats(car.p[0],-car.p[2]))rows.push({type:'action',label:'Back to Shift City',act:()=>{level.spawn(car);car.pt.start();flatsRun.restart();cam.cut=true;pause(false);}});
   if(free){rows.push({type:'head',label:'Car'},
+    {type:'choice',label:'Nitrous',chips:1,get:()=>settings.nosFree,set:set('nosFree'),
+      options:[opt('endless','Endless','Free roam only: the bottle never runs dry. Events always use the real bottle.'+(spec.nosKw?'':' This car has no nitrous fitted yet: add it in the garage.')),opt('normal','Normal','The bottle empties as you use it, as in events.')]},
     {type:'choice',label:'Engine',get:()=>sandbox.setup.engine,set:v=>swapEngine(v),options:ENGINE_CHOICES.concat(['street4','three','oddv6','rotary2','eight','flat6']).filter((v,i,a)=>a.indexOf(v)===i).map(id=>{const p=SIM.PRESETS.find(q=>q.id===id);return opt(id,p.name,p.tag);})},
     {type:'choice',label:'Paint',chips:1,get:()=>sandbox.setup.paint,set:v=>sandbox.paint(v),options:Object.entries(PAINTS).map(([id,p])=>opt(id,p.name,'',{swatch:`rgb(${p.col.map(c=>Math.round(Math.pow(c,1/2.2)*255)).join(',')})`}))},
     {type:'head',label:'World'},
@@ -427,6 +442,13 @@ function hudState(){
     hint:state==='drive'&&time<6&&!mode?(touchOn()?'II FOR THE MENU · CAM CAMERA · RESET BACK ON THE ROAD':'ESC FOR THE MENU · C CAMERA · L LED MATRIX'):null};
   if(mode)Object.assign(S,mode.hud(time));
   if(freeDrift){const d=freeDrift.hud();S.freeChain=d.driftChain;S.freeMult=d.driftMult;S.freeGap=d.driftGap;}
+  /* out on the flats: which way home, and the records */
+  if(level.kind==='city'&&!mode&&onFlats(car.p[0],-car.p[2])){const x=car.p[0],y=-car.p[2],mph=settings.units==='mph',d=Math.hypot(x,y);
+    const dirs=['EAST','NORTHEAST','NORTH','NORTHWEST','WEST','SOUTHWEST','SOUTH','SOUTHEAST'],k=((Math.round(Math.atan2(-y,-x)/(Math.PI/4))%8)+8)%8;
+    S.placeSub='SHIFT CITY '+(mph?(d/1609.344).toFixed(1)+' MI':(d/1000).toFixed(1)+' KM')+' '+dirs[k];
+    const u=v=>v*(mph?2.23694:3.6),R2=flatsRun.rec;
+    S.flats={top:u(flatsRun.top),topBest:u(R2.top),fly:u(flatsRun.flying),flyBest:u(mph?R2.mile:R2.km),flyName:mph?'FLYING MILE':'FLYING KM',
+      jump:mph?R2.jump*3.28084:R2.jump,jumpUnit:mph?'FT':'M',air:R2.air};}
   return S;
 }
 
@@ -464,6 +486,8 @@ function step(dt){
   else drive=inp;
   if(state==='drive'&&car.aid.guide&&guide)drive=guide(drive);
   const pb=playerBody();if(mode&&state==='drive')drive=mode.gate(drive);
+  /* free roam: the nitrous bottle never runs dry (unless you've asked for the real one) */
+  if(state==='drive'&&session.kind==='free'&&!mode&&settings.nosFree!=='normal'&&spec.nosKw)car.pt.nos=1;
   acc+=dt;let n=0;while(acc>=DT&&n<24){car.step(DT,drive);if(mode)mode.stepPhysics(DT);if(traffic)traffic.stepPhysics(DT,pb);acc-=DT;n++;time+=DT;}
   if(acc>DT)acc=0;
   if(state==='garage'){garage.step(dt);if(garage.dyno){const w=garage.dyno.pt.meanW(garage.dyno.W);for(const wh of car.wheels)if(garage.dyno.pt.drv.includes(wh.i))wh.ang+=w*dt;}}
@@ -471,6 +495,7 @@ function step(dt){
   const ev=car.takeEvents();
   if(mode){mode.wet=env.wet;mode.update(dt,time,{ev});modeEvents();}
   if(state==='drive')freeDriftUpdate(dt,ev);
+  if(state==='drive'&&session.kind==='free'&&!mode&&level.kind==='city')flatsUpdate(dt);
   /* everyone else on screen this frame (and into the replay) */
   liveViews=[...(mode?mode.views(env.night>.3):[]),...(traffic?traffic.views({night:env.night}):[])];
   if(state==='drive')recorder.add(time,car,carView(),liveViews,car.p);
@@ -496,6 +521,7 @@ function render(dt,ev){
   let ledS=null;
   if(led){const res=settings.ledRes==='fine'?[480,270]:[320,180];if(ledHud.width!==res[0]){ledHud.width=res[0];ledHud.height=res[1];}
     ledHudView.pixel=true;ledHudView.draw(hs,dt);ledS={res,hud:R.hudTexture(ledHud),quant:15};}
+  if(level.kind==='city')flatsView.update(c.pos);
   R.render({time:R1?replay.t:time,dt,cam:c,cut:c.cut,env,flicker:flicker(time),probePos:add(subj.p,[0,.4,0]),dyn:L.dyn,headlights:L.headlights,
     occ:[[subj.p[0],subj.p[1],subj.p[2],car.c.hcg,fw[0],fw[2],car.c.body.L/2,car.c.body.W/2]],cars:[you,...others,...extraCars],
     shutter:.5,lensRain:c.lensRain*env.rain*(1-level.shelter(subj)),led:ledS,debug:Q.get('debug'),debugGain:+(Q.get('gain')||1)});
